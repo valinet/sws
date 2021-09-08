@@ -1,0 +1,84 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <Filter Include="Source Files">
+      <UniqueIdentifier>{4FC737F1-C7A5-4376-A066-2A32D752A2FF}</UniqueIdentifier>
+      <Extensions>cpp;c;cc;cxx;c++;cppm;ixx;def;odl;idl;hpj;bat;asm;asmx</Extensions>
+    </Filter>
+    <Filter Include="Header Files">
+      <UniqueIdentifier>{93995380-89BD-4b04-88EB-625FBE52EBFB}</UniqueIdentifier>
+      <Extensions>h;hh;hpp;hxx;h++;hm;inl;inc;ipp;xsd</Extensions>
+    </Filter>
+    <Filter Include="Resource Files">
+      <UniqueIdentifier>{67DA6AB6-F800-4c08-8B7A-83BB121AAD01}</UniqueIdentifier>
+      <Extensions>rc;ico;cur;bmp;dlg;rc2;rct;bin;rgs;gif;jpg;jpeg;jpe;resx;tiff;tif;png;wav;mfcribbon-ms</Extensions>
+    </Filter>
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="main.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="sws_WindowHelpers.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="sws_error.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="sws_vector.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="sws_WindowSwitcher.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="sws_WindowSwitcherLayout.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="sws_WindowSwitcherLayoutWindow.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="sws_WindowHelpers_PackageInfo.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="sws_Helpers_Gdiplus.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="sws_RegistryMonitor.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="sws_def.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="sws_WindowSwitcherLayoutWindow.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="sws_WindowHelpers.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="sws_error.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="sws_WindowSwitcher.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="sws_WindowSwitcherLayout.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="sws_vector.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="sws_WindowHelpers_PackageInfo.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="sws_Helpers_Gdiplus.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="sws_RegistryMonitor.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="sws_dll.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+  </ItemGroup>
+</Project>

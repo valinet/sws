@@ -178,7 +178,7 @@ sws_error_t sws_WindowSwitcherLayout_ComputeLayout(sws_WindowSwitcherLayout* _th
 				//wprintf(L"%s %d %f %d\n", name, cbCurrentLeft, width, cbMaxWidth);
 
 
-				if (cbCurrentLeft + width + _this->cbRightPadding + _this->cbPadding > cbMaxWidth || (iCurrentWindow == 1 && _this->pWindowList.cbSize > 2))
+				if (cbCurrentLeft + width + _this->cbRightPadding + _this->cbPadding > cbMaxWidth)
 				{
 					if (!bFinishedLayout)
 					{

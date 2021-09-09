@@ -488,7 +488,7 @@ sws_error_t sws_WindowSwitcherLayout_Initialize(sws_WindowSwitcherLayout* _this,
 		{
 			if (!pWindowList[iCurrentWindow].hIcon)
 			{
-				pWindowList[iCurrentWindow].hIcon = sws_WindowHelpers_GetIconFromHWND(pWindowList[iCurrentWindow].hWnd, &(pWindowList[iCurrentWindow].bOwnProcess), iCurrentWindow == 0);
+				pWindowList[iCurrentWindow].hIcon = sws_WindowHelpers_GetIconFromHWND(pWindowList[iCurrentWindow].hWnd, &(pWindowList[iCurrentWindow].bOwnProcess), _this->bIncludeWallpaper && iCurrentWindow == 0);
 			}
 		}
 	}

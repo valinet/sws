@@ -147,11 +147,9 @@
   <ItemGroup>
     <ClCompile Include="main.c" />
     <ClCompile Include="sws_error.c" />
-    <ClCompile Include="sws_Helpers_Gdiplus.cpp" />
     <ClCompile Include="sws_RegistryMonitor.c" />
     <ClCompile Include="sws_vector.c" />
     <ClCompile Include="sws_WindowHelpers.c" />
-    <ClCompile Include="sws_WindowHelpers_PackageInfo.cpp" />
     <ClCompile Include="sws_WindowSwitcher.c" />
     <ClCompile Include="sws_WindowSwitcherLayout.c" />
     <ClCompile Include="sws_WindowSwitcherLayoutWindow.c" />
@@ -160,11 +158,9 @@
     <ClInclude Include="sws_def.h" />
     <ClInclude Include="sws_dll.h" />
     <ClInclude Include="sws_error.h" />
-    <ClInclude Include="sws_Helpers_Gdiplus.hpp" />
     <ClInclude Include="sws_RegistryMonitor.h" />
     <ClInclude Include="sws_vector.h" />
     <ClInclude Include="sws_WindowHelpers.h" />
-    <ClInclude Include="sws_WindowHelpers_PackageInfo.hpp" />
     <ClInclude Include="sws_WindowSwitcherLayoutWindow.h" />
     <ClInclude Include="sws_WindowSwitcher.h" />
     <ClInclude Include="sws_WindowSwitcherLayout.h" />

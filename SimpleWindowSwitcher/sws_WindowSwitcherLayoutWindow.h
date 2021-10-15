@@ -14,6 +14,9 @@ typedef struct _sws_WindowSwitcherLayoutWindow
     RECT rcWindow;
     int iRowMax;
     HICON hIcon;
+    UINT szIcon;
+    RECT rcIcon;
+    BOOL bIsUWP;
     BOOL bOwnProcess;
 } sws_WindowSwitcherLayoutWindow;
 

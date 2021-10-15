@@ -8,7 +8,7 @@ sws_error_t sws_vector_PushBack(sws_vector* _this, void* pElement)
 	{
 		if (_this->cbCapacity == 0 || _this->cbElementSize == 0)
 		{
-			rv = sws_error_Report(SWS_ERROR_NO_MEMORY);
+			rv = sws_error_Report(sws_error_GetFromInternalError(SWS_ERROR_NO_MEMORY), NULL);
 		}
 	}
 	if (!rv)
@@ -23,7 +23,7 @@ sws_error_t sws_vector_PushBack(sws_vector* _this, void* pElement)
 				_this->cbElementSize = 0;
 				_this->cbCapacity = 0;
 				_this->cbSize = 0;
-				rv = sws_error_Report(SWS_ERROR_NO_MEMORY);
+				rv = sws_error_Report(sws_error_GetFromInternalError(SWS_ERROR_NO_MEMORY), NULL);
 			}
 			else
 			{
@@ -57,7 +57,7 @@ sws_error_t sws_vector_Initialize(sws_vector* _this, unsigned int cbElementSize)
 	{
 		if (!_this)
 		{
-			rv = sws_error_Report(SWS_ERROR_NO_MEMORY);
+			rv = sws_error_Report(sws_error_GetFromInternalError(SWS_ERROR_NO_MEMORY), NULL);
 		}
 	}
 	if (!rv)
@@ -65,7 +65,7 @@ sws_error_t sws_vector_Initialize(sws_vector* _this, unsigned int cbElementSize)
 		_this->pList = calloc(SWS_VECTOR_CAPACITY, cbElementSize);
 		if (!_this->pList)
 		{
-			rv = sws_error_Report(SWS_ERROR_NO_MEMORY);
+			rv = sws_error_Report(sws_error_GetFromInternalError(SWS_ERROR_NO_MEMORY), NULL);
 		}
 		_this->cbElementSize = cbElementSize;
 		_this->cbCapacity = SWS_VECTOR_CAPACITY;

@@ -52,7 +52,7 @@ sws_error_t sws_RegistryMonitor_Notify(sws_RegistryMonitor* _this, DWORD dwWakeM
 			);
 			if (lRes != ERROR_SUCCESS)
 			{
-				return sws_error_Report(sws_error_GetFromWin32Error(GetLastError()));
+				return sws_error_Report(sws_error_GetFromWin32Error(GetLastError()), NULL);
 			}
 			_this->callback(_this->ptr, FALSE, _this->buffer, _this->szBuffer);
 			LSTATUS lRes = RegNotifyChangeKeyValue(
@@ -64,7 +64,7 @@ sws_error_t sws_RegistryMonitor_Notify(sws_RegistryMonitor* _this, DWORD dwWakeM
 			);
 			if (lRes != ERROR_SUCCESS && lRes != ERROR_INVALID_HANDLE)
 			{
-				return sws_error_Report(sws_error_GetFromWin32Error(lRes));
+				return sws_error_Report(sws_error_GetFromWin32Error(lRes), NULL);
 			}
 			break;
 		case WAIT_OBJECT_0 + 2:
@@ -78,7 +78,7 @@ sws_error_t sws_RegistryMonitor_Notify(sws_RegistryMonitor* _this, DWORD dwWakeM
 			);
 			if (lRes != ERROR_SUCCESS)
 			{
-				return sws_error_Report(sws_error_GetFromWin32Error(GetLastError()));
+				return sws_error_Report(sws_error_GetFromWin32Error(GetLastError()), NULL);
 			}
 			_this->callback(_this->ptr, TRUE, _this->buffer, _this->szBuffer);
 			lRes = RegNotifyChangeKeyValue(
@@ -90,7 +90,7 @@ sws_error_t sws_RegistryMonitor_Notify(sws_RegistryMonitor* _this, DWORD dwWakeM
 			);
 			if (lRes != ERROR_SUCCESS && lRes != ERROR_INVALID_HANDLE)
 			{
-				return sws_error_Report(sws_error_GetFromWin32Error(lRes));
+				return sws_error_Report(sws_error_GetFromWin32Error(lRes), NULL);
 			}
 			break;
 		case WAIT_OBJECT_0 + 3:
@@ -100,7 +100,7 @@ sws_error_t sws_RegistryMonitor_Notify(sws_RegistryMonitor* _this, DWORD dwWakeM
 			}
 			break;
 		default:
-			return sws_error_Report(sws_error_GetFromWin32Error(GetLastError()));
+			return sws_error_Report(sws_error_GetFromWin32Error(GetLastError()), NULL);
 		}
 	}
 	return SWS_ERROR_SUCCESS;
@@ -151,7 +151,7 @@ sws_error_t sws_RegistryMonitor_Initialize(
 	}
 	if (!rv)
 	{
-		rv = sws_error_Report(wcscpy_s(_this->wszPath, _this->lenPath + 1, wszPath));
+		rv = sws_error_Report(sws_error_GetFromErrno(wcscpy_s(_this->wszPath, _this->lenPath + 1, wszPath)), NULL);
 	}
 	if (!rv)
 	{
@@ -171,7 +171,7 @@ sws_error_t sws_RegistryMonitor_Initialize(
 	}
 	if (!rv)
 	{
-		rv = sws_error_Report(wcscpy_s(_this->wszValueName, _this->lenValueName + 1, wszValueName));
+		rv = sws_error_Report(sws_error_GetFromErrno(wcscpy_s(_this->wszValueName, _this->lenValueName + 1, wszValueName)), NULL);
 	}
 	if (!rv)
 	{
@@ -181,7 +181,7 @@ sws_error_t sws_RegistryMonitor_Initialize(
 		_this->buffer = calloc(1, szBuffer);
 		if (!_this->buffer)
 		{
-			rv = sws_error_Report(SWS_ERROR_NO_MEMORY);
+			rv = sws_error_Report(sws_error_GetFromInternalError(SWS_ERROR_NO_MEMORY), NULL);
 		}
 	}
 	if (!rv)
@@ -190,7 +190,7 @@ sws_error_t sws_RegistryMonitor_Initialize(
 		_this->hLib = LoadLibraryW(L"Shlwapi.dll");
 		if (!_this->hLib)
 		{
-			rv = sws_error_Report(sws_error_GetFromWin32Error(GetLastError()));
+			rv = sws_error_Report(sws_error_GetFromWin32Error(GetLastError()), NULL);
 		}
 	}
 	if (!rv)
@@ -198,7 +198,7 @@ sws_error_t sws_RegistryMonitor_Initialize(
 		_this->SHRegGetValueFromHKCUHKLMFunc = GetProcAddress(_this->hLib, "SHRegGetValueFromHKCUHKLM");
 		if (!_this->SHRegGetValueFromHKCUHKLMFunc)
 		{
-			rv = sws_error_Report(sws_error_GetFromWin32Error(GetLastError()));
+			rv = sws_error_Report(sws_error_GetFromWin32Error(GetLastError()), NULL);
 		}
 	}
 	if (!rv)
@@ -212,7 +212,7 @@ sws_error_t sws_RegistryMonitor_Initialize(
 			&szBuffer
 		) != ERROR_SUCCESS)
 		{
-			rv = sws_error_Report(sws_error_GetFromWin32Error(GetLastError()));
+			rv = sws_error_Report(sws_error_GetFromWin32Error(GetLastError()), NULL);
 		}
 	}
 	if (!rv)
@@ -226,7 +226,7 @@ sws_error_t sws_RegistryMonitor_Initialize(
 		);
 		if (lRes != ERROR_SUCCESS && lRes != ERROR_FILE_NOT_FOUND)
 		{
-			rv = sws_error_Report(sws_error_GetFromWin32Error(lRes));
+			rv = sws_error_Report(sws_error_GetFromWin32Error(lRes), NULL);
 		}
 	}
 	if (!rv)
@@ -240,7 +240,7 @@ sws_error_t sws_RegistryMonitor_Initialize(
 		);
 		if (lRes != ERROR_SUCCESS && lRes != ERROR_FILE_NOT_FOUND)
 		{
-			rv = sws_error_Report(sws_error_GetFromWin32Error(lRes));
+			rv = sws_error_Report(sws_error_GetFromWin32Error(lRes), NULL);
 		}
 	}
 	if (!rv)
@@ -248,7 +248,7 @@ sws_error_t sws_RegistryMonitor_Initialize(
 		_this->hEvLM = CreateEvent(NULL, FALSE, FALSE, NULL);
 		if (!_this->hEvLM)
 		{
-			rv = sws_error_Report(sws_error_GetFromWin32Error(GetLastError()));
+			rv = sws_error_Report(sws_error_GetFromWin32Error(GetLastError()), NULL);
 		}
 	}
 	if (!rv)
@@ -256,7 +256,7 @@ sws_error_t sws_RegistryMonitor_Initialize(
 		_this->hEvCU = CreateEvent(NULL, FALSE, FALSE, NULL);
 		if (!_this->hEvCU)
 		{
-			rv = sws_error_Report(sws_error_GetFromWin32Error(GetLastError()));
+			rv = sws_error_Report(sws_error_GetFromWin32Error(GetLastError()), NULL);
 		}
 	}
 	if (!rv)
@@ -264,7 +264,7 @@ sws_error_t sws_RegistryMonitor_Initialize(
 		_this->hEvEx = CreateEvent(NULL, FALSE, FALSE, NULL);
 		if (!_this->hEvLM)
 		{
-			rv = sws_error_Report(sws_error_GetFromWin32Error(GetLastError()));
+			rv = sws_error_Report(sws_error_GetFromWin32Error(GetLastError()), NULL);
 		}
 	}
 	if (!rv)
@@ -278,7 +278,7 @@ sws_error_t sws_RegistryMonitor_Initialize(
 		);
 		if (lRes != ERROR_SUCCESS && lRes != ERROR_INVALID_HANDLE)
 		{
-			rv = sws_error_Report(sws_error_GetFromWin32Error(lRes));
+			rv = sws_error_Report(sws_error_GetFromWin32Error(lRes), NULL);
 		}
 	}
 	if (!rv)
@@ -292,7 +292,7 @@ sws_error_t sws_RegistryMonitor_Initialize(
 		);
 		if (lRes != ERROR_SUCCESS && lRes != ERROR_INVALID_HANDLE)
 		{
-			rv = sws_error_Report(sws_error_GetFromWin32Error(lRes));
+			rv = sws_error_Report(sws_error_GetFromWin32Error(lRes), NULL);
 		}
 	}
 	

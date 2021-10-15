@@ -2,10 +2,7 @@
 
 static BOOL CALLBACK _sws_WindowSwitcherLayout_EnumWindowsCallback(_In_ HWND hWnd, _In_ sws_WindowSwitcherLayout* _this)
 {
-	BOOL isCloaked;
-	DwmGetWindowAttribute(hWnd, DWMWA_CLOAKED, &isCloaked, sizeof(BOOL));
-
-	if (sws_WindowHelpers_IsAltTabWindow(hWnd) && !isCloaked)
+	if (sws_WindowHelpers_IsAltTabWindow(hWnd) || (_this->bIncludeWallpaper && !_this->bWallpaperAlwaysLast && hWnd == _this->hWndWallpaper))
 	{
 		sws_WindowSwitcherLayoutWindow swsLayoutWindow;
 		sws_WindowSwitcherLayoutWindow_Initialize(&swsLayoutWindow, hWnd);
@@ -29,13 +26,34 @@ sws_error_t sws_WindowSwitcherLayout_InvalidateLayout(sws_WindowSwitcherLayout* 
 	}
 }
 
-sws_error_t sws_WindowSwitcherLayout_ComputeLayout(sws_WindowSwitcherLayout* _this, int direction)
+static inline unsigned int _sws_WindowSwitcherLayout_GetInitialLeft(sws_WindowSwitcherLayout* _this)
+{
+	return _this->cbElementLeftPadding + _this->cbLeftPadding;
+}
+
+static inline unsigned int _sws_WindowSwitcherLayout_GetRightIncrement(sws_WindowSwitcherLayout* _this)
+{
+	return (_this->cbRightPadding + _this->cbElementRightPadding) + _sws_WindowSwitcherLayout_GetInitialLeft(_this);
+}
+
+static inline unsigned int _sws_WindowSwitcherLayout_GetInitialTop(sws_WindowSwitcherLayout* _this)
+{
+	return _this->cbElementTopPadding + (_this->cbTopPadding + _this->cbRowTitleHeight + _this->cbVDividerPadding);
+}
+
+static inline unsigned int _sws_WindowSwitcherLayout_GetBottomIncrement(sws_WindowSwitcherLayout* _this)
+{
+	return (_this->cbThumbnailAvailableHeight + _this->cbBottomPadding) + _this->cbElementBottomPadding + _sws_WindowSwitcherLayout_GetInitialTop(_this);
+}
+
+sws_error_t sws_WindowSwitcherLayout_ComputeLayout(sws_WindowSwitcherLayout* _this, int direction, HWND hTarget)
 {
 	sws_error_t rv = SWS_ERROR_SUCCESS;
 
 	if (!rv)
 	{
-		unsigned int cbInitialLeft = _this->cbPadding + _this->cbLeftPadding, cbInitialTop = _this->cbPadding + _this->cbTopPadding + _this->cbRowTitleHeight + _this->cbBottomPadding;
+		unsigned int cbInitialLeft = _sws_WindowSwitcherLayout_GetInitialLeft(_this) + _this->cbMasterLeftPadding;
+		unsigned int cbInitialTop = _sws_WindowSwitcherLayout_GetInitialTop(_this) + _this->cbMasterTopPadding;
 		unsigned int cbCurrentLeft = cbInitialLeft, cbCurrentTop = cbInitialTop;
 		unsigned int cbMaxWidthHit = 0, cbMaxWidth = 0;
 
@@ -45,7 +63,7 @@ sws_error_t sws_WindowSwitcherLayout_ComputeLayout(sws_WindowSwitcherLayout* _th
 
 		if (_this->iWidth)
 		{
-			cbMaxWidth = _this->iWidth - _this->cbPadding;
+			cbMaxWidth = _this->iWidth; // -_this->cbPadding; !!!!!
 		}
 		else
 		{
@@ -102,8 +120,8 @@ sws_error_t sws_WindowSwitcherLayout_ComputeLayout(sws_WindowSwitcherLayout* _th
 		{
 			int iCurrentCount = 0;
 
-			cbInitialLeft = _this->cbPadding + _this->cbLeftPadding;
-			cbInitialTop = _this->cbPadding + _this->cbTopPadding + _this->cbRowTitleHeight;
+			cbInitialLeft = _sws_WindowSwitcherLayout_GetInitialLeft(_this) + _this->cbMasterLeftPadding;
+			cbInitialTop = _sws_WindowSwitcherLayout_GetInitialTop(_this) + _this->cbMasterTopPadding;
 			cbCurrentLeft = cbInitialLeft;
 			cbCurrentTop = cbInitialTop;
 			cbMaxWidthHit = 0, cbMaxWidth = 0;
@@ -121,7 +139,7 @@ sws_error_t sws_WindowSwitcherLayout_ComputeLayout(sws_WindowSwitcherLayout* _th
 
 				if (_this->iWidth)
 				{
-					cbMaxWidth = _this->iWidth + _this->cbPadding + _this->cbRightPadding;
+					cbMaxWidth = _this->iWidth; // +_this->cbPadding + _this->cbRightPadding; // ?????
 				}
 				else
 				{
@@ -152,9 +170,11 @@ sws_error_t sws_WindowSwitcherLayout_ComputeLayout(sws_WindowSwitcherLayout* _th
 					pWindowList[iCurrentWindow].hThumbnail = 0;
 				}
 
-				double width;
-				
-				if (_this->bIncludeWallpaper && iCurrentWindow == 0)
+				unsigned int width = 0, original_width = 0;
+				// original_width indicates that the window's width was too large, so we
+				// reduced it and need to scale the height appropiately
+
+				if (_this->bIncludeWallpaper && pWindowList[iCurrentWindow].hWnd == _this->hWndWallpaper)
 				{
 					width = ((_this->mi.rcMonitor.right - _this->mi.rcMonitor.left) *
 						_this->cbThumbnailAvailableHeight) /
@@ -165,6 +185,11 @@ sws_error_t sws_WindowSwitcherLayout_ComputeLayout(sws_WindowSwitcherLayout* _th
 					width = ((pWindowList[iCurrentWindow].sizWindow.cx) *
 						_this->cbThumbnailAvailableHeight) /
 						(pWindowList[iCurrentWindow].sizWindow.cy);
+				}
+				if (width > _this->cbMaxTileWidth)
+				{
+					original_width = width;
+					width = _this->cbMaxTileWidth;
 				}
 
 				if (bFinishedLayout)
@@ -178,7 +203,8 @@ sws_error_t sws_WindowSwitcherLayout_ComputeLayout(sws_WindowSwitcherLayout* _th
 				//wprintf(L"%s %d %f %d\n", name, cbCurrentLeft, width, cbMaxWidth);
 
 
-				if (cbCurrentLeft + width + _this->cbRightPadding + _this->cbPadding > cbMaxWidth)
+				//if (cbCurrentLeft + width + _this->cbRightPadding + _this->cbPadding > cbMaxWidth) !!!!!
+				if (cbCurrentLeft + width + _sws_WindowSwitcherLayout_GetRightIncrement(_this) - _sws_WindowSwitcherLayout_GetInitialLeft(_this) > cbMaxWidth - _this->cbMasterRightPadding)
 				{
 					if (!bFinishedLayout)
 					{
@@ -188,7 +214,7 @@ sws_error_t sws_WindowSwitcherLayout_ComputeLayout(sws_WindowSwitcherLayout* _th
 						{
 							if (pWindowList[k].iRowMax == -1)
 							{
-								pWindowList[k].iRowMax = cbCurrentLeft - _this->cbLeftPadding;
+								pWindowList[k].iRowMax = cbCurrentLeft - _sws_WindowSwitcherLayout_GetInitialLeft(_this);
 							}
 							else
 							{
@@ -200,14 +226,28 @@ sws_error_t sws_WindowSwitcherLayout_ComputeLayout(sws_WindowSwitcherLayout* _th
 							//}
 						}
 					}
-					if (cbCurrentLeft - _this->cbLeftPadding > cbMaxWidthHit)
+					//if (cbCurrentLeft - _this->cbLeftPadding > cbMaxWidthHit) !!!!!
+					if (cbCurrentLeft - _sws_WindowSwitcherLayout_GetInitialLeft(_this) > cbMaxWidthHit)
 					{
-						cbMaxWidthHit = cbCurrentLeft - _this->cbLeftPadding;
+						// cbMaxWidthHit = cbCurrentLeft - _this->cbLeftPadding; !!!!!
+						cbMaxWidthHit = cbCurrentLeft - _sws_WindowSwitcherLayout_GetInitialLeft(_this);
 					}
 					if (!bFinishedLayout)
 					{
-						if (cbCurrentTop + _this->cbThumbnailAvailableHeight + _this->cbBottomPadding > _this->cbMaxHeight)
+						//printf(
+						//	"compare %d %f %f\n", iCurrentWindow,
+						//	cbCurrentTop + _this->cbThumbnailAvailableHeight + _this->cbBottomPadding,
+						//	_this->cbMaxHeight
+						//	);
+						
+						//if (cbCurrentTop + _this->cbThumbnailAvailableHeight + _this->cbBottomPadding > _this->cbMaxHeight) !!!!!
+						if (cbCurrentTop + 
+							_sws_WindowSwitcherLayout_GetBottomIncrement(_this) +
+							_sws_WindowSwitcherLayout_GetBottomIncrement(_this) - _sws_WindowSwitcherLayout_GetInitialTop(_this) >
+							_this->cbMaxHeight - _this->cbMasterBottomPadding)
 						{
+							//cbCurrentTop -= cbInitialTop + _this->cbPadding; !!!
+
 							HWND hWnd = pWindowList[iCurrentWindow].hWnd;
 							sws_WindowSwitcherLayoutWindow_Erase(&(pWindowList[iCurrentWindow]));
 							iTarget = iCurrentWindow + 1;
@@ -222,29 +262,48 @@ sws_error_t sws_WindowSwitcherLayout_ComputeLayout(sws_WindowSwitcherLayout* _th
 							}
 						}
 					}
-					cbCurrentLeft = cbInitialLeft;
 					if (!bFinishedLayout)
 					{
-						cbCurrentTop += _this->cbThumbnailAvailableHeight + _this->cbBottomPadding + cbInitialTop;
+						//cbCurrentTop += _this->cbThumbnailAvailableHeight + _this->cbBottomPadding + cbInitialTop; !!!!!
+						cbCurrentTop = cbCurrentTop + _sws_WindowSwitcherLayout_GetBottomIncrement(_this);
 					}
+					cbCurrentLeft = cbInitialLeft;
 				}
 
 				//printf("%d %d\n", cbCurrentLeft, cbCurrentTop);
 
 				if (!bFinishedLayout)
 				{
+					long hdiff = 0;
+
 					pWindowList[iCurrentWindow].rcThumbnail.left = cbCurrentLeft;
 					pWindowList[iCurrentWindow].rcThumbnail.top = cbCurrentTop;
 					pWindowList[iCurrentWindow].rcThumbnail.right = cbCurrentLeft + width;
 					pWindowList[iCurrentWindow].rcThumbnail.bottom = cbCurrentTop + _this->cbThumbnailAvailableHeight;
+					if (original_width)
+					{
+						hdiff = pWindowList[iCurrentWindow].rcThumbnail.bottom;
+						pWindowList[iCurrentWindow].rcThumbnail.bottom = cbCurrentTop + (width * _this->cbThumbnailAvailableHeight) / (original_width * 1.0);
+						hdiff -= pWindowList[iCurrentWindow].rcThumbnail.bottom;
+					}
 
-					pWindowList[iCurrentWindow].rcWindow.left = cbCurrentLeft - _this->cbLeftPadding;
-					pWindowList[iCurrentWindow].rcWindow.top = cbCurrentTop - _this->cbTopPadding - _this->cbRowTitleHeight;
-					pWindowList[iCurrentWindow].rcWindow.right = cbCurrentLeft + width + _this->cbRightPadding;
-					pWindowList[iCurrentWindow].rcWindow.bottom = cbCurrentTop + _this->cbThumbnailAvailableHeight + _this->cbBottomPadding;
+					pWindowList[iCurrentWindow].rcWindow.left = cbCurrentLeft - _sws_WindowSwitcherLayout_GetInitialLeft(_this) + _this->cbElementLeftPadding;
+					pWindowList[iCurrentWindow].rcWindow.top = cbCurrentTop - _sws_WindowSwitcherLayout_GetInitialTop(_this) + _this->cbElementTopPadding;
+					pWindowList[iCurrentWindow].rcWindow.right = cbCurrentLeft + width + _sws_WindowSwitcherLayout_GetRightIncrement(_this) - _sws_WindowSwitcherLayout_GetInitialLeft(_this) - _this->cbElementRightPadding;
+					pWindowList[iCurrentWindow].rcWindow.bottom = cbCurrentTop + _sws_WindowSwitcherLayout_GetBottomIncrement(_this) - _sws_WindowSwitcherLayout_GetInitialTop(_this) - _this->cbElementBottomPadding;
+					if (original_width)
+					{
+						pWindowList[iCurrentWindow].rcWindow.bottom -= hdiff;
+					}
+
+					//pWindowList[iCurrentWindow].rcWindow.left = cbCurrentLeft - _this->cbLeftPadding;
+					//pWindowList[iCurrentWindow].rcWindow.top = cbCurrentTop - _this->cbTopPadding - _this->cbRowTitleHeight;
+					//pWindowList[iCurrentWindow].rcWindow.right = cbCurrentLeft + width + _this->cbRightPadding;
+					//pWindowList[iCurrentWindow].rcWindow.bottom = cbCurrentTop + _this->cbThumbnailAvailableHeight + _this->cbBottomPadding;
 				}
 
-				cbCurrentLeft += width + _this->cbRightPadding + _this->cbLeftPadding;
+				//cbCurrentLeft += width + _this->cbRightPadding + _this->cbLeftPadding; !!!!!
+				cbCurrentLeft = cbCurrentLeft + width + _sws_WindowSwitcherLayout_GetRightIncrement(_this);
 
 				/*if (iCurrentWindow == 0)
 				{
@@ -259,6 +318,42 @@ sws_error_t sws_WindowSwitcherLayout_ComputeLayout(sws_WindowSwitcherLayout* _th
 				}
 			}
 
+			if (hTarget && direction == SWS_WINDOWSWITCHERLAYOUT_COMPUTE_DIRECTION_INITIAL)
+			{
+				BOOL bShouldBreak = FALSE;
+				int iObtained = 0;
+				for (int j = 0; j < _this->pWindowList.cbSize; ++j)
+				{
+					if (pWindowList[j].hThumbnail)
+					{
+						if (pWindowList[j].hWnd == hTarget)
+						{
+							bShouldBreak = TRUE;
+						}
+						iObtained = j;
+					}
+				}
+				if (bShouldBreak)
+				{
+					break;
+				}
+				else
+				{
+					int iTmpTop = pWindowList[iObtained].rcWindow.top;
+					for (int j = iObtained; j >= 0; j--)
+					{
+						if (pWindowList[j].rcWindow.top != iTmpTop)
+						{
+							iObtained = j;
+							break;
+						}
+					}
+					sws_WindowSwitcherLayout_InvalidateLayout(_this);
+					iObtainedIndex = iObtained;
+					bFinishedLayout = FALSE;
+				}
+				continue;
+			}
 			if (!bHasTarget)
 			{
 				break;
@@ -290,17 +385,17 @@ sws_error_t sws_WindowSwitcherLayout_ComputeLayout(sws_WindowSwitcherLayout* _th
 			}
 		}
 
-
-		if (cbCurrentLeft - _this->cbLeftPadding > cbMaxWidthHit)
+		//if (cbCurrentLeft - _this->cbLeftPadding > cbMaxWidthHit) !!!!!
+		if (cbCurrentLeft - _sws_WindowSwitcherLayout_GetInitialLeft(_this) > cbMaxWidthHit)
 		{
-			cbMaxWidthHit = cbCurrentLeft - _this->cbLeftPadding;
+			// cbMaxWidthHit = cbCurrentLeft - _this->cbLeftPadding; !!!!!
+			cbMaxWidthHit = cbCurrentLeft - _sws_WindowSwitcherLayout_GetInitialLeft(_this);
 		}
-
 		for (int k = 0; k < _this->pWindowList.cbSize; ++k)
 		{
 			if (pWindowList[k].iRowMax == -1)
 			{
-				pWindowList[k].iRowMax = cbCurrentLeft - _this->cbLeftPadding;
+				pWindowList[k].iRowMax = cbCurrentLeft - _sws_WindowSwitcherLayout_GetInitialLeft(_this);
 			}
 			else
 			{
@@ -312,17 +407,21 @@ sws_error_t sws_WindowSwitcherLayout_ComputeLayout(sws_WindowSwitcherLayout* _th
 			//}
 		}
 
-		if (_this->iWidth)
-		{
-			cbMaxWidthHit = _this->iWidth - _this->cbPadding;
-		}
+		// ?????
+		//if (_this->iWidth)
+		//{
+		//	cbMaxWidthHit = _this->iWidth - _this->cbPadding;
+		//}
 
 		if (!_this->iWidth)
 		{
-			_this->iHeight = cbCurrentTop + _this->cbThumbnailAvailableHeight + _this->cbBottomPadding + _this->cbPadding;
-			_this->iWidth = cbMaxWidthHit + _this->cbPadding;
+			//_this->iHeight = cbCurrentTop + _this->cbThumbnailAvailableHeight + _this->cbBottomPadding + _this->cbPadding; !!!!!
+			_this->iHeight = cbCurrentTop + _sws_WindowSwitcherLayout_GetBottomIncrement(_this) - _sws_WindowSwitcherLayout_GetInitialTop(_this) + _this->cbMasterBottomPadding;
+			//_this->iWidth = cbMaxWidthHit + _this->cbPadding; !!!!!
+			_this->iWidth = cbMaxWidthHit + _this->cbMasterRightPadding;
 			_this->iX = ((_this->mi.rcWork.right - _this->mi.rcWork.left) - _this->iWidth) / 2 + _this->mi.rcWork.left;
 			_this->iY = ((_this->mi.rcWork.bottom - _this->mi.rcWork.top) - _this->iHeight) / 2 + _this->mi.rcWork.top;
+			//printf("height: %d, cbCurrentTop: %d, %f %f %f\n", _this->iHeight, cbCurrentTop, _this->cbThumbnailAvailableHeight, _this->cbBottomPadding, _this->cbPadding);
 		}
 
 		for (int iCurrentWindow = _this->pWindowList.cbSize - 1; iCurrentWindow >= 0; iCurrentWindow--)
@@ -331,7 +430,7 @@ sws_error_t sws_WindowSwitcherLayout_ComputeLayout(sws_WindowSwitcherLayout* _th
 			{
 				if (pWindowList[iCurrentWindow].hThumbnail)
 				{
-					unsigned int diff = cbMaxWidthHit < pWindowList[iCurrentWindow].iRowMax ? 0 : cbMaxWidthHit - pWindowList[iCurrentWindow].iRowMax;
+					unsigned int diff = (_this->iWidth - _this->cbMasterRightPadding) < pWindowList[iCurrentWindow].iRowMax ? 0 : _this->iWidth - _this->cbMasterRightPadding - pWindowList[iCurrentWindow].iRowMax;
 					pWindowList[iCurrentWindow].rcThumbnail.left += diff / 2;
 					pWindowList[iCurrentWindow].rcThumbnail.right += diff / 2;
 					////wchar_t name[200];
@@ -347,7 +446,7 @@ sws_error_t sws_WindowSwitcherLayout_ComputeLayout(sws_WindowSwitcherLayout* _th
 					dskThumbProps.fVisible = TRUE;
 					dskThumbProps.opacity = 255;
 					dskThumbProps.rcDestination = pWindowList[iCurrentWindow].rcThumbnail;
-					if (_this->bIncludeWallpaper && iCurrentWindow == 0)
+					if (_this->bIncludeWallpaper && pWindowList[iCurrentWindow].hWnd == _this->hWndWallpaper)
 					{
 						dskThumbProps.dwFlags |= DWM_TNP_RECTSOURCE;
 						dskThumbProps.rcSource.left = _this->mi.rcMonitor.left;
@@ -384,6 +483,8 @@ void sws_WindowSwitcherLayout_Clear(sws_WindowSwitcherLayout* _this)
 {
 	if (_this)
 	{
+		DeleteObject(_this->hFontRegular);
+		DeleteObject(_this->hFontRegular2);
 		sws_WindowSwitcherLayoutWindow* pWindowList = _this->pWindowList.pList;
 		if (pWindowList)
 		{
@@ -405,7 +506,7 @@ sws_error_t sws_WindowSwitcherLayout_Initialize(sws_WindowSwitcherLayout* _this,
 	{
 		if (!_this)
 		{
-			rv = sws_error_Report(SWS_ERROR_NO_MEMORY);
+			rv = sws_error_Report(sws_error_GetFromInternalError(SWS_ERROR_NO_MEMORY), NULL);
 		}
 		memset(_this, 0, sizeof(sws_WindowSwitcherLayout));
 	}
@@ -425,17 +526,24 @@ sws_error_t sws_WindowSwitcherLayout_Initialize(sws_WindowSwitcherLayout* _this,
 			&(_this->mi)
 		))
 		{
-			rv = sws_error_Report(sws_error_GetFromWin32Error(GetLastError()));
+			rv = sws_error_Report(sws_error_GetFromWin32Error(GetLastError()), NULL);
 		}
 	}
 	if (!rv)
 	{
+		_this->bWallpaperAlwaysLast = SWS_WINDOWSWITCHERLAYOUT_WALLPAPER_ALWAYS_LAST;
 		_this->bIncludeWallpaper = SWS_WINDOWSWITCHERLAYOUT_INCLUDE_WALLPAPER;
+		_this->bWallpaperToggleBehavior = SWS_WINDOWSWITCHERLAYOUT_WALLPAPER_TOGGLE;
+		_this->hWndWallpaper = NULL;
 		if (_this->bIncludeWallpaper)
 		{
-			sws_WindowSwitcherLayoutWindow swsLayoutWindow;
-			sws_WindowSwitcherLayoutWindow_Initialize(&swsLayoutWindow, sws_WindowHelpers_GetWallpaperHWND(hMonitor));
-			sws_vector_PushBack(&_this->pWindowList, &swsLayoutWindow);
+			_this->hWndWallpaper = sws_WindowHelpers_GetWallpaperHWND(hMonitor);
+			if (_this->bWallpaperAlwaysLast)
+			{
+				sws_WindowSwitcherLayoutWindow swsLayoutWindow;
+				sws_WindowSwitcherLayoutWindow_Initialize(&swsLayoutWindow, sws_WindowHelpers_GetWallpaperHWND(hMonitor));
+				sws_vector_PushBack(&_this->pWindowList, &swsLayoutWindow);
+			}
 		}
 	}
 	if (!rv)
@@ -448,11 +556,21 @@ sws_error_t sws_WindowSwitcherLayout_Initialize(sws_WindowSwitcherLayout* _this,
 	_this->cbRowWidth = 0;
 	_this->cbRowHeight = SWS_WINDOWSWITCHERLAYOUT_ROWHEIGHT;
 	_this->cbRowTitleHeight = SWS_WINDOWSWITCHERLAYOUT_ROWTITLEHEIGHT;
-	_this->cbPadding = SWS_WINDOWSWITCHERLAYOUT_PADDING;
+	_this->cbMasterTopPadding = SWS_WINDOWSWITCHERLAYOUT_MASTER_PADDING_TOP;
+	_this->cbMasterBottomPadding = SWS_WINDOWSWITCHERLAYOUT_MASTER_PADDING_BOTTOM;
+	_this->cbMasterLeftPadding = SWS_WINDOWSWITCHERLAYOUT_MASTER_PADDING_LEFT;
+	_this->cbMasterRightPadding = SWS_WINDOWSWITCHERLAYOUT_MASTER_PADDING_RIGHT;
+	_this->cbElementTopPadding = SWS_WINDOWSWITCHERLAYOUT_ELEMENT_PADDING_TOP;
+	_this->cbElementBottomPadding = SWS_WINDOWSWITCHERLAYOUT_ELEMENT_PADDING_BOTTOM;
+	_this->cbElementLeftPadding = SWS_WINDOWSWITCHERLAYOUT_ELEMENT_PADDING_LEFT;
+	_this->cbElementRightPadding = SWS_WINDOWSWITCHERLAYOUT_ELEMENT_PADDING_RIGHT;
 	_this->cbTopPadding = SWS_WINDOWSWITCHERLAYOUT_PADDING_TOP;
 	_this->cbBottomPadding = SWS_WINDOWSWITCHERLAYOUT_PADDING_BOTTOM;
 	_this->cbLeftPadding = SWS_WINDOWSWITCHERLAYOUT_PADDING_LEFT;
 	_this->cbRightPadding = SWS_WINDOWSWITCHERLAYOUT_PADDING_RIGHT;
+	_this->cbHDividerPadding = SWS_WINDOWSWITCHERLAYOUT_PADDING_DIVIDER_HORIZONTAL;
+	_this->cbHDividerPadding = SWS_WINDOWSWITCHERLAYOUT_PADDING_DIVIDER_HORIZONTAL;
+	_this->cbMaxTileWidth = SWS_WINDOWSWITCHERLAYOUT_MAX_TILE_WIDTH;
 	_this->cbThumbnailAvailableHeight = 0;
 	_this->hWnd = hWnd;
 	_this->hMonitor = hMonitor;
@@ -469,15 +587,25 @@ sws_error_t sws_WindowSwitcherLayout_Initialize(sws_WindowSwitcherLayout* _this,
 			&(_this->cbDpiX),
 			&(_this->cbDpiY)
 		);
-		rv = sws_error_Report(sws_error_GetFromHRESULT(hr));
+		rv = sws_error_Report(sws_error_GetFromHRESULT(hr), NULL);
 
 		_this->cbRowHeight *= (_this->cbDpiY / DEFAULT_DPI_Y);
 		_this->cbRowTitleHeight *= (_this->cbDpiY / DEFAULT_DPI_X);
+		_this->cbMasterTopPadding *= (_this->cbDpiY / DEFAULT_DPI_Y);
+		_this->cbMasterLeftPadding *= (_this->cbDpiX / DEFAULT_DPI_X);
+		_this->cbMasterBottomPadding *= (_this->cbDpiY / DEFAULT_DPI_Y);
+		_this->cbMasterRightPadding *= (_this->cbDpiX / DEFAULT_DPI_X);
 		_this->cbTopPadding *= (_this->cbDpiY / DEFAULT_DPI_Y);
 		_this->cbLeftPadding *= (_this->cbDpiX / DEFAULT_DPI_X);
 		_this->cbBottomPadding *= (_this->cbDpiY / DEFAULT_DPI_Y);
 		_this->cbRightPadding *= (_this->cbDpiX / DEFAULT_DPI_X);
-		_this->cbPadding *= (_this->cbDpiX / DEFAULT_DPI_X);
+		_this->cbElementTopPadding *= (_this->cbDpiY / DEFAULT_DPI_Y);
+		_this->cbElementLeftPadding *= (_this->cbDpiX / DEFAULT_DPI_X);
+		_this->cbElementBottomPadding *= (_this->cbDpiY / DEFAULT_DPI_Y);
+		_this->cbElementRightPadding *= (_this->cbDpiX / DEFAULT_DPI_X);
+		_this->cbHDividerPadding *= (_this->cbDpiY / DEFAULT_DPI_Y);
+		_this->cbVDividerPadding *= (_this->cbDpiX / DEFAULT_DPI_X);
+		_this->cbMaxTileWidth *= (_this->cbDpiX / DEFAULT_DPI_X);
 
 		_this->cbThumbnailAvailableHeight = _this->cbRowHeight - _this->cbRowTitleHeight - _this->cbTopPadding - 2 * _this->cbBottomPadding;
 	}
@@ -488,8 +616,51 @@ sws_error_t sws_WindowSwitcherLayout_Initialize(sws_WindowSwitcherLayout* _this,
 		{
 			if (!pWindowList[iCurrentWindow].hIcon)
 			{
-				pWindowList[iCurrentWindow].hIcon = sws_WindowHelpers_GetIconFromHWND(pWindowList[iCurrentWindow].hWnd, &(pWindowList[iCurrentWindow].bOwnProcess), _this->bIncludeWallpaper && iCurrentWindow == 0);
+				double factor = SWS_UWP_ICON_SCALE_FACTOR;
+				pWindowList[iCurrentWindow].rcIcon.left = 0;
+				pWindowList[iCurrentWindow].rcIcon.top = 0;
+				pWindowList[iCurrentWindow].rcIcon.right = _this->cbRowTitleHeight * (SWS_WINDOWSWITCHERLAYOUT_PERCENTAGEICON / 100.0);
+				pWindowList[iCurrentWindow].rcIcon.bottom = pWindowList[iCurrentWindow].rcIcon.right;
+				pWindowList[iCurrentWindow].szIcon = pWindowList[iCurrentWindow].rcIcon.right;
+				int szIcon = pWindowList[iCurrentWindow].szIcon / factor;
+				pWindowList[iCurrentWindow].hIcon = sws_WindowHelpers_GetIconFromHWND(
+					pWindowList[iCurrentWindow].hWnd, 
+					&(pWindowList[iCurrentWindow].bOwnProcess), 
+					_this->bIncludeWallpaper && pWindowList[iCurrentWindow].hWnd == _this->hWndWallpaper, 
+					&szIcon
+				);
+				pWindowList[iCurrentWindow].bIsUWP = FALSE;
+				if (!szIcon)
+				{
+					pWindowList[iCurrentWindow].bIsUWP = TRUE;
+					szIcon = pWindowList[iCurrentWindow].rcIcon.right;
+					szIcon = szIcon * factor;
+					szIcon = pWindowList[iCurrentWindow].rcIcon.right - szIcon;
+					pWindowList[iCurrentWindow].rcIcon.left = szIcon / 2;
+					pWindowList[iCurrentWindow].rcIcon.top = szIcon / 2;
+					pWindowList[iCurrentWindow].rcIcon.right = pWindowList[iCurrentWindow].rcIcon.right + szIcon;
+					pWindowList[iCurrentWindow].rcIcon.bottom = pWindowList[iCurrentWindow].rcIcon.bottom + szIcon;
+				}
 			}
+		}
+	}
+	if (!rv)
+	{
+		LOGFONT logFont;
+		memset(&logFont, 0, sizeof(logFont));
+		logFont.lfHeight = SWS_FONT_SIZE * (_this->cbDpiY / DEFAULT_DPI_Y);
+		wcscpy_s(logFont.lfFaceName, 32, _T(SWS_FONT_NAME));
+		logFont.lfWeight = FW_REGULAR;
+		_this->hFontRegular = CreateFontIndirectW(&logFont);
+		if (!_this->hFontRegular)
+		{
+			rv = sws_error_Report(sws_error_GetFromWin32Error(GetLastError()), NULL);
+		}
+		logFont.lfHeight = SWS_FONT_SIZE2 * (_this->cbDpiY / DEFAULT_DPI_Y);
+		_this->hFontRegular2 = CreateFontIndirectW(&logFont);
+		if (!_this->hFontRegular2)
+		{
+			rv = sws_error_Report(sws_error_GetFromWin32Error(GetLastError()), NULL);
 		}
 	}
 

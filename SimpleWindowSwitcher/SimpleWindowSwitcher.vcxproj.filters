@@ -36,12 +36,6 @@
     <ClCompile Include="sws_WindowSwitcherLayoutWindow.c">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="sws_WindowHelpers_PackageInfo.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="sws_Helpers_Gdiplus.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
     <ClCompile Include="sws_RegistryMonitor.c">
       <Filter>Source Files</Filter>
     </ClCompile>
@@ -66,12 +60,6 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="sws_vector.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="sws_WindowHelpers_PackageInfo.hpp">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="sws_Helpers_Gdiplus.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="sws_RegistryMonitor.h">

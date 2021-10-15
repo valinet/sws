@@ -7,6 +7,11 @@
 #include <appmodel.h>
 #include <shlwapi.h>
 #pragma comment(lib, "Shlwapi.lib")
+#include <dwmapi.h>
+#pragma comment(lib, "Dwmapi.lib")
+#include <ShlObj.h>
+#include <commctrl.h>
+#pragma comment(lib, "Comctl32.lib")
 #include "sws_def.h"
 #include "sws_error.h"
 
@@ -14,6 +19,25 @@
 // RealEnumWindows: https://stackoverflow.com/questions/38205375/enumwindows-function-in-win10-enumerates-only-desktop-apps
 // IsAltTabWindow: https://devblogs.microsoft.com/oldnewthing/20071008-00/?p=24863
 // GetIconFromHWND: https://github.com/cairoshell/ManagedShell/blob/master/src/ManagedShell.WindowsTasks/ApplicationWindow.cs
+
+// bcc18b79-ba16-442f-80c4-8a59c30c463b
+DEFINE_GUID(__uuidof_IShellItemImageFactory,
+	0xbcc18b79,
+	0xba16, 0x442f, 0x80, 0xc4,
+	0x8a, 0x59, 0xc3, 0x0c, 0x46, 0x3b
+);
+
+DEFINE_GUID(__uuidof_IShellItem2,
+	0x7e9fb0d3,
+	0x919f, 0x4307, 0xab, 0x2e,
+	0x9b, 0x18, 0x60, 0x31, 0x0c, 0x93
+);
+
+DEFINE_GUID(FOLDERID_AppsFolder,
+	0x1e87508d,
+	0x89c2, 0x42f0, 0x8a, 0x7e,
+	0x64, 0x5a, 0x0f, 0x50, 0xca, 0x58
+);
 
 DEFINE_GUID(__uuidof_IPropertyStore,
 	0x886D8EEB,
@@ -76,8 +100,13 @@ typedef HWND(WINAPI* pCreateWindowInBand)(
 	);
 extern pCreateWindowInBand _sws_CreateWindowInBand;
 
+typedef BOOL(WINAPI* pSetWindowBand)(HWND hWnd, HWND hwndInsertAfter, DWORD dwBand);
+extern pSetWindowBand _sws_SetWindowBand;
+
 typedef BOOL(WINAPI* pGetWindowBand)(HWND hWnd, PDWORD pdwBand);
 extern pGetWindowBand _sws_GetWindowBand;
+
+BOOL(*_sws_IsTopLevelWindow)(HWND);
 
 enum ZBID
 {
@@ -125,7 +154,9 @@ void sws_WindowHelpers_SetWindowBlur(HWND hWnd, int type, DWORD Color, DWORD Opa
 
 BOOL sws_WindowHelpers_IsAltTabWindow(_In_ HWND hwnd);
 
-HICON sws_WindowHelpers_GetIconFromHWND(HWND hWnd, BOOL* bOwnProcess, BOOL bIsDesktop);
+void sws_WindowHelpers_GetDesktopText(wchar_t* wszTitle);
+
+__declspec(dllexport) HICON sws_WindowHelpers_GetIconFromHWND(HWND hWnd, BOOL* bOwnProcess, BOOL bIsDesktop, UINT* szIcon);
 
 static BOOL CALLBACK _sws_WindowHelpers_GetWallpaperHWNDCallback(_In_ HWND hwnd, _Out_ LPARAM lParam);
 
@@ -135,4 +166,19 @@ void sws_WindowHelpers_Release();
 
 sws_error_t sws_WindowHelpers_Initialize();
 
+inline void _sws_WindowHelpers_ToggleDesktop()
+{
+	PostMessageW(FindWindowExW(NULL, NULL, L"Shell_TrayWnd", NULL), 0x579, 3 - 1, 0); // 1 to restore
+	PostMessageW(FindWindowExW(NULL, NULL, L"Shell_TrayWnd", NULL), 0x579, 3 - 0, 0); // 0 to show
+}
+
+inline void _sws_WindowHelpers_ForceCloseWindow(HWND hWnd)
+{
+	EndTask(hWnd, FALSE, TRUE);
+}
+
+inline void _sws_WindowHelpers_CloseWindow(HWND hWnd)
+{
+	EndTask(hWnd, FALSE, FALSE);
+}
 #endif

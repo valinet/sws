@@ -96,57 +96,76 @@ void sws_error_PrintStackTrace()
 
 char* sws_error_NumToDescription(sws_error_t errnum)
 {
-    return NULL;
+    char* ret = NULL;
+    switch (errnum)
+    {
+    case SWS_ERROR_SUCCESS:
+        ret = SWS_ERROR_SUCCESS_TEXT;
+        break;
+    case SWS_ERROR_ERROR:
+        ret = SWS_ERROR_ERROR_TEXT;
+        break;
+    case SWS_ERROR_GENERIC_ERROR:
+        ret = SWS_ERROR_GENERIC_ERROR_TEXT;
+        break;
+    case SWS_ERROR_NO_MEMORY:
+        ret = SWS_ERROR_NO_MEMORY_TEXT;
+        break;
+    case SWS_ERROR_NOT_INITIALIZED:
+        ret = SWS_ERROR_NOT_INITIALIZED_TEXT;
+        break;
+    case SWS_ERROR_LOADLIBRARY_FAILED:
+        ret = SWS_ERROR_LOADLIBRARY_FAILED_TEXT;
+        break;
+    case SWS_ERROR_FUNCTION_NOT_FOUND:
+        ret = SWS_ERROR_FUNCTION_NOT_FOUND_TEXT;
+        break;
+    case SWS_ERROR_UNABLE_TO_SET_DPI_AWARENESS_CONTEXT:
+        ret = SWS_ERROR_UNABLE_TO_SET_DPI_AWARENESS_CONTEXT_TEXT;
+        break;
+    default:
+        FormatMessageA(
+            FORMAT_MESSAGE_ALLOCATE_BUFFER | 
+            FORMAT_MESSAGE_FROM_SYSTEM |
+            FORMAT_MESSAGE_IGNORE_INSERTS |
+            FORMAT_MESSAGE_MAX_WIDTH_MASK,
+            NULL,
+            errnum,
+            MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT),
+            &ret,
+            0,
+            NULL
+        );
+        break;
+    }
+    return ret;
 }
 
-sws_error_t sws_error_Report(sws_error_t errnum)
+sws_error_t sws_error_Report(sws_error_t errnum, void* data)
 {
     if (errnum == SWS_ERROR_SUCCESS)
     {
         return errnum;
     }
     char* errdesc = NULL;
-    printf("The following error occured in the application: ");
+    _lock_file(stdout);
+    printf("====================================\nAn error occured in the application.\nError number: 0x%x\n", errnum);
     if (errdesc = sws_error_NumToDescription(errnum))
     {
-        printf("%s. ", errdesc);
+        printf("Description: %s\n", errdesc);
+        LocalFree(errdesc);
     }
     else
     {
-        printf("%d (0x%x). ", errnum, errnum);
+        puts(".");
     }
-    printf("Here is the stack trace:\n");
+    if (data)
+    {
+        printf("Additional data: 0x%p\n", data);
+    }
+    puts("Here is the stack trace:");
     sws_error_PrintStackTrace();
-    _getch();
-    return errnum;
-}
-
-sws_error_t sws_error_GetFromHRESULT(HRESULT hResult)
-{
-    // NOT IMPLEMENTED
-    if (SUCCEEDED(hResult))
-    {
-        return SWS_ERROR_SUCCESS;
-    }
-    return hResult;
-}
-
-sws_error_t sws_error_GetFromWin32Error(DWORD win32err)
-{
-    // NOT IMPLEMENTED
-    if (!win32err)
-    {
-        return SWS_ERROR_SUCCESS;
-    }
-    return win32err;
-}
-
-sws_error_t sws_error_GetFromGdiplusStatus(int status)
-{
-    // NOT IMPLEMENTED
-    if (!status)
-    {
-        return SWS_ERROR_SUCCESS;
-    }
-    return status;
+    puts("====================================");
+    _unlock_file(stdout);
+    return SWS_ERROR_SUCCESS;
 }

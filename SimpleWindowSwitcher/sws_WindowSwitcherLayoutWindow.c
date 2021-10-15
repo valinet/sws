@@ -4,7 +4,7 @@ void sws_WindowSwitcherLayoutWindow_Erase(sws_WindowSwitcherLayoutWindow* _this)
 {
     if (_this->hThumbnail)
     {
-        sws_error_Report(sws_error_GetFromHRESULT(DwmUnregisterThumbnail(_this->hThumbnail)));
+        sws_error_Report(sws_error_GetFromHRESULT(DwmUnregisterThumbnail(_this->hThumbnail)), NULL);
         _this->hThumbnail = 0;
     }
     SIZE siz;
@@ -25,7 +25,7 @@ void sws_WindowSwitcherLayoutWindow_Clear(sws_WindowSwitcherLayoutWindow* _this)
 {
     if (_this->hThumbnail)
     {
-        sws_error_Report(sws_error_GetFromHRESULT(DwmUnregisterThumbnail(_this->hThumbnail)));
+        DwmUnregisterThumbnail(_this->hThumbnail);
         _this->hThumbnail = 0;
     }
     if (_this->hIcon && !_this->bOwnProcess)
@@ -43,7 +43,7 @@ sws_error_t sws_WindowSwitcherLayoutWindow_Initialize(sws_WindowSwitcherLayoutWi
     {
         if (!_this)
         {
-            rv = sws_error_Report(SWS_ERROR_NO_MEMORY);
+            rv = sws_error_Report(sws_error_GetFromInternalError(SWS_ERROR_NO_MEMORY), NULL);
         }
     }
     if (!rv)

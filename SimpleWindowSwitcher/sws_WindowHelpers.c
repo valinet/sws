@@ -4,6 +4,7 @@ NtUserBuildHwndList _sws_pNtUserBuildHwndList;
 pCreateWindowInBand _sws_CreateWindowInBand;
 pSetWindowCompositionAttribute _sws_SetWindowCompositionAttribute;
 pGetWindowBand _sws_GetWindowBand;
+pSetWindowBand _sws_SetWindowBand;
 
 void sws_WindowHelpers_SetWindowBlur(HWND hWnd, int type, DWORD Color, DWORD Opacity)
 {
@@ -74,6 +75,17 @@ HWND* _sws_WindowHelpers_Gui_BuildWindowList
 	return lv_List;
 }
 
+static void _sws_WindowHelpers_FindWindowExReverseOrder(HWND hWnd, WNDENUMPROC in_Proc, LPARAM in_Param)
+{
+	hWnd = FindWindowEx(NULL, hWnd, NULL, NULL);
+	if (!hWnd)
+	{
+		return;
+	}
+	test(hWnd, in_Proc, in_Param);
+	if (!in_Proc(hWnd, in_Param))
+		return;
+}
 
 /********************************************************/
 /* enumerate all top level windows including metro apps */
@@ -85,7 +97,7 @@ sws_error_t sws_WindowHelpers_RealEnumWindows(
 {
 	if (!_sws_pNtUserBuildHwndList)
 	{
-		return sws_error_Report(SWS_ERROR_NOT_INITIALIZED);
+		return sws_error_Report(sws_error_GetFromInternalError(SWS_ERROR_NOT_INITIALIZED), NULL);
 	}
 
 	/* locals */
@@ -158,7 +170,32 @@ BOOL sws_WindowHelpers_IsAltTabWindow(
 	_In_ HWND hwnd
 )
 {
+	BOOL isCloaked;
+	DwmGetWindowAttribute(hwnd, DWMWA_CLOAKED, &isCloaked, sizeof(BOOL));
+	if (isCloaked)
+	{
+		return FALSE;
+	}
+
 	TITLEBARINFO ti;
+	ti.cbSize = sizeof(ti);
+	GetTitleBarInfo(hwnd, &ti);
+	if (ti.rgstate[0] & STATE_SYSTEM_INVISIBLE)
+		return FALSE;
+
+	// https://forum.rehips.com/index.php?topic=9599.0
+	if (IsWindowVisible(hwnd))
+	{
+		LONG WinExStyle = GetWindowLong(hwnd, GWL_EXSTYLE);
+		if ((GetWindow(hwnd, GW_OWNER) == NULL || (WinExStyle & WS_EX_APPWINDOW)) &&
+			!(WinExStyle & WS_EX_TOOLWINDOW))
+		{
+			return TRUE;
+		}
+	}
+	return FALSE;
+
+	//TITLEBARINFO ti;
 	HWND hwndTry, hwndWalk = NULL;
 
 	wchar_t wszClassName[100];
@@ -167,6 +204,7 @@ BOOL sws_WindowHelpers_IsAltTabWindow(
 	{
 		// ??? somwhow allow Explorer dialog boxes
 		// but restrict Notepad ones...
+		return TRUE;
 	}
 
 	if (!IsWindowVisible(hwnd))
@@ -197,7 +235,20 @@ BOOL sws_WindowHelpers_IsAltTabWindow(
 	return TRUE;
 }
 
-HICON sws_WindowHelpers_GetIconFromHWND(HWND hWnd, BOOL* bOwnProcess, BOOL bIsDesktop)
+void sws_WindowHelpers_GetDesktopText(wchar_t* wszTitle)
+{
+	HANDLE hExplorerFrame = GetModuleHandleW(L"ExplorerFrame.dll");
+	if (hExplorerFrame)
+	{
+		LoadStringW(hExplorerFrame, 13140, wszTitle, MAX_PATH);
+	}
+	else
+	{
+		wcscat_s(wszTitle, MAX_PATH, L"Desktop");
+	}
+}
+
+__declspec(dllexport) HICON sws_WindowHelpers_GetIconFromHWND(HWND hWnd, BOOL* bOwnProcess, BOOL bIsDesktop, UINT* szIcon)
 {
 	HICON hIcon = NULL;
 
@@ -233,7 +284,6 @@ HICON sws_WindowHelpers_GetIconFromHWND(HWND hWnd, BOOL* bOwnProcess, BOOL bIsDe
 			*bOwnProcess = TRUE;
 		}
 
-#ifndef COMPILE_AS_LIBRARY
 		if (wcsstr(wszPath, L"applicationframehost.exe"))
 		{
 			IPropertyStore* propStore;
@@ -248,56 +298,100 @@ HICON sws_WindowHelpers_GetIconFromHWND(HWND hWnd, BOOL* bOwnProcess, BOOL bIsDe
 				pKey.fmtid = __uuidof_AppUserModelIdProperty;
 				pKey.pid = 5;
 				PROPVARIANT prop;
+				ZeroMemory(&prop, sizeof(PROPVARIANT));
 				propStore->lpVtbl->GetValue(propStore, &pKey, &prop);
-				propStore->lpVtbl->Release(propStore);
-				return sws_WindowHelpers_PackageInfo_GetForAumid(prop.bstrVal);
-			}
-		}
-		else
-		{
-#endif
-			SendMessageTimeoutW(hWnd, WM_GETICON, ICON_BIG, 0, SMTO_ABORTIFHUNG, 1000, &hIcon);
-			if (!hIcon)
-			{
-				SendMessageTimeoutW(hWnd, WM_GETICON, ICON_SMALL, 0, SMTO_ABORTIFHUNG, 1000, &hIcon);
-			}
-			if (!hIcon)
-			{
-#ifdef _WIN64
-				GetClassLong(hWnd, -34);
-#else
-				GetClassLongPtr(hWnd, -34);
-#endif
-			}
-			if (!hIcon)
-			{
-#ifdef _WIN64
-				GetClassLong(hWnd, -14);
-#else
-				GetClassLongPtr(hWnd, -14);
-#endif
-			}
-			if (!hIcon)
-			{
-				SendMessageTimeoutW(hWnd, WM_QUERYDRAGICON, 0, 0, 0, 1000, &hIcon);
-			}
-			if (!hIcon)
-			{
-				SHFILEINFOW shinfo;
-				ZeroMemory(&shinfo, sizeof(SHFILEINFOW));
-				SHGetFileInfoW(
-					wszPath,
-					FILE_ATTRIBUTE_NORMAL,
-					&shinfo,
-					sizeof(SHFILEINFOW),
-					SHGFI_ICON
+				propStore->lpVtbl->Release(propStore);				
+				IShellItemImageFactory* imageFactory;
+				HRESULT hr = SHCreateItemInKnownFolder(
+					&FOLDERID_AppsFolder,
+					KF_FLAG_DONT_VERIFY,
+					prop.bstrVal,
+					&__uuidof_IShellItemImageFactory,
+					&imageFactory
 				);
-				hIcon = shinfo.hIcon;
-				CloseHandle(hProcess);
+				if (SUCCEEDED(hr))
+				{
+					SIZE size;
+					size.cx = *szIcon;
+					size.cy = *szIcon;
+					HBITMAP hBitmap;
+					hr = imageFactory->lpVtbl->GetImage(
+						imageFactory,
+						size,
+						SIIGBF_RESIZETOFIT | SIIGBF_ICONBACKGROUND,
+						&hBitmap
+					);
+					if (SUCCEEDED(hr))
+					{
+						// Easiest way to get an HICON from an HBITMAP
+						// I have turned the Internet upside down and was unable to find this
+						// Only a convoluted example using GDI+
+						// This is from the disassembly of StartIsBack/StartAllBack
+						HIMAGELIST hImageList = ImageList_Create(size.cx, size.cy, ILC_COLOR32, 1, 0);
+						if (ImageList_Add(hImageList, hBitmap, NULL) != -1)
+						{
+							hIcon = ImageList_GetIcon(hImageList, 0, 0);
+							ImageList_Destroy(hImageList);
+							*szIcon = 0;
+						}
+						DeleteObject(hBitmap);
+
+						/*
+						void* Gdibitmap;
+						if (!_sws_Helpers_Gdiplus_HBITMAPToGdibitmap(hBitmap, &Gdibitmap))
+						{
+							hIcon = _sws_Helpers_Gdiplus_GetHICONFromGdiBitmap(Gdibitmap);
+							_sws_Helpers_Gdiplus_ReleaseBitmap(Gdibitmap);
+							*szIcon = 0;
+						}
+						DeleteObject(hBitmap);
+						*/
+					}
+				}
 			}
-#ifndef COMPILE_AS_LIBRARY
 		}
+		if (!hIcon)
+		{
+			SendMessageTimeoutW(hWnd, WM_GETICON, ICON_BIG, 0, SMTO_ABORTIFHUNG, 1000, &hIcon);
+		}
+		if (!hIcon)
+		{
+			SendMessageTimeoutW(hWnd, WM_GETICON, ICON_SMALL, 0, SMTO_ABORTIFHUNG, 1000, &hIcon);
+		}
+		if (!hIcon)
+		{
+#ifdef _WIN64
+			GetClassLong(hWnd, -34);
+#else
+			GetClassLongPtr(hWnd, -34);
 #endif
+		}
+		if (!hIcon)
+		{
+#ifdef _WIN64
+			GetClassLong(hWnd, -14);
+#else
+			GetClassLongPtr(hWnd, -14);
+#endif
+		}
+		if (!hIcon)
+		{
+			SendMessageTimeoutW(hWnd, WM_QUERYDRAGICON, 0, 0, 0, 1000, &hIcon);
+		}
+		if (!hIcon)
+		{
+			SHFILEINFOW shinfo;
+			ZeroMemory(&shinfo, sizeof(SHFILEINFOW));
+			SHGetFileInfoW(
+				wszPath,
+				FILE_ATTRIBUTE_NORMAL,
+				&shinfo,
+				sizeof(SHFILEINFOW),
+				SHGFI_ICON
+			);
+			hIcon = shinfo.hIcon;
+		}
+		CloseHandle(hProcess);
 	}
 
 	return hIcon;
@@ -347,7 +441,7 @@ sws_error_t sws_WindowHelpers_Initialize()
 			_sws_hWin32u = LoadLibraryW(L"win32u.dll");
 			if (!_sws_hWin32u)
 			{
-				rv = sws_error_Report(SWS_ERROR_LOADLIBRARY_FAILED);
+				rv = sws_error_Report(sws_error_GetFromInternalError(SWS_ERROR_LOADLIBRARY_FAILED), NULL);
 			}
 		}
 	}
@@ -358,7 +452,7 @@ sws_error_t sws_WindowHelpers_Initialize()
 			_sws_pNtUserBuildHwndList = (NtUserBuildHwndList)GetProcAddress(_sws_hWin32u, "NtUserBuildHwndList");
 			if (!_sws_pNtUserBuildHwndList)
 			{
-				rv = sws_error_Report(SWS_ERROR_FUNCTION_NOT_FOUND);
+				rv = sws_error_Report(sws_error_GetFromInternalError(SWS_ERROR_FUNCTION_NOT_FOUND), NULL);
 			}
 		}
 	}
@@ -369,7 +463,7 @@ sws_error_t sws_WindowHelpers_Initialize()
 			_sws_hUser32 = LoadLibraryW(L"user32.dll");
 			if (!_sws_hUser32)
 			{
-				rv = sws_error_Report(SWS_ERROR_LOADLIBRARY_FAILED);
+				rv = sws_error_Report(sws_error_GetFromInternalError(SWS_ERROR_LOADLIBRARY_FAILED), NULL);
 			}
 		}
 	}
@@ -380,7 +474,7 @@ sws_error_t sws_WindowHelpers_Initialize()
 			_sws_SetWindowCompositionAttribute = (pSetWindowCompositionAttribute)GetProcAddress(_sws_hUser32, "SetWindowCompositionAttribute");
 			if (!_sws_pNtUserBuildHwndList)
 			{
-				rv = sws_error_Report(SWS_ERROR_FUNCTION_NOT_FOUND);
+				rv = sws_error_Report(sws_error_GetFromInternalError(SWS_ERROR_FUNCTION_NOT_FOUND), NULL);
 			}
 		}
 	}
@@ -391,7 +485,7 @@ sws_error_t sws_WindowHelpers_Initialize()
 			_sws_CreateWindowInBand = (pCreateWindowInBand)GetProcAddress(_sws_hUser32, "CreateWindowInBand");
 			if (!_sws_CreateWindowInBand)
 			{
-				rv = sws_error_Report(SWS_ERROR_FUNCTION_NOT_FOUND);
+				rv = sws_error_Report(sws_error_GetFromInternalError(SWS_ERROR_FUNCTION_NOT_FOUND), NULL);
 			}
 		}
 	}
@@ -399,10 +493,32 @@ sws_error_t sws_WindowHelpers_Initialize()
 	{
 		if (!_sws_GetWindowBand)
 		{
-			_sws_GetWindowBand = (pCreateWindowInBand)GetProcAddress(_sws_hUser32, "GetWindowBand");
+			_sws_GetWindowBand = GetProcAddress(_sws_hUser32, "GetWindowBand");
 			if (!_sws_GetWindowBand)
 			{
-				rv = sws_error_Report(SWS_ERROR_FUNCTION_NOT_FOUND);
+				rv = sws_error_Report(sws_error_GetFromInternalError(SWS_ERROR_FUNCTION_NOT_FOUND), NULL);
+			}
+		}
+	}
+	if (!rv)
+	{
+		if (!_sws_SetWindowBand)
+		{
+			_sws_SetWindowBand = GetProcAddress(_sws_hUser32, "SetWindowBand");
+			if (!_sws_SetWindowBand)
+			{
+				rv = sws_error_Report(sws_error_GetFromInternalError(SWS_ERROR_FUNCTION_NOT_FOUND), NULL);
+			}
+		}
+	}
+	if (!rv)
+	{
+		if (!_sws_IsTopLevelWindow)
+		{
+			_sws_IsTopLevelWindow = GetProcAddress(_sws_hUser32, "IsTopLevelWindow");
+			if (!_sws_IsTopLevelWindow)
+			{
+				rv = sws_error_Report(sws_error_GetFromInternalError(SWS_ERROR_FUNCTION_NOT_FOUND), NULL);
 			}
 		}
 	}

@@ -498,7 +498,7 @@ void sws_WindowSwitcherLayout_Clear(sws_WindowSwitcherLayout* _this)
 	}
 }
 
-sws_error_t sws_WindowSwitcherLayout_Initialize(sws_WindowSwitcherLayout* _this, HMONITOR hMonitor, HWND hWnd)
+sws_error_t sws_WindowSwitcherLayout_Initialize(sws_WindowSwitcherLayout* _this, HMONITOR hMonitor, HWND hWnd, DWORD* settings)
 {
 	sws_error_t rv = SWS_ERROR_SUCCESS;
 
@@ -533,6 +533,7 @@ sws_error_t sws_WindowSwitcherLayout_Initialize(sws_WindowSwitcherLayout* _this,
 	{
 		_this->bWallpaperAlwaysLast = SWS_WINDOWSWITCHERLAYOUT_WALLPAPER_ALWAYS_LAST;
 		_this->bIncludeWallpaper = SWS_WINDOWSWITCHERLAYOUT_INCLUDE_WALLPAPER;
+		if (settings) _this->bIncludeWallpaper = settings[3];
 		_this->bWallpaperToggleBehavior = SWS_WINDOWSWITCHERLAYOUT_WALLPAPER_TOGGLE;
 		_this->hWndWallpaper = NULL;
 		if (_this->bIncludeWallpaper)
@@ -555,6 +556,7 @@ sws_error_t sws_WindowSwitcherLayout_Initialize(sws_WindowSwitcherLayout* _this,
 	_this->cbMaxWidth = 0;
 	_this->cbRowWidth = 0;
 	_this->cbRowHeight = SWS_WINDOWSWITCHERLAYOUT_ROWHEIGHT;
+	if (settings) _this->cbRowHeight = settings[0];
 	_this->cbRowTitleHeight = SWS_WINDOWSWITCHERLAYOUT_ROWTITLEHEIGHT;
 	_this->cbMasterTopPadding = SWS_WINDOWSWITCHERLAYOUT_MASTER_PADDING_TOP;
 	_this->cbMasterBottomPadding = SWS_WINDOWSWITCHERLAYOUT_MASTER_PADDING_BOTTOM;
@@ -570,7 +572,7 @@ sws_error_t sws_WindowSwitcherLayout_Initialize(sws_WindowSwitcherLayout* _this,
 	_this->cbRightPadding = SWS_WINDOWSWITCHERLAYOUT_PADDING_RIGHT;
 	_this->cbHDividerPadding = SWS_WINDOWSWITCHERLAYOUT_PADDING_DIVIDER_HORIZONTAL;
 	_this->cbHDividerPadding = SWS_WINDOWSWITCHERLAYOUT_PADDING_DIVIDER_HORIZONTAL;
-	_this->cbMaxTileWidth = SWS_WINDOWSWITCHERLAYOUT_MAX_TILE_WIDTH;
+	_this->cbMaxTileWidth = _this->cbRowHeight * SWS_WINDOWSWITCHERLAYOUT_MAX_TILE_WIDTH;
 	_this->cbThumbnailAvailableHeight = 0;
 	_this->hWnd = hWnd;
 	_this->hMonitor = hMonitor;
@@ -578,8 +580,12 @@ sws_error_t sws_WindowSwitcherLayout_Initialize(sws_WindowSwitcherLayout* _this,
 
 	if (!rv)
 	{
-		_this->cbMaxWidth = (unsigned int)((double)(_this->mi.rcWork.right - _this->mi.rcWork.left) * (SWS_WINDOWSWITCHERLAYOUT_PERCENTAGEWIDTH / 100.0));
-		_this->cbMaxHeight = (unsigned int)((double)(_this->mi.rcWork.bottom - _this->mi.rcWork.top) * (SWS_WINDOWSWITCHERLAYOUT_PERCENTAGEHEIGHT / 100.0));
+		int pw = SWS_WINDOWSWITCHERLAYOUT_PERCENTAGEWIDTH;
+		if (settings) pw = settings[1];
+		_this->cbMaxWidth = (unsigned int)((double)(_this->mi.rcWork.right - _this->mi.rcWork.left) * (pw / 100.0));
+		int ph = SWS_WINDOWSWITCHERLAYOUT_PERCENTAGEHEIGHT;
+		if (settings) ph = settings[2];
+		_this->cbMaxHeight = (unsigned int)((double)(_this->mi.rcWork.bottom - _this->mi.rcWork.top) * (ph / 100.0));
 
 		HRESULT hr = GetDpiForMonitor(
 			hMonitor,

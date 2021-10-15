@@ -18,27 +18,6 @@
 #include "sws_WindowSwitcherLayout.h"
 #include "sws_RegistryMonitor.h"
 
-DEFINE_GUID(__CLSID_Shell,
-    0x13709620,
-    0xC279, 0x11CE, 0xA4, 0x9E,
-    0x44, 0x45, 0x53, 0x54, 0x00, 0x00
-);
-DEFINE_GUID(__IID_IDispatch,
-    0x00020400,
-    0x0000, 0x0000, 0xC0, 0x00,
-    0x00, 0x00, 0x00, 0x00, 0x00, 0x46
-);
-DEFINE_GUID(__uuidof_TaskbarList,
-    0x56FDF344,
-    0xFD6D, 0x11d0, 0x95, 0x8A,
-    0x00, 0x60, 0x97, 0xC9, 0xA0, 0x90
-);
-DEFINE_GUID(__uuidof_ITaskbarList,
-    0x56FDF342,
-    0xFD6D, 0x11d0, 0x95, 0x8A,
-    0x00, 0x60, 0x97, 0xC9, 0xA0, 0x90
-);
-
 typedef struct _sws_WindowSwitcher
 {
     BOOL bIsDynamic;
@@ -61,11 +40,23 @@ typedef struct _sws_WindowSwitcher
     HMONITOR hMonitor;
     INT cwIndex;
     DWORD cwMask;
+    HANDLE hEvExit;
+    BOOL bIsDarkMode;
+
+    DWORD dwRowHeight;
+    DWORD dwMaxWP;
+    DWORD dwMaxHP;
+    DWORD bIncludeWallpaper;
+    DWORD dwColorScheme;
 } sws_WindowSwitcher;
+
+void sws_WindowSwitcher_RefreshTheme(sws_WindowSwitcher* _this);
+
+void sws_WindowSwitcher_SetTransparencyFromRegistry(sws_WindowSwitcher* _this, HKEY hOrigin);
 
 void _sws_WindowSwitcher_SwitchToSelectedItemAndDismiss(sws_WindowSwitcher* _this);
 
-static void CALLBACK sws_WindowSwitcher_SetTransparencyFromRegistry(sws_WindowSwitcher* _this, BOOL bIsInHKLM, DWORD* value, size_t size);
+static void CALLBACK _sws_WindowSwitcher_NotifyTransparencyChange(sws_WindowSwitcher* _this, BOOL bIsInHKLM, DWORD* value, size_t size);
 
 static DWORD WINAPI _sws_WindowSwitcher_Show(sws_WindowSwitcher* _this);
 
@@ -81,6 +72,6 @@ __declspec(dllexport) sws_error_t sws_WindowSwitcher_RunMessageQueue(sws_WindowS
 
 __declspec(dllexport) void sws_WindowSwitcher_Clear(sws_WindowSwitcher* _this);
 
-__declspec(dllexport) sws_error_t sws_WindowSwitcher_Initialize(sws_WindowSwitcher** __this);
+__declspec(dllexport) sws_error_t sws_WindowSwitcher_Initialize(sws_WindowSwitcher** __this, BOOL bWithRegMon);
 
 #endif

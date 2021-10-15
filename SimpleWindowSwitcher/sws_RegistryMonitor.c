@@ -4,7 +4,6 @@ void sws_RegistryMonitor_Clear(sws_RegistryMonitor* _this)
 {
 	if (_this)
 	{
-		CloseHandle(_this->hEvEx);
 		CloseHandle(_this->hEvCU);
 		CloseHandle(_this->hEvLM);
 		CloseHandle(_this->hKeyCU);
@@ -116,7 +115,8 @@ sws_error_t sws_RegistryMonitor_Initialize(
 	char* buffer,
 	size_t szBuffer,
 	void(*callback)(void* ptr, BOOL bLM, char* buffer, size_t size),
-	void* ptr
+	void* ptr,
+	HANDLE hEvEx
 )
 {
 	sws_error_t rv = SWS_ERROR_SUCCESS;
@@ -261,11 +261,7 @@ sws_error_t sws_RegistryMonitor_Initialize(
 	}
 	if (!rv)
 	{
-		_this->hEvEx = CreateEvent(NULL, FALSE, FALSE, NULL);
-		if (!_this->hEvLM)
-		{
-			rv = sws_error_Report(sws_error_GetFromWin32Error(GetLastError()), NULL);
-		}
+		_this->hEvEx = hEvEx;
 	}
 	if (!rv)
 	{

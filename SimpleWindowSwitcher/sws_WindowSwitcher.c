@@ -1,9 +1,54 @@
 #include "sws_WindowSwitcher.h"
 
-static void CALLBACK sws_WindowSwitcher_SetTransparencyFromRegistry(sws_WindowSwitcher* _this, BOOL bIsInHKLM, DWORD* value, size_t size)
+void sws_WindowSwitcher_SetTransparencyFromRegistry(sws_WindowSwitcher * _this, HKEY hOrigin)
+{
+    HKEY hKey = NULL;
+    DWORD dwSize = 0;
+    DWORD dwOpacity = 0;
+
+    RegCreateKeyExW(
+        hOrigin,
+        L"SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Explorer\\MultitaskingView\\AltTabViewHost",
+        0,
+        NULL,
+        REG_OPTION_NON_VOLATILE,
+        KEY_READ,
+        NULL,
+        &hKey,
+        NULL
+    );
+    if (hKey == NULL || hKey == INVALID_HANDLE_VALUE)
+    {
+        hKey = NULL;
+    }
+    if (hKey)
+    {
+        dwSize = sizeof(DWORD);
+        RegQueryValueExW(
+            hKey,
+            TEXT("Grid_backgroundPercent"),
+            0,
+            NULL,
+            &dwOpacity,
+            &dwSize
+        );
+        _sws_WindowSwitcher_NotifyTransparencyChange(_this, FALSE, &dwOpacity, dwSize);
+        RegCloseKey(hKey);
+    }
+}
+
+static void CALLBACK _sws_WindowSwitcher_NotifyTransparencyChange(sws_WindowSwitcher* _this, BOOL bIsInHKLM, DWORD* value, size_t size)
 {
     DWORD blur = (*value / 100.0) * 255;
-    sws_WindowHelpers_SetWindowBlur(_this->hWnd, 4, SWS_WINDOWSWITCHER_BACKGROUND_COLOR, blur);
+    if (_this->hTheme && IsThemeActive())
+    {
+        sws_WindowHelpers_SetWindowBlur(
+            _this->hWnd,
+            4,
+            _this->bIsDarkMode ? SWS_WINDOWSWITCHER_BACKGROUND_COLOR : SWS_WINDOWSWITCHER_BACKGROUND_COLOR_LIGHT,
+            blur
+        );
+    }
 }
 
 static BOOL CALLBACK _sws_WindowSwitcher_EnumWindowsCallback(_In_ HWND hWnd, _In_ sws_WindowSwitcher* _this)
@@ -30,7 +75,7 @@ static DWORD WINAPI _sws_WindowSwitcher_Show(sws_WindowSwitcher* _this)
     POINT ptCursor;
     GetCursorPos(&ptCursor);
     _this->hMonitor = MonitorFromPoint(ptCursor, MONITOR_DEFAULTTOPRIMARY);
-    sws_WindowSwitcherLayout_Initialize(&(_this->layout), _this->hMonitor, _this->hWnd);
+    sws_WindowSwitcherLayout_Initialize(&(_this->layout), _this->hMonitor, _this->hWnd, &(_this->dwRowHeight));
     wchar_t* wszClassName[100];
     GetClassNameW(GetForegroundWindow(), wszClassName, 100);
     if (_this->layout.bIncludeWallpaper && _this->layout.bWallpaperAlwaysLast && !wcscmp(wszClassName, L"WorkerW"))
@@ -129,6 +174,22 @@ void _sws_WindowSwitcher_SwitchToSelectedItemAndDismiss(sws_WindowSwitcher* _thi
     ShowWindow(_this->hWnd, SW_HIDE);
 }
 
+void sws_WindowSwitcher_RefreshTheme(sws_WindowSwitcher* _this)
+{
+    sws_WindowHelpers_RefreshImmersiveColorPolicyState();
+    sws_error_Report(sws_error_GetFromInternalError(sws_WindowHelpers_ShouldSystemUseDarkMode(&(_this->bIsDarkMode))), NULL);
+    if (_this->dwColorScheme)
+    {
+        _this->bIsDarkMode = _this->dwColorScheme - 1;
+    }
+    sws_WindowSwitcher_SetTransparencyFromRegistry(_this, HKEY_CURRENT_USER);
+    if (_this->hContourBrush)
+    {
+        DeleteObject(_this->hContourBrush);
+    }
+    _this->hContourBrush = (HBRUSH)CreateSolidBrush(_this->bIsDarkMode ? SWS_WINDOWSWITCHER_CONTOUR_COLOR : SWS_WINDOWSWITCHER_CONTOUR_COLOR_LIGHT);
+}
+
 static LRESULT _sws_WindowsSwitcher_WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 {
     sws_WindowSwitcher* _this = NULL;
@@ -179,6 +240,14 @@ static LRESULT _sws_WindowsSwitcher_WndProc(HWND hWnd, UINT uMsg, WPARAM wParam,
             }
         }
     }
+    else if (uMsg == WM_SETTINGCHANGE)
+    {
+        if (lParam && CompareStringOrdinal(lParam, -1, L"ImmersiveColorSet", -1, TRUE) == CSTR_EQUAL)
+        {
+            sws_WindowSwitcher_RefreshTheme(_this);
+            return 0;
+        }
+    }
     else if (uMsg == WM_CLOSE)
     {
         DestroyWindow(hWnd);
@@ -188,7 +257,7 @@ static LRESULT _sws_WindowsSwitcher_WndProc(HWND hWnd, UINT uMsg, WPARAM wParam,
     {
         sws_WindowSwitcherLayout_Clear(&(_this->layout));
         PostQuitMessage(0);
-        SetEvent(_this->rm.hEvEx);
+        SetEvent(_this->hEvExit);
         return 0;
     }
     else if (0 && uMsg == WM_NCHITTEST)
@@ -224,37 +293,46 @@ static LRESULT _sws_WindowsSwitcher_WndProc(HWND hWnd, UINT uMsg, WPARAM wParam,
         HFONT hOldFont = NULL;
         if (hdcPaint)
         {
+            // Draw background when the themeing engine is disabled
+            if (!IsThemeActive())
+            {
+                COLORREF oldcr = SetBkColor(hdcPaint, _this->bIsDarkMode ? SWS_WINDOWSWITCHER_BACKGROUND_COLOR : SWS_WINDOWSWITCHER_BACKGROUND_COLOR_LIGHT);
+                ExtTextOutW(hdcPaint, 0, 0, ETO_OPAQUE, &rc, L"", 0, 0);
+                SetBkColor(hdcPaint, oldcr);
+                SetTextColor(hdcPaint, GetSysColor(COLOR_WINDOWTEXT));
+            }
+
             hOldFont = SelectObject(hdcPaint, _this->layout.hFontRegular);
 
             // Draw title
-            if (_this->hTheme)
+            for (unsigned int i = 0; i < _this->layout.pWindowList.cbSize; ++i)
             {
-                for (unsigned int i = 0; i < _this->layout.pWindowList.cbSize; ++i)
+                if (pWindowList && pWindowList[i].iRowMax)
                 {
-                    if (pWindowList && pWindowList[i].iRowMax)
-                    {
-                        rc = pWindowList[i].rcWindow;
-                        DTTOPTS DttOpts;
-                        DttOpts.dwSize = sizeof(DTTOPTS);
-                        DttOpts.dwFlags = DTT_COMPOSITED | DTT_TEXTCOLOR;
-                        DttOpts.crText = SWS_WINDOWSWITCHER_TEXT_COLOR;
-                        DWORD dwTextFlags = DT_SINGLELINE | DT_VCENTER | DT_END_ELLIPSIS | DT_HIDEPREFIX;
-                        RECT rcText;
-                        rcText.left = rc.left + _this->layout.cbLeftPadding + pWindowList[i].szIcon + _this->layout.cbRightPadding;
-                        rcText.top = rc.top + _this->layout.cbTopPadding;
-                        rcText.right = rc.right - _this->layout.cbRowTitleHeight;
-                        rcText.bottom = rc.top + _this->layout.cbRowTitleHeight;
+                    rc = pWindowList[i].rcWindow;
+                    DTTOPTS DttOpts;
+                    DttOpts.dwSize = sizeof(DTTOPTS);
+                    DttOpts.dwFlags = DTT_COMPOSITED | DTT_TEXTCOLOR;
+                    DttOpts.crText = _this->bIsDarkMode ? SWS_WINDOWSWITCHER_TEXT_COLOR : SWS_WINDOWSWITCHER_TEXT_COLOR_LIGHT;
+                    DWORD dwTextFlags = DT_SINGLELINE | DT_VCENTER | DT_END_ELLIPSIS | DT_HIDEPREFIX;
+                    RECT rcText;
+                    rcText.left = rc.left + _this->layout.cbLeftPadding + pWindowList[i].szIcon + _this->layout.cbRightPadding;
+                    rcText.top = rc.top + _this->layout.cbTopPadding;
+                    rcText.right = rc.right - _this->layout.cbRowTitleHeight;
+                    rcText.bottom = rc.top + _this->layout.cbRowTitleHeight;
 
-                        wchar_t wszTitle[MAX_PATH];
-                        memset(wszTitle, 0, MAX_PATH * sizeof(wchar_t));
-                        if (_this->layout.bIncludeWallpaper && pWindowList[i].hWnd == _this->layout.hWndWallpaper)
-                        {
-                            sws_WindowHelpers_GetDesktopText(wszTitle);
-                        }
-                        else
-                        {
-                            GetWindowText(pWindowList[i].hWnd, wszTitle, MAX_PATH);
-                        }
+                    wchar_t wszTitle[MAX_PATH];
+                    memset(wszTitle, 0, MAX_PATH * sizeof(wchar_t));
+                    if (_this->layout.bIncludeWallpaper && pWindowList[i].hWnd == _this->layout.hWndWallpaper)
+                    {
+                        sws_WindowHelpers_GetDesktopText(wszTitle);
+                    }
+                    else
+                    {
+                        GetWindowText(pWindowList[i].hWnd, wszTitle, MAX_PATH);
+                    }
+                    if (_this->hTheme && IsThemeActive())
+                    {
                         DrawThemeTextEx(
                             _this->hTheme,
                             hdcPaint,
@@ -265,6 +343,18 @@ static LRESULT _sws_WindowsSwitcher_WndProc(HWND hWnd, UINT uMsg, WPARAM wParam,
                             dwTextFlags,
                             &rcText,
                             &DttOpts
+                        );
+                    }
+                    else
+                    {
+                        SetTextColor(hdcPaint, _this->bIsDarkMode ? SWS_WINDOWSWITCHER_TEXT_COLOR : SWS_WINDOWSWITCHER_TEXT_COLOR_LIGHT);
+                        SetBkColor(hdcPaint, _this->bIsDarkMode ? SWS_WINDOWSWITCHER_BACKGROUND_COLOR : SWS_WINDOWSWITCHER_BACKGROUND_COLOR_LIGHT);
+                        DrawTextW(
+                            hdcPaint,
+                            wszTitle,
+                            -1,
+                            &rcText,
+                            dwTextFlags
                         );
                     }
                 }
@@ -291,7 +381,7 @@ static LRESULT _sws_WindowsSwitcher_WndProc(HWND hWnd, UINT uMsg, WPARAM wParam,
             }
 
             // Draw highlight rectangle
-            for (int j = (int)(_this->layout.iIndex) - 1; j < (int)_this->layout.iIndex + 2; ++j)
+            for (int j = (int)(_this->layout.iIndex); j < (int)_this->layout.iIndex + 1; ++j) // -1, +2
             {
                 int k = j;
                 if (j == -1)
@@ -349,7 +439,6 @@ static LRESULT _sws_WindowsSwitcher_WndProc(HWND hWnd, UINT uMsg, WPARAM wParam,
 
             // Draw close button
             if (pWindowList && 
-                _this->hTheme && 
                 _this->cwIndex != -1 && 
                 _this->cwIndex < _this->layout.pWindowList.cbSize && 
                 (_this->cwMask & SWS_WINDOWFLAG_IS_ON_CLOSE || _this->cwMask & SWS_WINDOWFLAG_IS_ON_WINDOW) &&
@@ -367,31 +456,61 @@ static LRESULT _sws_WindowsSwitcher_WndProc(HWND hWnd, UINT uMsg, WPARAM wParam,
                 {
                     HFONT hOldFont2 = SelectObject(hdcPaint, _this->layout.hFontRegular2);
                     DttOpts.crText = SWS_WINDOWSWITCHER_CLOSE_COLOR;
+                    if (_this->hTheme && IsThemeActive())
+                    {
+                        DrawThemeTextEx(
+                            _this->hTheme,
+                            hdcPaint,
+                            0,
+                            0,
+                            L"\u2B1B",
+                            -1,
+                            dwTextFlags,
+                            &rcText,
+                            &DttOpts
+                        );
+                    }
+                    else
+                    {
+                        SetTextColor(hdcPaint, SWS_WINDOWSWITCHER_CLOSE_COLOR);
+                        SetBkColor(hdcPaint, _this->bIsDarkMode ? SWS_WINDOWSWITCHER_BACKGROUND_COLOR : SWS_WINDOWSWITCHER_BACKGROUND_COLOR_LIGHT);
+                        DrawTextW(
+                            hdcPaint,
+                            L"\u2B1B",
+                            -1,
+                            &rcText,
+                            dwTextFlags
+                        );
+                    }
+                    SelectObject(hdcPaint, hOldFont2);
+                }
+                DttOpts.crText = _this->bIsDarkMode ? SWS_WINDOWSWITCHER_TEXT_COLOR : SWS_WINDOWSWITCHER_TEXT_COLOR_LIGHT;
+                if (_this->hTheme && IsThemeActive())
+                {
                     DrawThemeTextEx(
                         _this->hTheme,
                         hdcPaint,
                         0,
                         0,
-                        L"\u2B1B",
+                        L"\u274C",
                         -1,
                         dwTextFlags,
                         &rcText,
                         &DttOpts
                     );
-                    SelectObject(hdcPaint, hOldFont2);
                 }
-                DttOpts.crText = SWS_WINDOWSWITCHER_TEXT_COLOR;
-                DrawThemeTextEx(
-                    _this->hTheme,
-                    hdcPaint,
-                    0,
-                    0,
-                    L"\u274C",
-                    -1,
-                    dwTextFlags,
-                    &rcText,
-                    &DttOpts
-                );
+                else
+                {
+                    SetTextColor(hdcPaint, _this->bIsDarkMode ? SWS_WINDOWSWITCHER_TEXT_COLOR : SWS_WINDOWSWITCHER_TEXT_COLOR_LIGHT);
+                    SetBkColor(hdcPaint, _this->cwMask & SWS_WINDOWFLAG_IS_ON_CLOSE ? SWS_WINDOWSWITCHER_CLOSE_COLOR : (_this->bIsDarkMode ? SWS_WINDOWSWITCHER_BACKGROUND_COLOR : SWS_WINDOWSWITCHER_BACKGROUND_COLOR_LIGHT));
+                    DrawTextW(
+                        hdcPaint,
+                        L"\u274C",
+                        -1,
+                        &rcText,
+                        dwTextFlags
+                    );
+                }
             }
             SelectObject(hdcPaint, hOldFont);
             EndBufferedPaint(hBufferedPaint, TRUE);
@@ -611,6 +730,7 @@ __declspec(dllexport) void sws_WindowSwitcher_Clear(sws_WindowSwitcher* _this)
 {
     if (_this)
     {
+        CloseHandle(_this->hEvExit);
         if (_this->bWithRegMon)
         {
             sws_RegistryMonitor_Clear(&(_this->rm));
@@ -697,8 +817,9 @@ __declspec(dllexport) sws_error_t sws_WindowSwitcher_Initialize(sws_WindowSwitch
     }
     if (!rv)
     {
+        sws_error_Report(sws_error_GetFromInternalError(sws_WindowHelpers_ShouldSystemUseDarkMode(&(_this->bIsDarkMode))), NULL);
         _this->hBackgroundBrush = (HBRUSH)CreateSolidBrush(SWS_WINDOWSWITCHER_BACKGROUND_COLOR);
-        _this->hContourBrush = (HBRUSH)CreateSolidBrush(SWS_WINDOWSWITCHER_CONTOUR_COLOR);
+        _this->hContourBrush = (HBRUSH)CreateSolidBrush(_this->bIsDarkMode ? SWS_WINDOWSWITCHER_CONTOUR_COLOR : SWS_WINDOWSWITCHER_CONTOUR_COLOR_LIGHT);
         _this->hCloseButtonBrush = (HBRUSH)CreateSolidBrush(SWS_WINDOWSWITCHER_CLOSE_COLOR);
         _this->hTheme = OpenThemeData(NULL, _T(SWS_WINDOWSWITCHER_THEME_CLASS));
     }
@@ -773,6 +894,14 @@ __declspec(dllexport) sws_error_t sws_WindowSwitcher_Initialize(sws_WindowSwitch
     }
     if (!rv)
     {
+        _this->hEvExit = CreateEvent(NULL, FALSE, FALSE, NULL);
+        if (!_this->hEvExit)
+        {
+            rv = sws_error_Report(sws_error_GetFromWin32Error(GetLastError()), NULL);
+        }
+    }
+    if (!rv)
+    {
         _this->bWithRegMon = bWithRegMon;
         if (_this->bWithRegMon)
         {
@@ -786,13 +915,21 @@ __declspec(dllexport) sws_error_t sws_WindowSwitcher_Initialize(sws_WindowSwitch
                 SRRF_RT_REG_DWORD,
                 &dwInitial,
                 dwSize,
-                sws_WindowSwitcher_SetTransparencyFromRegistry,
+                _sws_WindowSwitcher_NotifyTransparencyChange,
                 _this
             );
-            sws_WindowSwitcher_SetTransparencyFromRegistry(_this, FALSE, &dwInitial, dwSize);
+            _sws_WindowSwitcher_NotifyTransparencyChange(_this, FALSE, &dwInitial, dwSize);
         }
-        INT preference = DWMWCP_ROUND;
-        DwmSetWindowAttribute(_this->hWnd, DWMWA_WINDOW_CORNER_PREFERENCE, &preference, sizeof(preference));
+        if (_this->hTheme && IsThemeActive())
+        {
+            INT preference = DWMWCP_ROUND;
+            DwmSetWindowAttribute(_this->hWnd, DWMWA_WINDOW_CORNER_PREFERENCE, &preference, sizeof(preference));
+        }
+        _this->dwMaxWP = SWS_WINDOWSWITCHERLAYOUT_PERCENTAGEWIDTH;
+        _this->dwMaxHP = SWS_WINDOWSWITCHERLAYOUT_PERCENTAGEHEIGHT;
+        _this->bIncludeWallpaper = SWS_WINDOWSWITCHERLAYOUT_INCLUDE_WALLPAPER;
+        _this->dwRowHeight = SWS_WINDOWSWITCHERLAYOUT_ROWHEIGHT;
+        _this->dwColorScheme = 0;
     }
     if (rv && (*__this) && (*__this)->bIsDynamic)
     {

@@ -5,8 +5,46 @@ pCreateWindowInBand _sws_CreateWindowInBand;
 pSetWindowCompositionAttribute _sws_SetWindowCompositionAttribute;
 pGetWindowBand _sws_GetWindowBand;
 pSetWindowBand _sws_SetWindowBand;
+BOOL(*_sws_ShouldSystemUseDarkMode)();
+void(*_sws_RefreshImmersiveColorPolicyState)();
+HMODULE _sws_hWin32u = 0;
+HINSTANCE _sws_hUser32 = 0;
+HINSTANCE _sws_hUxtheme = 0;
 
-void sws_WindowHelpers_SetWindowBlur(HWND hWnd, int type, DWORD Color, DWORD Opacity)
+sws_error_t sws_WindowHelpers_RefreshImmersiveColorPolicyState()
+{
+	if (_sws_RefreshImmersiveColorPolicyState)
+	{
+		_sws_RefreshImmersiveColorPolicyState();
+		return SWS_ERROR_SUCCESS;
+	}
+	else
+	{
+		return SWS_ERROR_NOT_INITIALIZED;
+	}
+}
+
+sws_error_t sws_WindowHelpers_ShouldSystemUseDarkMode(DWORD* dwRes)
+{
+	if (_sws_ShouldSystemUseDarkMode)
+	{
+		if (dwRes)
+		{
+			*dwRes = _sws_ShouldSystemUseDarkMode();
+			return SWS_ERROR_SUCCESS;
+		}
+		else
+		{
+			return SWS_ERROR_INVALID_PARAMETER;
+		}
+	}
+	else
+	{
+		return SWS_ERROR_NOT_INITIALIZED;
+	}
+}
+
+sws_error_t sws_WindowHelpers_SetWindowBlur(HWND hWnd, int type, DWORD Color, DWORD Opacity)
 {
 	ACCENTPOLICY policy;
 	policy.nAccentState = type;
@@ -14,7 +52,14 @@ void sws_WindowHelpers_SetWindowBlur(HWND hWnd, int type, DWORD Color, DWORD Opa
 	policy.nColor = (Opacity << 24) | (Color & 0xFFFFFF); // ACCENT_ENABLE_BLURBEHIND=3... // Color = 0XB32E9A
 	policy.nFlags = 0;
 	WINCOMPATTRDATA data = { 19, &policy, sizeof(ACCENTPOLICY) }; // WCA_ACCENT_POLICY=19
-	_sws_SetWindowCompositionAttribute(hWnd, &data);
+	if (_sws_SetWindowCompositionAttribute)
+	{
+		_sws_SetWindowCompositionAttribute(hWnd, &data);
+	}
+	else
+	{
+		return SWS_ERROR_NOT_INITIALIZED;
+	}
 }
 
 HWND* _sws_WindowHelpers_Gui_BuildWindowList
@@ -428,6 +473,7 @@ void sws_WindowHelpers_Release()
 {
 	FreeLibrary(_sws_hWin32u);
 	FreeLibrary(_sws_hUser32);
+	FreeLibrary(_sws_hUxtheme);
 }
 
 sws_error_t sws_WindowHelpers_Initialize()
@@ -436,7 +482,7 @@ sws_error_t sws_WindowHelpers_Initialize()
 
 	if (!rv)
 	{
-		if (!_sws_pNtUserBuildHwndList)
+		if (!_sws_hWin32u)
 		{
 			_sws_hWin32u = LoadLibraryW(L"win32u.dll");
 			if (!_sws_hWin32u)
@@ -458,7 +504,7 @@ sws_error_t sws_WindowHelpers_Initialize()
 	}
 	if (!rv)
 	{
-		if (!_sws_SetWindowCompositionAttribute)
+		if (!_sws_hUser32)
 		{
 			_sws_hUser32 = LoadLibraryW(L"user32.dll");
 			if (!_sws_hUser32)
@@ -517,6 +563,39 @@ sws_error_t sws_WindowHelpers_Initialize()
 		{
 			_sws_IsTopLevelWindow = GetProcAddress(_sws_hUser32, "IsTopLevelWindow");
 			if (!_sws_IsTopLevelWindow)
+			{
+				rv = sws_error_Report(sws_error_GetFromInternalError(SWS_ERROR_FUNCTION_NOT_FOUND), NULL);
+			}
+		}
+	}
+	if (!rv)
+	{
+		if (!_sws_hUxtheme)
+		{
+			_sws_hUxtheme = LoadLibraryW(L"uxtheme.dll");
+			if (!_sws_hUxtheme)
+			{
+				rv = sws_error_Report(sws_error_GetFromInternalError(SWS_ERROR_LOADLIBRARY_FAILED), NULL);
+			}
+		}
+	}
+	if (!rv)
+	{
+		if (!_sws_ShouldSystemUseDarkMode)
+		{
+			_sws_ShouldSystemUseDarkMode = GetProcAddress(_sws_hUxtheme, (LPCSTR)138);
+			if (!_sws_ShouldSystemUseDarkMode)
+			{
+				rv = sws_error_Report(sws_error_GetFromInternalError(SWS_ERROR_FUNCTION_NOT_FOUND), NULL);
+			}
+		}
+	}
+	if (!rv)
+	{
+		if (!_sws_RefreshImmersiveColorPolicyState)
+		{
+			_sws_RefreshImmersiveColorPolicyState = GetProcAddress(_sws_hUxtheme, (LPCSTR)104);
+			if (!_sws_RefreshImmersiveColorPolicyState)
 			{
 				rv = sws_error_Report(sws_error_GetFromInternalError(SWS_ERROR_FUNCTION_NOT_FOUND), NULL);
 			}

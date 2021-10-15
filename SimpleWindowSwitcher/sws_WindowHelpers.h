@@ -63,7 +63,7 @@ typedef NTSTATUS(WINAPI* NtUserBuildHwndList)
 	HWND* out_List,
 	UINT* out_Cnt
 	);
-HMODULE _sws_hWin32u;
+extern HMODULE _sws_hWin32u;
 extern NtUserBuildHwndList _sws_pNtUserBuildHwndList;
 
 typedef struct
@@ -79,7 +79,7 @@ typedef struct
 	PVOID pData;
 	ULONG ulDataSize;
 } WINCOMPATTRDATA;
-HINSTANCE _sws_hUser32;
+extern HINSTANCE _sws_hUser32;
 typedef BOOL(WINAPI* pSetWindowCompositionAttribute)(HWND, WINCOMPATTRDATA*);
 extern pSetWindowCompositionAttribute _sws_SetWindowCompositionAttribute;
 
@@ -105,6 +105,10 @@ extern pSetWindowBand _sws_SetWindowBand;
 
 typedef BOOL(WINAPI* pGetWindowBand)(HWND hWnd, PDWORD pdwBand);
 extern pGetWindowBand _sws_GetWindowBand;
+
+extern BOOL(*_sws_ShouldSystemUseDarkMode)();
+extern void(*_sws_RefreshImmersiveColorPolicyState)();
+extern HINSTANCE _sws_hUxtheme;
 
 BOOL(*_sws_IsTopLevelWindow)(HWND);
 
@@ -150,7 +154,9 @@ sws_error_t sws_WindowHelpers_RealEnumWindows(
 	LPARAM in_Param
 );
 
-void sws_WindowHelpers_SetWindowBlur(HWND hWnd, int type, DWORD Color, DWORD Opacity);
+sws_error_t sws_WindowHelpers_ShouldSystemUseDarkMode(DWORD* dwRes);
+
+sws_error_t sws_WindowHelpers_SetWindowBlur(HWND hWnd, int type, DWORD Color, DWORD Opacity);
 
 BOOL sws_WindowHelpers_IsAltTabWindow(_In_ HWND hwnd);
 

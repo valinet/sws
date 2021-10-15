@@ -27,6 +27,8 @@ typedef HRESULT sws_error_t;
 #define SWS_ERROR_FUNCTION_NOT_FOUND_TEXT					"The requested procedure was not found"
 #define SWS_ERROR_UNABLE_TO_SET_DPI_AWARENESS_CONTEXT		0xA0010006
 #define SWS_ERROR_UNABLE_TO_SET_DPI_AWARENESS_CONTEXT_TEXT  "Unable to set the requested DPI awareness context"
+#define SWS_ERROR_INVALID_PARAMETER                         0xA0010007
+#define SWS_ERROR_INVALID_PARAMETER_TEXT                    "One or more of the parameters supplied is invalid"
 
 #ifdef __cplusplus
 extern "C"

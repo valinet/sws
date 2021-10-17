@@ -577,8 +577,8 @@ static LRESULT _sws_WindowsSwitcher_WndProc(HWND hWnd, UINT uMsg, WPARAM wParam,
                         !(_this->layout.bIncludeWallpaper && pWindowList[i].hWnd == _this->layout.hWndWallpaper)
                         )
                     {
-                        //CreateThread(0, 0, _sws_WindowHelpers_CloseWindow, pWindowList[i].hWnd, 0, 0);
-                        EndTask(pWindowList[i].hWnd, FALSE, FALSE);
+                        PostMessageW(pWindowList[i].hWnd, WM_SYSCOMMAND, SC_CLOSE, 0);
+                        //EndTask(pWindowList[i].hWnd, FALSE, FALSE);
                         //PostMessageW(pWindowList[i].hWnd, WM_CLOSE, 0, 0);
                         return 0;
                     }

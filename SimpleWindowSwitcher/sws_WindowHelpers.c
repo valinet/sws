@@ -222,11 +222,10 @@ BOOL sws_WindowHelpers_IsAltTabWindow(
 		return FALSE;
 	}
 
-	TITLEBARINFO ti;
-	ti.cbSize = sizeof(ti);
-	GetTitleBarInfo(hwnd, &ti);
-	if (ti.rgstate[0] & STATE_SYSTEM_INVISIBLE)
+	const LONG_PTR windowLong = GetWindowLongPtrW(hwnd, GWL_STYLE);
+	if (!(windowLong & WS_VISIBLE) || !(windowLong & WS_SYSMENU)) {
 		return FALSE;
+	}
 
 	// https://forum.rehips.com/index.php?topic=9599.0
 	if (IsWindowVisible(hwnd))
@@ -267,6 +266,7 @@ BOOL sws_WindowHelpers_IsAltTabWindow(
 		return FALSE;
 
 	// the following removes some task tray programs and "Program Manager"
+	TITLEBARINFO ti;
 	ti.cbSize = sizeof(ti);
 	GetTitleBarInfo(hwnd, &ti);
 	if (ti.rgstate[0] & STATE_SYSTEM_INVISIBLE)

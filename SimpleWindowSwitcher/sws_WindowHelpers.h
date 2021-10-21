@@ -174,8 +174,9 @@ sws_error_t sws_WindowHelpers_Initialize();
 
 inline void _sws_WindowHelpers_ToggleDesktop()
 {
-	PostMessageW(FindWindowExW(NULL, NULL, L"Shell_TrayWnd", NULL), 0x579, 3 - 1, 0); // 1 to restore
-	PostMessageW(FindWindowExW(NULL, NULL, L"Shell_TrayWnd", NULL), 0x579, 3 - 0, 0); // 0 to show
+	PostMessageW(FindWindowExW(NULL, NULL, L"Shell_TrayWnd", NULL), WM_HOTKEY, 513, 0);
+	//PostMessageW(FindWindowExW(NULL, NULL, L"Shell_TrayWnd", NULL), 0x579, 3 - 1, 0); // 1 to restore
+	//PostMessageW(FindWindowExW(NULL, NULL, L"Shell_TrayWnd", NULL), 0x579, 3 - 0, 0); // 0 to show
 }
 
 inline void _sws_WindowHelpers_ForceCloseWindow(HWND hWnd)

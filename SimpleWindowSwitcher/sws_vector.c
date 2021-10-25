@@ -16,7 +16,7 @@ sws_error_t sws_vector_PushBack(sws_vector* _this, void* pElement)
 		if (_this->cbSize >= _this->cbCapacity)
 		{
 			void* prev = _this->pList;
-			_this->pList = realloc(_this->pList, _this->cbElementSize * (_this->cbCapacity + SWS_VECTOR_CAPACITY));
+			_this->pList = realloc(_this->pList, (uintptr_t)_this->cbElementSize * (uintptr_t)((uintptr_t)_this->cbCapacity + SWS_VECTOR_CAPACITY));
 			if (!_this->pList)
 			{
 				free(prev);
@@ -33,7 +33,7 @@ sws_error_t sws_vector_PushBack(sws_vector* _this, void* pElement)
 	}
 	if (!rv)
 	{
-		memcpy((uint8_t*)_this->pList + _this->cbSize * _this->cbElementSize, pElement, _this->cbElementSize);
+		memcpy((uintptr_t)_this->pList + (uintptr_t)_this->cbSize * (uintptr_t)_this->cbElementSize, pElement, _this->cbElementSize);
 		_this->cbSize++;
 	}
 
@@ -69,6 +69,7 @@ sws_error_t sws_vector_Initialize(sws_vector* _this, unsigned int cbElementSize)
 		}
 		_this->cbElementSize = cbElementSize;
 		_this->cbCapacity = SWS_VECTOR_CAPACITY;
+		_this->cbSize = 0;
 	}
 
 	return rv;

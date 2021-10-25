@@ -36,7 +36,7 @@ extern "C"
 #endif
 	void sws_error_PrintStackTrace();
 
-	char* sws_error_NumToDescription(sws_error_t errnum);
+	char* sws_error_NumToDescription(sws_error_t errnum, BOOL* bType);
 
 	sws_error_t sws_error_Report(sws_error_t errnum, void* data);
 

@@ -15,6 +15,7 @@
 #pragma comment(lib, "runtimeobject.lib")
 #include "sws_def.h"
 #include "sws_error.h"
+#include "sws_window.h"
 #include "sws_WindowSwitcherLayout.h"
 #include "sws_RegistryMonitor.h"
 
@@ -28,6 +29,10 @@ typedef struct _sws_WindowSwitcher
     HWND hWnd;
     UINT msgShellHook;
     sws_WindowSwitcherLayout layout;
+    sws_WindowSwitcherLayout layouts[SWS_WINDOWSWITCHER_MAX_NUM_MONITORS];
+    sws_WindowSwitcherLayout minilayouts[SWS_WINDOWSWITCHER_MAX_NUM_MONITORS];
+    UINT numLayouts;
+    UINT numLayoutsMax;
     HBRUSH hContourBrush;
     HBRUSH hBackgroundBrush;
     HBRUSH hCloseButtonBrush;
@@ -42,12 +47,28 @@ typedef struct _sws_WindowSwitcher
     DWORD cwMask;
     HANDLE hEvExit;
     BOOL bIsDarkMode;
+    BOOL bIsQuick;
+    BOOL bIsMouseClicking;
+    long long last_change;
+    BOOL bRudeChangesAllowed;
+    sws_vector pHWNDList;
+    BOOL bEnabled;
+    BOOL bWallpaperAlwaysLast;
+    HWND hWndWallpaper;
+    UINT mode;
+    HWND lastMiniModehWnd;
+    HWINEVENTHOOK global_hook;
+    DWORD dwColorScheme;
+    DWORD dwTheme;
+    DWORD dwCornerPreference;
+    DWORD dwShowDelay;
+    BOOL bPrimaryOnly;
 
     DWORD dwRowHeight;
     DWORD dwMaxWP;
     DWORD dwMaxHP;
     DWORD bIncludeWallpaper;
-    DWORD dwColorScheme;
+    DWORD bPerMonitor;
 } sws_WindowSwitcher;
 
 void sws_WindowSwitcher_RefreshTheme(sws_WindowSwitcher* _this);
@@ -58,9 +79,7 @@ void _sws_WindowSwitcher_SwitchToSelectedItemAndDismiss(sws_WindowSwitcher* _thi
 
 static void CALLBACK _sws_WindowSwitcher_NotifyTransparencyChange(sws_WindowSwitcher* _this, BOOL bIsInHKLM, DWORD* value, size_t size);
 
-static DWORD WINAPI _sws_WindowSwitcher_Show(sws_WindowSwitcher* _this);
-
-static BOOL CALLBACK _sws_WindowSwitcher_EnumWindowsCallback(_In_ HWND hWnd, _In_ sws_WindowSwitcher* _this);
+static DWORD WINAPI _sws_WindowSwitcher_Calculate(sws_WindowSwitcher* _this);
 
 static sws_error_t _sws_WindowSwitcher_GetCloseButtonRectFromIndex(sws_WindowSwitcher* _this, DWORD dwIndex, LPRECT lpRect);
 

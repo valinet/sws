@@ -10,6 +10,7 @@
 #include "sws_def.h"
 #include "sws_error.h"
 #include "sws_vector.h"
+#include "sws_window.h"
 #include "sws_WindowSwitcherLayoutWindow.h"
 #include "sws_WindowHelpers.h"
 
@@ -65,6 +66,6 @@ sws_error_t sws_WindowSwitcherLayout_ComputeLayout(sws_WindowSwitcherLayout* _th
 
 void sws_WindowSwitcherLayout_Clear(sws_WindowSwitcherLayout* _this);
 
-sws_error_t sws_WindowSwitcherLayout_Initialize(sws_WindowSwitcherLayout* _this, HMONITOR hMonitor, HWND hWnd, DWORD* settings);
+sws_error_t sws_WindowSwitcherLayout_Initialize(sws_WindowSwitcherLayout* _this, HMONITOR hMonitor, HWND hWnd, DWORD* settings, sws_vector* pHWNDList, HWND hWndTarget);
 
 #endif

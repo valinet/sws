@@ -1,5 +1,36 @@
 #include "sws_WindowSwitcher.h"
 
+void _sws_WindowSwitcher_Wineventproc(
+    HWINEVENTHOOK hWinEventHook,
+    DWORD event,
+    HWND hwnd,
+    LONG idObject,
+    LONG idChild,
+    DWORD idEventThread,
+    DWORD dwmsEventTime
+)
+{
+    if (event == EVENT_SYSTEM_MOVESIZEEND && hwnd && idObject == OBJID_WINDOW)
+    {
+        PostMessageW(FindWindowW(_T(SWS_WINDOWSWITCHER_CLASSNAME), NULL), RegisterWindowMessageW(L"SHELLHOOK"), HSHELL_RUDEAPPACTIVATED, hwnd);
+    }
+}
+
+static BOOL CALLBACK _sws_WindowSwitcher_EnumWindowsCallback(_In_ HWND hWnd, _In_ sws_WindowSwitcher* _this)
+{
+    if (sws_WindowHelpers_IsAltTabWindow(hWnd, _this->hWndWallpaper) || (_this->bIncludeWallpaper && !_this->bWallpaperAlwaysLast && hWnd == _this->hWndWallpaper))
+    {
+        sws_window window;
+        sws_window_Initialize(&window, hWnd);
+        if (sws_vector_PushBack(&_this->pHWNDList, &window) != SWS_ERROR_SUCCESS)
+        {
+            return FALSE;
+        }
+    }
+
+    return TRUE;
+}
+
 void sws_WindowSwitcher_SetTransparencyFromRegistry(sws_WindowSwitcher * _this, HKEY hOrigin)
 {
     HKEY hKey = NULL;
@@ -40,7 +71,7 @@ void sws_WindowSwitcher_SetTransparencyFromRegistry(sws_WindowSwitcher * _this, 
 static void CALLBACK _sws_WindowSwitcher_NotifyTransparencyChange(sws_WindowSwitcher* _this, BOOL bIsInHKLM, DWORD* value, size_t size)
 {
     DWORD blur = (*value / 100.0) * 255;
-    if (_this->hTheme && IsThemeActive())
+    if (_this->hTheme)
     {
         sws_WindowHelpers_SetWindowBlur(
             _this->hWnd,
@@ -51,85 +82,95 @@ static void CALLBACK _sws_WindowSwitcher_NotifyTransparencyChange(sws_WindowSwit
     }
 }
 
-static BOOL CALLBACK _sws_WindowSwitcher_EnumWindowsCallback(_In_ HWND hWnd, _In_ sws_WindowSwitcher* _this)
+static DWORD WINAPI _sws_WindowSwitcher_CalculateHelper(HMONITOR hMonitor, HDC hdcMonitor, LPRECT lprcMonitor, sws_WindowSwitcher* _this)
 {
-    if (sws_WindowHelpers_IsAltTabWindow(hWnd))
+    for (int LayoutMode = 0; LayoutMode < 2; ++LayoutMode)
     {
-        if (hWnd == GetForegroundWindow())
+        //Sleep(100);
+        long long start = milliseconds_now();
+        ////POINT ptCursor;
+        ////GetCursorPos(&ptCursor);
+        ////_this->hMonitor = MonitorFromPoint(ptCursor, MONITOR_DEFAULTTOPRIMARY);
+        _this->hMonitor = hMonitor;
+        if (!_this->lastMiniModehWnd)
         {
-            ShowWindow(_this->hWnd, SW_SHOW);
-            SwitchToThisWindow(_this->hWndLast, TRUE);
-            ShowWindow(_this->hWnd, SW_HIDE);
-            _this->hWndLast = 0;
-            return FALSE;
+            _this->lastMiniModehWnd = GetForegroundWindow();
         }
-        _this->hWndLast = hWnd;
-    }
-
-    return TRUE;
-}
-
-static DWORD WINAPI _sws_WindowSwitcher_Show(sws_WindowSwitcher* _this)
-{
-    //Sleep(100);
-    POINT ptCursor;
-    GetCursorPos(&ptCursor);
-    _this->hMonitor = MonitorFromPoint(ptCursor, MONITOR_DEFAULTTOPRIMARY);
-    sws_WindowSwitcherLayout_Initialize(&(_this->layout), _this->hMonitor, _this->hWnd, &(_this->dwRowHeight));
-    wchar_t* wszClassName[100];
-    GetClassNameW(GetForegroundWindow(), wszClassName, 100);
-    if (_this->layout.bIncludeWallpaper && _this->layout.bWallpaperAlwaysLast && !wcscmp(wszClassName, L"WorkerW"))
-    {
-        sws_WindowSwitcherLayout_ComputeLayout(&(_this->layout), SWS_WINDOWSWITCHERLAYOUT_COMPUTE_DIRECTION_INITIAL, sws_WindowHelpers_GetWallpaperHWND(_this->hMonitor));
-    }
-    else
-    {
-        sws_WindowSwitcherLayout_ComputeLayout(&(_this->layout), SWS_WINDOWSWITCHERLAYOUT_COMPUTE_DIRECTION_INITIAL, NULL);
-    }
-
-    //sws_WindowSwitcherLayoutWindow* pWindowList = _this->layout.pWindowList.pList;
-    ///for (int i = 0; i < _this->layout.pWindowList.cbSize; ++i)
-    //{
-    //    printf("%d %d\n", pWindowList[i].rcThumbnail.left, pWindowList[i].rcThumbnail.top);
-    //}
-    _this->layout.iIndex = _this->layout.pWindowList.cbSize == 1 ? 0 : _this->layout.iIndex - 1 - _this->layout.numTopMost;
-    if (_this->layout.bIncludeWallpaper && !wcscmp(wszClassName, L"WorkerW"))
-    {
-        if (_this->layout.bWallpaperAlwaysLast)
+        sws_WindowSwitcherLayout_Initialize(&(_this->layout), _this->hMonitor, _this->hWnd, &(_this->dwRowHeight), &(_this->pHWNDList), (LayoutMode ? _this->lastMiniModehWnd: NULL));
+        wchar_t* wszClassName[100];
+        GetClassNameW(GetForegroundWindow(), wszClassName, 100);
+        if (LayoutMode == SWS_WINDOWSWITCHER_LAYOUTMODE_FULL && _this->layout.bIncludeWallpaper && _this->layout.bWallpaperAlwaysLast && !wcscmp(wszClassName, L"WorkerW"))
         {
-            if (!_this->layout.bWallpaperToggleBehavior)
-            {
-                // BEHAVIOR 1
-                _this->layout.iIndex = _this->layout.pWindowList.cbSize - 1;
-            }
-            else
-            {
-                // BEHAVIOR 2
-                _this->layout.iIndex = 0;
-            }
+            sws_WindowSwitcherLayout_ComputeLayout(&(_this->layout), SWS_WINDOWSWITCHERLAYOUT_COMPUTE_DIRECTION_INITIAL, sws_WindowHelpers_GetWallpaperHWND());
         }
         else
         {
-            if (!_this->layout.bWallpaperToggleBehavior)
+            sws_WindowSwitcherLayout_ComputeLayout(&(_this->layout), SWS_WINDOWSWITCHERLAYOUT_COMPUTE_DIRECTION_INITIAL, NULL);
+        }
+        long long elapsed = milliseconds_now() - start;
+        //printf("Window switcher completed in %lld.\n", elapsed);
+
+        //sws_WindowSwitcherLayoutWindow* pWindowList = _this->layout.pWindowList.pList;
+        ///for (int i = 0; i < _this->layout.pWindowList.cbSize; ++i)
+        //{
+        //    printf("%d %d\n", pWindowList[i].rcThumbnail.left, pWindowList[i].rcThumbnail.top);
+        //}
+        _this->layout.iIndex = _this->layout.pWindowList.cbSize == 1 ? 0 : _this->layout.iIndex - 1 - _this->layout.numTopMost;
+        if (LayoutMode == SWS_WINDOWSWITCHER_LAYOUTMODE_FULL && _this->layout.bIncludeWallpaper && !wcscmp(wszClassName, L"WorkerW"))
+        {
+            if (_this->layout.bWallpaperAlwaysLast)
             {
-                // BEHAVIOR 1
+                if (!_this->layout.bWallpaperToggleBehavior)
+                {
+                    // BEHAVIOR 1
+                    _this->layout.iIndex = _this->layout.pWindowList.cbSize - 1;
+                }
+                else
+                {
+                    // BEHAVIOR 2
+                    _this->layout.iIndex = 0;
+                }
             }
             else
             {
-                // BEHAVIOR 2
-                _this->layout.iIndex = _this->layout.pWindowList.cbSize - 1;
+                if (!_this->layout.bWallpaperToggleBehavior)
+                {
+                    // BEHAVIOR 1
+                }
+                else
+                {
+                    // BEHAVIOR 2
+                    _this->layout.iIndex = _this->layout.pWindowList.cbSize - 1;
+                }
             }
         }
+        if (_this->layout.iIndex < 0)
+        {
+            _this->layout.iIndex = 0;
+        }
+        RECT rcZero;
+        memset(&rcZero, 0, sizeof(RECT));
+        _this->cwIndex = -1;
+        _this->cwMask = 0;
+        _this->bPartialRedraw = FALSE;
+        if (!LayoutMode)
+        {
+            _this->layouts[_this->numLayouts] = _this->layout;
+        }
+        else
+        {
+            _this->minilayouts[_this->numLayouts] = _this->layout;
+            _this->numLayouts++;
+            if (_this->numLayouts > SWS_WINDOWSWITCHER_MAX_NUM_MONITORS - 1)
+            {
+                return FALSE;
+            }
+            return TRUE;
+        }
     }
-    if (_this->layout.iIndex < 0)
-    {
-        _this->layout.iIndex = 0;
-    }
-    RECT rcZero;
-    memset(&rcZero, 0, sizeof(RECT));
-    _this->cwIndex = -1;
-    _this->cwMask = 0;
-    _this->bPartialRedraw = FALSE;
+
+
+
     SetWindowPos(_this->hWnd, 0, _this->layout.iX, _this->layout.iY, _this->layout.iWidth, _this->layout.iHeight, SWP_NOZORDER);
     ShowWindow(_this->hWnd, SW_SHOW);
     SetForegroundWindow(_this->hWnd);
@@ -139,6 +180,157 @@ static DWORD WINAPI _sws_WindowSwitcher_Show(sws_WindowSwitcher* _this)
     {
         _sws_WindowSwitcher_SwitchToSelectedItemAndDismiss(_this);
     }
+}
+
+static DWORD WINAPI _sws_WindowSwitcher_Calculate(sws_WindowSwitcher* _this)
+{
+    for (unsigned int i = 0; i < _this->numLayouts; ++i)
+    {
+        sws_WindowSwitcherLayout_Clear(&(_this->layouts[i]));
+    }
+    for (unsigned int i = 0; i < _this->numLayouts; ++i)
+    {
+        sws_WindowSwitcherLayout_Clear(&(_this->minilayouts[i]));
+    }
+    _this->numLayouts = 0;
+    EnumDisplayMonitors(
+        NULL,
+        NULL,
+        _sws_WindowSwitcher_CalculateHelper,
+        _this
+    );
+    if (_this->numLayouts > _this->numLayoutsMax)
+    {
+        _this->numLayoutsMax = _this->numLayouts;
+    }
+}
+
+static void _sws_WindowsSwitcher_DecideThumbnails(sws_WindowSwitcher* _this, DWORD dwMode)
+{
+    BOOL bHaveSelected = FALSE;
+    for (unsigned int j = 0; j < _this->numLayouts; ++j)
+    {
+        if (dwMode == SWS_WINDOWSWITCHER_LAYOUTMODE_FULL && _this->hMonitor == _this->layouts[j].hMonitor)
+        {
+            _this->layout = _this->layouts[j];
+            bHaveSelected = TRUE;
+        }
+        else if (dwMode == SWS_WINDOWSWITCHER_LAYOUTMODE_MINI && _this->hMonitor == _this->minilayouts[j].hMonitor)
+        {
+            _this->layout = _this->minilayouts[j];
+            bHaveSelected = TRUE;
+        }
+        sws_WindowSwitcherLayoutWindow* pWindowList;
+        pWindowList = _this->layouts[j].pWindowList.pList;
+        if (pWindowList)
+        {
+            for (unsigned int i = 0; i < _this->layouts[j].pWindowList.cbSize; ++i)
+            {
+                if (pWindowList[i].hThumbnail)
+                {
+                    DWM_THUMBNAIL_PROPERTIES dskThumbProps;
+                    ZeroMemory(&dskThumbProps, sizeof(DWM_THUMBNAIL_PROPERTIES));
+                    dskThumbProps.dwFlags = DWM_TNP_VISIBLE;
+                    dskThumbProps.fVisible = (dwMode == SWS_WINDOWSWITCHER_LAYOUTMODE_FULL && (_this->hMonitor == _this->layouts[j].hMonitor));
+                    DwmUpdateThumbnailProperties(pWindowList[i].hThumbnail, &dskThumbProps);
+                }
+            }
+        }
+        pWindowList = _this->minilayouts[j].pWindowList.pList;
+        if (pWindowList)
+        {
+            for (unsigned int i = 0; i < _this->minilayouts[j].pWindowList.cbSize; ++i)
+            {
+                if (pWindowList[i].hThumbnail)
+                {
+                    DWM_THUMBNAIL_PROPERTIES dskThumbProps;
+                    ZeroMemory(&dskThumbProps, sizeof(DWM_THUMBNAIL_PROPERTIES));
+                    dskThumbProps.dwFlags = DWM_TNP_VISIBLE;
+                    dskThumbProps.fVisible = (dwMode == SWS_WINDOWSWITCHER_LAYOUTMODE_MINI && (_this->hMonitor == _this->minilayouts[j].hMonitor));
+                    DwmUpdateThumbnailProperties(pWindowList[i].hThumbnail, &dskThumbProps);
+                }
+            }
+        }
+    }
+    if (!bHaveSelected)
+    {
+        if (dwMode == SWS_WINDOWSWITCHER_LAYOUTMODE_FULL)
+        {
+            _this->layout = _this->layouts[0];
+        }
+        else if (dwMode == SWS_WINDOWSWITCHER_LAYOUTMODE_MINI)
+        {
+            _this->layout = _this->minilayouts[0];
+        }
+        sws_WindowSwitcherLayoutWindow* pWindowList;
+        pWindowList = _this->layouts[0].pWindowList.pList;
+        if (pWindowList)
+        {
+            for (unsigned int i = 0; i < _this->layouts[0].pWindowList.cbSize; ++i)
+            {
+                if (pWindowList[i].hThumbnail)
+                {
+                    DWM_THUMBNAIL_PROPERTIES dskThumbProps;
+                    ZeroMemory(&dskThumbProps, sizeof(DWM_THUMBNAIL_PROPERTIES));
+                    dskThumbProps.dwFlags = DWM_TNP_VISIBLE;
+                    dskThumbProps.fVisible = (dwMode == SWS_WINDOWSWITCHER_LAYOUTMODE_FULL);
+                    DwmUpdateThumbnailProperties(pWindowList[i].hThumbnail, &dskThumbProps);
+                }
+            }
+        }
+        pWindowList = _this->minilayouts[0].pWindowList.pList;
+        if (pWindowList)
+        {
+            for (unsigned int i = 0; i < _this->minilayouts[0].pWindowList.cbSize; ++i)
+            {
+                if (pWindowList[i].hThumbnail)
+                {
+                    DWM_THUMBNAIL_PROPERTIES dskThumbProps;
+                    ZeroMemory(&dskThumbProps, sizeof(DWM_THUMBNAIL_PROPERTIES));
+                    dskThumbProps.dwFlags = DWM_TNP_VISIBLE;
+                    dskThumbProps.fVisible = (dwMode == SWS_WINDOWSWITCHER_LAYOUTMODE_MINI);
+                    DwmUpdateThumbnailProperties(pWindowList[i].hThumbnail, &dskThumbProps);
+                }
+            }
+        }
+    }
+    //printf("[sws] Decided layout.\n");
+}
+
+static void WINAPI _sws_WindowSwitcher_Show(sws_WindowSwitcher* _this)
+{
+    POINT pt;
+    if (_this->bPrimaryOnly)
+    {
+        pt.x = 0;
+        pt.y = 0;
+    }
+    else
+    {
+        GetCursorPos(&pt);
+    }
+    _this->hMonitor = MonitorFromPoint(pt, MONITOR_DEFAULTTOPRIMARY);
+    _sws_WindowsSwitcher_DecideThumbnails(_this, _this->mode);
+    if (_this->layout.pWindowList.cbSize == 0)
+    {
+        ShowWindow(_this->hWnd, SW_HIDE);
+        return;
+    }
+    if (!IsWindowVisible(_this->hWnd) && _this->dwShowDelay)
+    {
+        _this->bRudeChangesAllowed = FALSE;
+        BOOL bCloak = TRUE;
+        DwmSetWindowAttribute(_this->hWnd, DWMWA_CLOAK, &bCloak, sizeof(BOOL));
+        SetTimer(_this->hWnd, SWS_WINDOWSWITCHER_TIMER_SHOW, _this->dwShowDelay, NULL);
+    }
+    else
+    {
+        BOOL bCloak = FALSE;
+        DwmSetWindowAttribute(_this->hWnd, DWMWA_CLOAK, &bCloak, sizeof(BOOL));
+    }
+    SetWindowPos(_this->hWnd, 0, _this->layout.iX, _this->layout.iY, _this->layout.iWidth, _this->layout.iHeight, SWP_NOZORDER);
+    ShowWindow(_this->hWnd, SW_SHOW);
+    SetForegroundWindow(_this->hWnd);
 }
 
 static sws_error_t _sws_WindowSwitcher_GetCloseButtonRectFromIndex(sws_WindowSwitcher* _this, DWORD dwIndex, LPRECT lpRect)
@@ -156,12 +348,82 @@ static sws_error_t _sws_WindowSwitcher_GetCloseButtonRectFromIndex(sws_WindowSwi
     return SWS_ERROR_GENERIC_ERROR;
 }
 
+static void _sws_WindowSwitcher_WindowList_Remove(sws_WindowSwitcher* _this, HWND hWnd, BOOL* bOk)
+{
+    if (bOk) *bOk = FALSE;
+    sws_window* pHWNDList = _this->pHWNDList.pList;
+    sws_vector newVector;
+    sws_vector_Initialize(&newVector, sizeof(sws_window));
+    for (int i = 0; i < _this->pHWNDList.cbSize; ++i)
+    {
+        if (IsWindow(pHWNDList[i].hWnd) && pHWNDList[i].hWnd != hWnd)
+        {
+            sws_vector_PushBack(&newVector, &(pHWNDList[i]));
+        }
+        else
+        {
+            sws_window_Clear(&(pHWNDList[i]));
+            if (bOk) *bOk = TRUE;
+        }
+    }
+    sws_vector_Clear(&(_this->pHWNDList));
+    _this->pHWNDList = newVector;
+}
+
+static void _sws_WindowSwitcher_WindowList_PushToFront(sws_WindowSwitcher* _this, HWND hWnd, BOOL* bOk)
+{
+    if (bOk) *bOk = FALSE;
+    sws_window* pHWNDList = _this->pHWNDList.pList;
+    int bContains = -1;
+    for (int i = 0; i < _this->pHWNDList.cbSize; ++i)
+    {
+        if (pHWNDList[i].hWnd == hWnd)
+        {
+            bContains = i;
+            break;
+        }
+    }
+    if (bContains >= 0)
+    {
+        sws_window temp = pHWNDList[bContains];
+        for (int i = bContains; i > 0; i--)
+        {
+            pHWNDList[i] = pHWNDList[i - 1];
+        }
+        pHWNDList[0] = temp;
+    }
+    else
+    {
+        sws_window zero;
+        ZeroMemory(&zero, sizeof(sws_window));
+        sws_vector_PushBack(&(_this->pHWNDList), &zero);
+        for (int i = _this->pHWNDList.cbSize - 1; i > 0; i--)
+        {
+            pHWNDList[i] = pHWNDList[i - 1];
+        }
+        sws_window window;
+        sws_window_Initialize(&window, hWnd);
+        pHWNDList[0] = window;
+        if (bOk) *bOk = TRUE;
+    }
+}
+
 void _sws_WindowSwitcher_SwitchToSelectedItemAndDismiss(sws_WindowSwitcher* _this)
 {
     sws_WindowSwitcherLayoutWindow* pWindowList = _this->layout.pWindowList.pList;
     if (_this->layout.bIncludeWallpaper && pWindowList[_this->layout.iIndex].hWnd == _this->layout.hWndWallpaper)
     {
+        BOOL bCloak = TRUE;
+        DwmSetWindowAttribute(_this->hWnd, DWMWA_CLOAK, &bCloak, sizeof(BOOL));
         _sws_WindowHelpers_ToggleDesktop();
+        _this->bEnabled = FALSE;
+        _this->bRudeChangesAllowed = FALSE;
+        SetTimer(
+            _this->hWnd,
+            SWS_WINDOWSWITCHER_TIMER_TOGGLE_DESKTOP,
+            SWS_WINDOWSWITCHER_TIMER_TOGGLE_DESKTOP_DELAY,
+            NULL
+        );
     }
     else
     {
@@ -182,12 +444,57 @@ void sws_WindowSwitcher_RefreshTheme(sws_WindowSwitcher* _this)
     {
         _this->bIsDarkMode = _this->dwColorScheme - 1;
     }
-    sws_WindowSwitcher_SetTransparencyFromRegistry(_this, HKEY_CURRENT_USER);
+    printf("[sws] Refreshing theme: %d\n", _this->dwTheme);
+    INT preference = _this->dwCornerPreference;
+    DwmSetWindowAttribute(_this->hWnd, DWMWA_WINDOW_CORNER_PREFERENCE, &preference, sizeof(preference));
+    MARGINS marGlassInset = { 0, 0, 0, 0 };
+    DwmExtendFrameIntoClientArea(_this->hWnd, &marGlassInset);
+    BOOL bMica = FALSE;
+    DwmSetWindowAttribute(_this->hWnd, DWMWA_MICA_EFFFECT, &bMica, sizeof(BOOL));
+    DwmSetWindowAttribute(_this->hWnd, DWMWA_USE_IMMERSIVE_DARK_MODE, &_this->bIsDarkMode, sizeof(BOOL));
+    sws_WindowHelpers_SetWindowBlur(
+        _this->hWnd,
+        0,
+        0,
+        0
+    );
+    if (_this->dwTheme == SWS_WINDOWSWITCHER_THEME_BACKDROP)
+    {
+        sws_WindowSwitcher_SetTransparencyFromRegistry(_this, HKEY_CURRENT_USER);
+    }
+    else if (_this->dwTheme == SWS_WINDOWSWITCHER_THEME_MICA)
+    {
+        sws_WindowHelpers_PermitDarkMode(_this->hWnd);
+        MARGINS marGlassInset = { -1, -1, -1, -1 };
+        DwmExtendFrameIntoClientArea(_this->hWnd, &marGlassInset);
+        bMica = TRUE;
+        DwmSetWindowAttribute(_this->hWnd, DWMWA_MICA_EFFFECT, &bMica, sizeof(BOOL));
+    }
+    if (_this->hBackgroundBrush)
+    {
+        DeleteObject(_this->hBackgroundBrush);
+    }
+    if (_this->dwTheme)
+    {
+        _this->hBackgroundBrush = (HBRUSH)CreateSolidBrush(RGB(0, 0, 0));
+    }
+    else
+    {
+        _this->hBackgroundBrush = (HBRUSH)CreateSolidBrush(_this->bIsDarkMode ? SWS_WINDOWSWITCHER_BACKGROUND_COLOR : SWS_WINDOWSWITCHER_BACKGROUND_COLOR_LIGHT);
+    }
     if (_this->hContourBrush)
     {
         DeleteObject(_this->hContourBrush);
     }
     _this->hContourBrush = (HBRUSH)CreateSolidBrush(_this->bIsDarkMode ? SWS_WINDOWSWITCHER_CONTOUR_COLOR : SWS_WINDOWSWITCHER_CONTOUR_COLOR_LIGHT);
+
+    long long start = milliseconds_now();
+    _this->lastMiniModehWnd = NULL;
+    _sws_WindowSwitcher_Calculate(_this);
+    long long elapsed = milliseconds_now() - start;
+    printf(
+        "[sws] Recomputed layouts in %lld ms because: Settings changed.\n",
+        elapsed);
 }
 
 static LRESULT _sws_WindowsSwitcher_WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
@@ -198,6 +505,7 @@ static LRESULT _sws_WindowsSwitcher_WndProc(HWND hWnd, UINT uMsg, WPARAM wParam,
         CREATESTRUCT* pCreate = (CREATESTRUCT*)(lParam);
         _this = (struct sws_WindowSwitcher*)(pCreate->lpCreateParams);
         SetWindowLongPtr(hWnd, GWLP_USERDATA, (LONG_PTR)_this);
+        SetTimer(hWnd, SWS_WINDOWSWITCHER_TIMER_STARTUP, SWS_WINDOWSWITCHER_TIMER_STARTUP_DELAY, 0);
     }
     else
     {
@@ -205,37 +513,121 @@ static LRESULT _sws_WindowsSwitcher_WndProc(HWND hWnd, UINT uMsg, WPARAM wParam,
         _this = (struct sws_WindowSwitcher*)(ptr);
     }
 
-    if (_this && uMsg == _this->msgShellHook)
+    //printf("%d %d %d\n", uMsg, wParam, lParam);
+    if (uMsg == WM_TIMER && wParam == SWS_WINDOWSWITCHER_TIMER_STARTUP)
     {
-        if (IsWindowVisible(_this->hWnd) && (wParam == HSHELL_WINDOWCREATED || wParam == HSHELL_WINDOWDESTROYED))
+        _this->hWndWallpaper = sws_WindowHelpers_GetWallpaperHWND();
+        sws_WindowHelpers_RealEnumWindows((WNDENUMPROC)_sws_WindowSwitcher_EnumWindowsCallback, (LPARAM)_this);
+        sws_window* pHWNDList = _this->pHWNDList.pList;
+        sws_vector newVector;
+        sws_vector_Initialize(&newVector, sizeof(sws_window));
+        for (int i = _this->pHWNDList.cbSize - 1; i >= 0; i--)
+        {
+            sws_vector_PushBack(&newVector, &(pHWNDList[i]));
+        }
+        sws_vector_Clear(&(_this->pHWNDList));
+        _this->pHWNDList = newVector;
+
+        sws_WindowSwitcher_RefreshTheme(_this);
+
+        _this->bEnabled = TRUE;
+
+        KillTimer(hWnd, SWS_WINDOWSWITCHER_TIMER_STARTUP);
+        return 0;
+    }
+    else if (uMsg == WM_TIMER && wParam == SWS_WINDOWSWITCHER_TIMER_TOGGLE_DESKTOP)
+    {
+        if (!_this->layout.bWallpaperAlwaysLast)
+        {
+            _sws_WindowSwitcher_WindowList_PushToFront(_this, _this->layout.hWndWallpaper, NULL);
+        }
+        long long start = milliseconds_now();
+        _sws_WindowSwitcher_Calculate(_this);
+        long long elapsed = milliseconds_now() - start;
+        printf(
+            "[sws] Recomputed layouts in %lld ms because: Toggle desktop.\n",
+            elapsed);
+        BOOL bCloak = FALSE;
+        DwmSetWindowAttribute(_this->hWnd, DWMWA_CLOAK, &bCloak, sizeof(BOOL));
+        KillTimer(hWnd, SWS_WINDOWSWITCHER_TIMER_TOGGLE_DESKTOP);
+        _this->bRudeChangesAllowed = TRUE;
+        _this->bEnabled = TRUE;
+        return 0;
+    }
+    else if (uMsg == WM_TIMER && wParam == SWS_WINDOWSWITCHER_TIMER_SHOW)
+    {
+        BOOL bCloak = FALSE;
+        DwmSetWindowAttribute(_this->hWnd, DWMWA_CLOAK, &bCloak, sizeof(BOOL));
+        KillTimer(hWnd, SWS_WINDOWSWITCHER_TIMER_SHOW);
+        _this->bRudeChangesAllowed = TRUE;
+        return 0;
+    }
+    else if (uMsg == WM_TIMER && wParam == SWS_WINDOWSWITCHER_TIMER_PEEKATDESKTOP)
+    {
+        PostMessageW(FindWindowExW(NULL, NULL, L"Shell_TrayWnd", NULL), WM_HOTKEY, 516, 0);
+        KillTimer(hWnd, SWS_WINDOWSWITCHER_TIMER_PEEKATDESKTOP);
+        return 0;
+    }
+    else if (_this && uMsg == _this->msgShellHook)
+    {
+        if (wParam == HSHELL_WINDOWCREATED || wParam == HSHELL_WINDOWDESTROYED || wParam == HSHELL_WINDOWACTIVATED || wParam == HSHELL_RUDEAPPACTIVATED)
         {
             BOOL bOk = FALSE;
             if (wParam == HSHELL_WINDOWDESTROYED)
             {
-                sws_WindowSwitcherLayoutWindow* pWindowList = _this->layout.pWindowList.pList;
-                if (pWindowList)
+                if (lParam != hWnd)
                 {
-                    for (unsigned int i = 0; i < _this->layout.pWindowList.cbSize; ++i)
-                    {
-                        if (pWindowList[i].hWnd == lParam)
-                        {
-                            bOk = TRUE;
-                        }
-                    }
+                    /*wchar_t text[200];
+                    GetWindowTextW(lParam, text, 200);
+                    wprintf(L"[-] [%d] %d : %s\n", _this->pHWNDList.cbSize, lParam, text);*/
+                    _sws_WindowSwitcher_WindowList_Remove(_this, lParam, &bOk);
                 }
             }
-            else
+            else if (wParam == HSHELL_WINDOWCREATED || wParam == HSHELL_WINDOWACTIVATED || wParam == HSHELL_RUDEAPPACTIVATED)
             {
-                if (_sws_IsTopLevelWindow(lParam))
+                if (lParam && lParam != hWnd && sws_WindowHelpers_IsAltTabWindow(lParam, NULL))
+                {
+                    /*if (wParam == HSHELL_WINDOWCREATED)
+                    {
+                        wchar_t text[200];
+                        GetWindowTextW(lParam, text, 200);
+                        wprintf(L"[+] [%d] %d : %s\n", _this->pHWNDList.cbSize, lParam, text);
+                    }*/
+                    _sws_WindowSwitcher_WindowList_PushToFront(_this, lParam, NULL);
+                    bOk = TRUE;
+                }
+                if (!lParam)
                 {
                     bOk = TRUE;
                 }
             }
-            if (bOk)
+            if (bOk && _this->bRudeChangesAllowed)
             {
-                sws_WindowSwitcherLayout_Clear(&(_this->layout));
-                _sws_WindowSwitcher_Show(_this);
-                RedrawWindow(hWnd, NULL, NULL, RDW_INVALIDATE | RDW_INTERNALPAINT);
+                BOOL isCloaked = FALSE;
+                DwmGetWindowAttribute(lParam, DWMWA_CLOAKED, &isCloaked, sizeof(BOOL));
+                if (!isCloaked || !lParam)
+                {
+                    long long start = milliseconds_now();
+                    if (!IsWindowVisible(_this->hWnd))
+                    {
+                        _this->lastMiniModehWnd = NULL;
+                    }
+                    _sws_WindowSwitcher_Calculate(_this);
+                    long long elapsed = milliseconds_now() - start;
+                    printf(
+                        wParam == HSHELL_WINDOWCREATED ?
+                        "[sws] Recomputed layouts in %lld ms because: Window created, mode %d.\n" :
+                        (wParam == HSHELL_WINDOWDESTROYED ?
+                            "[sws] Recomputed layouts in %lld ms because: Window destroyed, mode %d.\n" :
+                            "[sws] Recomputed layouts in %lld ms because: Foreground window changed, mode %d.\n"),
+                        elapsed, _this->mode);
+                    _sws_WindowsSwitcher_DecideThumbnails(_this, _this->mode);
+                    if (IsWindowVisible(_this->hWnd))
+                    {
+                        RedrawWindow(hWnd, NULL, NULL, RDW_INVALIDATE | RDW_INTERNALPAINT);
+                        _sws_WindowSwitcher_Show(_this);
+                    }
+                }
                 return 0;
             }
         }
@@ -255,7 +647,6 @@ static LRESULT _sws_WindowsSwitcher_WndProc(HWND hWnd, UINT uMsg, WPARAM wParam,
     }
     else if (uMsg == WM_DESTROY)
     {
-        sws_WindowSwitcherLayout_Clear(&(_this->layout));
         PostQuitMessage(0);
         SetEvent(_this->hEvExit);
         return 0;
@@ -268,11 +659,13 @@ static LRESULT _sws_WindowsSwitcher_WndProc(HWND hWnd, UINT uMsg, WPARAM wParam,
     {
         if (wParam == FALSE)
         {
-            sws_WindowSwitcherLayout_Clear(&(_this->layout));
+            _this->bRudeChangesAllowed = TRUE;
+            _this->lastMiniModehWnd = NULL;
+            //sws_WindowSwitcherLayout_Clear(&(_this->layout));
         }
         else
         {
-            SetWindowPos(_this->hWnd, 0, _this->layout.iX, _this->layout.iY, _this->layout.iWidth, _this->layout.iHeight, SWP_NOZORDER);
+            //SetWindowPos(_this->hWnd, 0, _this->layout.iX, _this->layout.iY, _this->layout.iWidth, _this->layout.iHeight, SWP_NOZORDER);
         }
         return 0;
     }
@@ -294,7 +687,7 @@ static LRESULT _sws_WindowsSwitcher_WndProc(HWND hWnd, UINT uMsg, WPARAM wParam,
         if (hdcPaint)
         {
             // Draw background when the themeing engine is disabled
-            if (!IsThemeActive())
+            if (!IsThemeActive() || _this->dwTheme == SWS_WINDOWSWITCHER_THEME_NONE)
             {
                 COLORREF oldcr = SetBkColor(hdcPaint, _this->bIsDarkMode ? SWS_WINDOWSWITCHER_BACKGROUND_COLOR : SWS_WINDOWSWITCHER_BACKGROUND_COLOR_LIGHT);
                 ExtTextOutW(hdcPaint, 0, 0, ETO_OPAQUE, &rc, L"", 0, 0);
@@ -329,33 +722,36 @@ static LRESULT _sws_WindowsSwitcher_WndProc(HWND hWnd, UINT uMsg, WPARAM wParam,
                     }
                     else
                     {
-                        GetWindowText(pWindowList[i].hWnd, wszTitle, MAX_PATH);
+                        GetWindowTextW(pWindowList[i].hWnd, wszTitle, MAX_PATH);
                     }
-                    if (_this->hTheme && IsThemeActive())
+                    if ((rcText.right - rcText.left) > (_this->layout.cbDpiX / DEFAULT_DPI_X) * 10)
                     {
-                        DrawThemeTextEx(
-                            _this->hTheme,
-                            hdcPaint,
-                            0,
-                            0,
-                            wszTitle,
-                            -1,
-                            dwTextFlags,
-                            &rcText,
-                            &DttOpts
-                        );
-                    }
-                    else
-                    {
-                        SetTextColor(hdcPaint, _this->bIsDarkMode ? SWS_WINDOWSWITCHER_TEXT_COLOR : SWS_WINDOWSWITCHER_TEXT_COLOR_LIGHT);
-                        SetBkColor(hdcPaint, _this->bIsDarkMode ? SWS_WINDOWSWITCHER_BACKGROUND_COLOR : SWS_WINDOWSWITCHER_BACKGROUND_COLOR_LIGHT);
-                        DrawTextW(
-                            hdcPaint,
-                            wszTitle,
-                            -1,
-                            &rcText,
-                            dwTextFlags
-                        );
+                        if (_this->hTheme && IsThemeActive())
+                        {
+                            DrawThemeTextEx(
+                                _this->hTheme,
+                                hdcPaint,
+                                0,
+                                0,
+                                wszTitle,
+                                -1,
+                                dwTextFlags,
+                                &rcText,
+                                &DttOpts
+                            );
+                        }
+                        else
+                        {
+                            SetTextColor(hdcPaint, _this->bIsDarkMode ? SWS_WINDOWSWITCHER_TEXT_COLOR : SWS_WINDOWSWITCHER_TEXT_COLOR_LIGHT);
+                            SetBkColor(hdcPaint, _this->bIsDarkMode ? SWS_WINDOWSWITCHER_BACKGROUND_COLOR : SWS_WINDOWSWITCHER_BACKGROUND_COLOR_LIGHT);
+                            DrawTextW(
+                                hdcPaint,
+                                wszTitle,
+                                -1,
+                                &rcText,
+                                dwTextFlags
+                            );
+                        }
                     }
                 }
             }
@@ -413,6 +809,10 @@ static LRESULT _sws_WindowsSwitcher_WndProc(HWND hWnd, UINT uMsg, WPARAM wParam,
                         rc.bottom -= 1;
                     }
                 }
+                //if (_this->layout.bIncludeWallpaper && pWindowList[k].hWnd == _this->layout.hWndWallpaper)
+                //{
+                //    SetTimer(hWnd, SWS_WINDOWSWITCHER_TIMER_PEEKATDESKTOP, SWS_WINDOWSWITCHER_TIMER_PEEKATDESKTOP_DELAY, NULL);
+                //}
             }
 
             // Draw hover rectangle
@@ -557,35 +957,45 @@ static LRESULT _sws_WindowsSwitcher_WndProc(HWND hWnd, UINT uMsg, WPARAM wParam,
                 RedrawWindow(hWnd, NULL, NULL, RDW_INVALIDATE | RDW_INTERNALPAINT);
             }
         }
+        _this->bIsMouseClicking = FALSE;
+        return 0;
+    }
+    else if (uMsg == WM_LBUTTONDOWN)
+    {
+        _this->bIsMouseClicking = TRUE;
         return 0;
     }
     else if (uMsg == WM_LBUTTONUP)
     {
-        int x = GET_X_LPARAM(lParam);
-        int y = GET_Y_LPARAM(lParam);
-        sws_WindowSwitcherLayoutWindow* pWindowList = _this->layout.pWindowList.pList;
-        if (pWindowList)
+        if (_this->bIsMouseClicking)
         {
-            for (unsigned int i = 0; i < _this->layout.pWindowList.cbSize; ++i)
+            int x = GET_X_LPARAM(lParam);
+            int y = GET_Y_LPARAM(lParam);
+            sws_WindowSwitcherLayoutWindow* pWindowList = _this->layout.pWindowList.pList;
+            if (pWindowList)
             {
-                RECT rc = pWindowList[i].rcWindow;
-                if (x > rc.left && x < rc.right && y > rc.top && y < rc.bottom)
+                for (unsigned int i = 0; i < _this->layout.pWindowList.cbSize; ++i)
                 {
-                    if (_this->cwIndex != -1 && 
-                        _this->cwIndex < _this->layout.pWindowList.cbSize &&
-                        _this->cwMask & SWS_WINDOWFLAG_IS_ON_CLOSE &&
-                        !(_this->layout.bIncludeWallpaper && pWindowList[i].hWnd == _this->layout.hWndWallpaper)
-                        )
+                    RECT rc = pWindowList[i].rcWindow;
+                    if (x > rc.left && x < rc.right && y > rc.top && y < rc.bottom)
                     {
-                        PostMessageW(pWindowList[i].hWnd, WM_SYSCOMMAND, SC_CLOSE, 0);
-                        //EndTask(pWindowList[i].hWnd, FALSE, FALSE);
-                        //PostMessageW(pWindowList[i].hWnd, WM_CLOSE, 0, 0);
-                        return 0;
+                        if (_this->cwIndex != -1 &&
+                            _this->cwIndex < _this->layout.pWindowList.cbSize &&
+                            _this->cwMask & SWS_WINDOWFLAG_IS_ON_CLOSE &&
+                            !(_this->layout.bIncludeWallpaper && pWindowList[i].hWnd == _this->layout.hWndWallpaper)
+                            )
+                        {
+                            PostMessageW(pWindowList[i].hWnd, WM_SYSCOMMAND, SC_CLOSE, 0);
+                            //EndTask(pWindowList[i].hWnd, FALSE, FALSE);
+                            //PostMessageW(pWindowList[i].hWnd, WM_CLOSE, 0, 0);
+                            return 0;
+                        }
+                        _this->layout.iIndex = i;
+                        _sws_WindowSwitcher_SwitchToSelectedItemAndDismiss(_this);
                     }
-                    _this->layout.iIndex = i;
-                    _sws_WindowSwitcher_SwitchToSelectedItemAndDismiss(_this);
                 }
             }
+            _this->bIsMouseClicking = FALSE;
         }
         return 0;
     }
@@ -597,21 +1007,36 @@ static LRESULT _sws_WindowsSwitcher_WndProc(HWND hWnd, UINT uMsg, WPARAM wParam,
     }
     else if ((uMsg == WM_KEYUP && wParam == VK_MENU && !_this->bWasControl) ||
              (uMsg == WM_KEYUP && wParam == VK_SPACE) ||
-             (uMsg == WM_KEYUP && wParam == VK_TAB && !(GetKeyState(VK_MENU) & 0x8000) && !_this->bWasControl))
+             (uMsg == WM_KEYUP && wParam == (_this->mode == SWS_WINDOWSWITCHER_LAYOUTMODE_MINI ? VK_OEM_3 : VK_TAB) && !(GetKeyState(VK_MENU) & 0x8000) && !_this->bWasControl))
     {
         _sws_WindowSwitcher_SwitchToSelectedItemAndDismiss(_this);
         return 0;
     }
     else if (uMsg == WM_HOTKEY || uMsg == WM_KEYDOWN)
     {
+        /*if (uMsg == WM_HOTKEY && (int)wParam == 0)
+        {
+            _this->bWasControl = FALSE;
+            ShowWindow(_this->hWnd, SW_HIDE);
+            return 0;
+        }*/
         if (uMsg == WM_HOTKEY && (LOWORD(lParam) & MOD_CONTROL))
         {
             _this->bWasControl = TRUE;
         }
-        if ((uMsg == WM_KEYDOWN && wParam == VK_TAB) || (uMsg == WM_HOTKEY && (LOWORD(lParam) & MOD_ALT)))
+        if ((uMsg == WM_KEYDOWN && wParam == VK_OEM_3) || (uMsg == WM_KEYDOWN && wParam == VK_TAB) || (uMsg == WM_HOTKEY && (LOWORD(lParam) & MOD_ALT)))
         {
-            if (!IsWindowVisible(_this->hWnd))
+            if (_this->bEnabled && !IsWindowVisible(_this->hWnd))
             {
+                if (uMsg == WM_HOTKEY && (int)wParam < 0)
+                {
+                    
+                    _this->mode = SWS_WINDOWSWITCHER_LAYOUTMODE_MINI;
+                }
+                else
+                {
+                    _this->mode = SWS_WINDOWSWITCHER_LAYOUTMODE_FULL;
+                }
                 _sws_WindowSwitcher_Show(_this);
 
                 /*
@@ -689,8 +1114,8 @@ static LRESULT _sws_WindowsSwitcher_WndProc(HWND hWnd, UINT uMsg, WPARAM wParam,
                 RedrawWindow(hWnd, NULL, NULL, RDW_INVALIDATE | RDW_INTERNALPAINT);
                 SetForegroundWindow(_this->hWnd);
             }
-            return 0;
         }
+        return 0;
     }
 
     return DefWindowProc(hWnd, uMsg, wParam, lParam);
@@ -703,7 +1128,7 @@ static sws_error_t _sws_WindowSwitcher_RegisterWindowClass(sws_WindowSwitcher* _
     wc.style = CS_DBLCLKS;
     wc.lpfnWndProc = _sws_WindowsSwitcher_WndProc;
     wc.hbrBackground = _this->hBackgroundBrush;
-    wc.hInstance = GetModuleHandle(NULL);
+    wc.hInstance = GetModuleHandleW(NULL);
     wc.lpszClassName = _T(SWS_WINDOWSWITCHER_CLASSNAME);
     wc.hCursor = LoadCursorW(NULL, IDC_ARROW);
     ATOM a = RegisterClassExW(&wc);
@@ -735,11 +1160,25 @@ __declspec(dllexport) void sws_WindowSwitcher_Clear(sws_WindowSwitcher* _this)
         {
             sws_RegistryMonitor_Clear(&(_this->rm));
         }
-        sws_WindowSwitcherLayout_Clear(&(_this->layout));
-        UnregisterHotKey(_this->hWnd, 0);
+        for (unsigned int i = 0; i < _this->numLayoutsMax; ++i)
+        {
+            sws_WindowSwitcherLayout_Clear(&(_this->layouts[i]));
+        }
+        for (unsigned int i = 0; i < _this->numLayoutsMax; ++i)
+        {
+            sws_WindowSwitcherLayout_Clear(&(_this->minilayouts[i]));
+        }
+        sws_vector_Clear(&(_this->pHWNDList));
+        //UnregisterHotKey(_this->hWnd, 0);
         UnregisterHotKey(_this->hWnd, 1);
         UnregisterHotKey(_this->hWnd, 2);
         UnregisterHotKey(_this->hWnd, 3);
+        UnregisterHotKey(_this->hWnd, 4);
+        UnregisterHotKey(_this->hWnd, -1);
+        UnregisterHotKey(_this->hWnd, -2);
+        UnregisterHotKey(_this->hWnd, -3);
+        UnregisterHotKey(_this->hWnd, -4);
+        UnhookWinEvent(_this->global_hook);
         DestroyWindow(_this->hWnd);
         UnregisterClassW(_T(SWS_WINDOWSWITCHER_CLASSNAME), GetModuleHandle(NULL));
         DeleteObject(_this->hBackgroundBrush);
@@ -776,6 +1215,13 @@ __declspec(dllexport) sws_error_t sws_WindowSwitcher_Initialize(sws_WindowSwitch
 {
     sws_error_t rv = SWS_ERROR_SUCCESS;
     sws_WindowSwitcher* _this = NULL;
+    _CrtSetReportMode(_CRT_WARN, _CRTDBG_MODE_FILE);
+    _CrtSetReportFile(_CRT_WARN, _CRTDBG_FILE_STDOUT);
+    _CrtSetReportMode(_CRT_ERROR, _CRTDBG_MODE_FILE);
+    _CrtSetReportFile(_CRT_ERROR, _CRTDBG_FILE_STDOUT);
+    _CrtSetReportMode(_CRT_ASSERT, _CRTDBG_MODE_FILE);
+    _CrtSetReportFile(_CRT_ASSERT, _CRTDBG_FILE_STDOUT);
+    _CrtDumpMemoryLeaks();
 
     if (!rv)
     {
@@ -817,11 +1263,25 @@ __declspec(dllexport) sws_error_t sws_WindowSwitcher_Initialize(sws_WindowSwitch
     }
     if (!rv)
     {
+        rv = sws_vector_Initialize(&(_this->pHWNDList), sizeof(sws_window));
+    }
+    if (!rv)
+    {
+    }
+    if (!rv)
+    {
         sws_error_Report(sws_error_GetFromInternalError(sws_WindowHelpers_ShouldSystemUseDarkMode(&(_this->bIsDarkMode))), NULL);
-        _this->hBackgroundBrush = (HBRUSH)CreateSolidBrush(SWS_WINDOWSWITCHER_BACKGROUND_COLOR);
+        _this->hBackgroundBrush = (HBRUSH)CreateSolidBrush(RGB(0, 0, 0));
         _this->hContourBrush = (HBRUSH)CreateSolidBrush(_this->bIsDarkMode ? SWS_WINDOWSWITCHER_CONTOUR_COLOR : SWS_WINDOWSWITCHER_CONTOUR_COLOR_LIGHT);
         _this->hCloseButtonBrush = (HBRUSH)CreateSolidBrush(SWS_WINDOWSWITCHER_CLOSE_COLOR);
         _this->hTheme = OpenThemeData(NULL, _T(SWS_WINDOWSWITCHER_THEME_CLASS));
+        _this->numLayouts = 0;
+        _this->numLayoutsMax = 0;
+        _this->last_change = 0;
+        _this->bRudeChangesAllowed = TRUE;
+        _this->bWallpaperAlwaysLast = SWS_WINDOWSWITCHERLAYOUT_WALLPAPER_ALWAYS_LAST;
+        _this->mode = SWS_WINDOWSWITCHER_LAYOUTMODE_FULL;
+        _this->lastMiniModehWnd = NULL;
     }
     if (!rv)
     {
@@ -837,7 +1297,8 @@ __declspec(dllexport) sws_error_t sws_WindowSwitcher_Initialize(sws_WindowSwitch
     }
     if (!rv)
     {
-#ifndef DEBUG
+        sws_WindowHelpers_PermitDarkMode(NULL);
+#ifndef _DEBUG
         _this->hWnd = _sws_CreateWindowInBand(
 #else
         _this->hWnd = CreateWindowEx(
@@ -848,7 +1309,7 @@ __declspec(dllexport) sws_error_t sws_WindowSwitcher_Initialize(sws_WindowSwitch
             WS_POPUP,
             0, 0, 0, 0,
             NULL, NULL, GetModuleHandle(NULL), _this
-#ifndef DEBUG
+#ifndef _DEBUG
             , ZBID_UIACCESS
 #endif
         );
@@ -859,28 +1320,85 @@ __declspec(dllexport) sws_error_t sws_WindowSwitcher_Initialize(sws_WindowSwitch
     }
     if (!rv)
     {
-        if (!RegisterHotKey(_this->hWnd, 0, MOD_ALT, VK_TAB))
+        if (!SetWinEventHook(
+            EVENT_SYSTEM_MOVESIZEEND,
+            EVENT_SYSTEM_MOVESIZEEND,
+            NULL,
+            _sws_WindowSwitcher_Wineventproc,
+            0,
+            0,
+            WINEVENT_OUTOFCONTEXT | WINEVENT_SKIPOWNPROCESS
+        ))
         {
             rv = sws_error_Report(sws_error_GetFromWin32Error(GetLastError()), NULL);
         }
     }
     if (!rv)
     {
-        if (!RegisterHotKey(_this->hWnd, 1, MOD_ALT | MOD_SHIFT, VK_TAB))
+        if (!RegisterShellHookWindow(_this->hWnd))
+        {
+            rv = sws_error_Report(sws_error_GetFromWin32Error(GetLastError()), NULL);
+        }
+    }
+    /*if (!rv)
+    {
+        if (!RegisterHotKey(_this->hWnd, 0, MOD_ALT, VK_ESCAPE))
+        {
+            rv = sws_error_Report(sws_error_GetFromWin32Error(GetLastError()), NULL);
+        }
+    }*/
+    if (!rv)
+    {
+        if (!RegisterHotKey(_this->hWnd, 1, MOD_ALT, VK_TAB))
         {
             rv = sws_error_Report(sws_error_GetFromWin32Error(GetLastError()), NULL);
         }
     }
     if (!rv)
     {
-        if (!RegisterHotKey(_this->hWnd, 2, MOD_ALT | MOD_CONTROL, VK_TAB))
+        if (!RegisterHotKey(_this->hWnd, -1, MOD_ALT, VK_OEM_3))
         {
             rv = sws_error_Report(sws_error_GetFromWin32Error(GetLastError()), NULL);
         }
     }
     if (!rv)
     {
-        if (!RegisterHotKey(_this->hWnd, 3, MOD_ALT | MOD_SHIFT | MOD_CONTROL, VK_TAB))
+        if (!RegisterHotKey(_this->hWnd, 2, MOD_ALT | MOD_SHIFT, VK_TAB))
+        {
+            rv = sws_error_Report(sws_error_GetFromWin32Error(GetLastError()), NULL);
+        }
+    }
+    if (!rv)
+    {
+        if (!RegisterHotKey(_this->hWnd, -2, MOD_ALT | MOD_SHIFT, VK_OEM_3))
+        {
+            rv = sws_error_Report(sws_error_GetFromWin32Error(GetLastError()), NULL);
+        }
+    }
+    if (!rv)
+    {
+        if (!RegisterHotKey(_this->hWnd, 3, MOD_ALT | MOD_CONTROL, VK_TAB))
+        {
+            rv = sws_error_Report(sws_error_GetFromWin32Error(GetLastError()), NULL);
+        }
+    }
+    if (!rv)
+    {
+        if (!RegisterHotKey(_this->hWnd, -3, MOD_ALT | MOD_CONTROL, VK_OEM_3))
+        {
+            rv = sws_error_Report(sws_error_GetFromWin32Error(GetLastError()), NULL);
+        }
+    }
+    if (!rv)
+    {
+        if (!RegisterHotKey(_this->hWnd, 4, MOD_ALT | MOD_SHIFT | MOD_CONTROL, VK_TAB))
+        {
+            rv = sws_error_Report(sws_error_GetFromWin32Error(GetLastError()), NULL);
+        }
+    }
+    if (!rv)
+    {
+        if (!RegisterHotKey(_this->hWnd, -4, MOD_ALT | MOD_SHIFT | MOD_CONTROL, VK_OEM_3))
         {
             rv = sws_error_Report(sws_error_GetFromWin32Error(GetLastError()), NULL);
         }
@@ -915,21 +1433,21 @@ __declspec(dllexport) sws_error_t sws_WindowSwitcher_Initialize(sws_WindowSwitch
                 SRRF_RT_REG_DWORD,
                 &dwInitial,
                 dwSize,
-                _sws_WindowSwitcher_NotifyTransparencyChange,
+                sws_WindowSwitcher_RefreshTheme,
                 _this
             );
             _sws_WindowSwitcher_NotifyTransparencyChange(_this, FALSE, &dwInitial, dwSize);
         }
-        if (_this->hTheme && IsThemeActive())
-        {
-            INT preference = DWMWCP_ROUND;
-            DwmSetWindowAttribute(_this->hWnd, DWMWA_WINDOW_CORNER_PREFERENCE, &preference, sizeof(preference));
-        }
+        _this->dwShowDelay = SWS_WINDOWSWITCHER_SHOWDELAY;
         _this->dwMaxWP = SWS_WINDOWSWITCHERLAYOUT_PERCENTAGEWIDTH;
         _this->dwMaxHP = SWS_WINDOWSWITCHERLAYOUT_PERCENTAGEHEIGHT;
         _this->bIncludeWallpaper = SWS_WINDOWSWITCHERLAYOUT_INCLUDE_WALLPAPER;
         _this->dwRowHeight = SWS_WINDOWSWITCHERLAYOUT_ROWHEIGHT;
         _this->dwColorScheme = 0;
+        _this->dwTheme = SWS_WINDOWSWITCHER_THEME_MICA;
+        _this->dwCornerPreference = DWMWCP_ROUND;
+        BOOL bExcludedFromPeek = TRUE;
+        DwmSetWindowAttribute(_this->hWnd, DWMWA_EXCLUDED_FROM_PEEK, &bExcludedFromPeek, sizeof(BOOL));
     }
     if (rv && (*__this) && (*__this)->bIsDynamic)
     {

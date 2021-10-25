@@ -20,7 +20,7 @@ typedef struct sws_RegistryMonitor
 	SRRF srrf;
 	char* buffer;
 	size_t szBuffer;
-	void(*callback)(void* ptr, BOOL bLM, char* buffer, size_t size);
+	void(*callback)(void* ptr);
 	HANDLE hOp;
 	HMODULE hLib;
 	FARPROC SHRegGetValueFromHKCUHKLMFunc;
@@ -40,7 +40,7 @@ sws_error_t sws_RegistryMonitor_Initialize(
 	SRRF srrf,
 	char* buffer,
 	size_t szBuffer,
-	void(*callback)(void* ptr, BOOL bLM, char* buffer, size_t size),
+	void(*callback)(void* ptr),
 	void* ptr
 );
 #endif

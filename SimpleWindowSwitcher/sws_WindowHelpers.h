@@ -82,6 +82,8 @@ typedef struct
 extern HINSTANCE _sws_hUser32;
 typedef BOOL(WINAPI* pSetWindowCompositionAttribute)(HWND, WINCOMPATTRDATA*);
 extern pSetWindowCompositionAttribute _sws_SetWindowCompositionAttribute;
+typedef BOOL(WINAPI* pIsShellManagedWindow)(HWND);
+extern pIsShellManagedWindow _sws_IsShellManagedWindow;
 
 typedef HWND(WINAPI* pCreateWindowInBand)(
 	_In_ DWORD dwExStyle,
@@ -135,6 +137,8 @@ enum ZBID
 	ZBID_ABOVELOCK_UX = 18,
 };
 
+static BOOL _sws_IsBandValidToInclude[19] = { FALSE, TRUE, TRUE, FALSE, FALSE, FALSE, FALSE, FALSE, FALSE, FALSE, FALSE, FALSE, FALSE, FALSE, FALSE, FALSE, TRUE, FALSE, FALSE };
+
 HWND* _sws_WindowHelpers_Gui_BuildWindowList
 (
 	NtUserBuildHwndList pNtUserBuildHwndList,
@@ -153,12 +157,13 @@ sws_error_t sws_WindowHelpers_RealEnumWindows(
 	WNDENUMPROC in_Proc,
 	LPARAM in_Param
 );
+sws_error_t sws_WindowHelpers_PermitDarkMode(HWND hWnd);
 
 sws_error_t sws_WindowHelpers_ShouldSystemUseDarkMode(DWORD* dwRes);
 
 sws_error_t sws_WindowHelpers_SetWindowBlur(HWND hWnd, int type, DWORD Color, DWORD Opacity);
 
-BOOL sws_WindowHelpers_IsAltTabWindow(_In_ HWND hwnd);
+BOOL sws_WindowHelpers_IsAltTabWindow(_In_ HWND hwnd, _In_ HWND hWndWallpaper);
 
 void sws_WindowHelpers_GetDesktopText(wchar_t* wszTitle);
 
@@ -166,7 +171,7 @@ __declspec(dllexport) HICON sws_WindowHelpers_GetIconFromHWND(HWND hWnd, BOOL* b
 
 static BOOL CALLBACK _sws_WindowHelpers_GetWallpaperHWNDCallback(_In_ HWND hwnd, _Out_ LPARAM lParam);
 
-HWND sws_WindowHelpers_GetWallpaperHWND(HMONITOR hMonitor);
+HWND sws_WindowHelpers_GetWallpaperHWND();
 
 void sws_WindowHelpers_Release();
 
@@ -177,15 +182,5 @@ inline void _sws_WindowHelpers_ToggleDesktop()
 	PostMessageW(FindWindowExW(NULL, NULL, L"Shell_TrayWnd", NULL), WM_HOTKEY, 513, 0);
 	//PostMessageW(FindWindowExW(NULL, NULL, L"Shell_TrayWnd", NULL), 0x579, 3 - 1, 0); // 1 to restore
 	//PostMessageW(FindWindowExW(NULL, NULL, L"Shell_TrayWnd", NULL), 0x579, 3 - 0, 0); // 0 to show
-}
-
-inline void _sws_WindowHelpers_ForceCloseWindow(HWND hWnd)
-{
-	EndTask(hWnd, FALSE, TRUE);
-}
-
-inline void _sws_WindowHelpers_CloseWindow(HWND hWnd)
-{
-	EndTask(hWnd, FALSE, FALSE);
 }
 #endif

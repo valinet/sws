@@ -2,7 +2,7 @@
 
 static BOOL CALLBACK _sws_WindowSwitcherLayout_EnumWindowsCallback(_In_ HWND hWnd, _In_ sws_WindowSwitcherLayout* _this)
 {
-	if (sws_WindowHelpers_IsAltTabWindow(hWnd) || (_this->bIncludeWallpaper && !_this->bWallpaperAlwaysLast && hWnd == _this->hWndWallpaper))
+	if (sws_WindowHelpers_IsAltTabWindow(hWnd, _this->hWndWallpaper) || (_this->bIncludeWallpaper && !_this->bWallpaperAlwaysLast && hWnd == _this->hWndWallpaper))
 	{
 		sws_WindowSwitcherLayoutWindow swsLayoutWindow;
 		sws_WindowSwitcherLayoutWindow_Initialize(&swsLayoutWindow, hWnd);
@@ -124,7 +124,7 @@ sws_error_t sws_WindowSwitcherLayout_ComputeLayout(sws_WindowSwitcherLayout* _th
 			cbInitialTop = _sws_WindowSwitcherLayout_GetInitialTop(_this) + _this->cbMasterTopPadding;
 			cbCurrentLeft = cbInitialLeft;
 			cbCurrentTop = cbInitialTop;
-			cbMaxWidthHit = 0, cbMaxWidth = 0;
+			//cbMaxWidthHit = 0, cbMaxWidth = 0; // remove this so the maximum width hit is preserved across hwnd searches or backward iterations
 
 			for (int iCurrentWindow = iObtainedIndex ? iObtainedIndex : _this->iIndex; iCurrentWindow >= 0; iCurrentWindow--)
 			{
@@ -441,9 +441,10 @@ sws_error_t sws_WindowSwitcherLayout_ComputeLayout(sws_WindowSwitcherLayout* _th
 					pWindowList[iCurrentWindow].rcWindow.right += diff / 2;
 
 					DWM_THUMBNAIL_PROPERTIES dskThumbProps;
+					ZeroMemory(&dskThumbProps, sizeof(DWM_THUMBNAIL_PROPERTIES));
 					dskThumbProps.dwFlags = DWM_TNP_SOURCECLIENTAREAONLY | DWM_TNP_VISIBLE | DWM_TNP_OPACITY | DWM_TNP_RECTDESTINATION;
 					dskThumbProps.fSourceClientAreaOnly = FALSE;
-					dskThumbProps.fVisible = TRUE;
+					dskThumbProps.fVisible = direction;
 					dskThumbProps.opacity = 255;
 					dskThumbProps.rcDestination = pWindowList[iCurrentWindow].rcThumbnail;
 					if (_this->bIncludeWallpaper && pWindowList[iCurrentWindow].hWnd == _this->hWndWallpaper)
@@ -498,7 +499,7 @@ void sws_WindowSwitcherLayout_Clear(sws_WindowSwitcherLayout* _this)
 	}
 }
 
-sws_error_t sws_WindowSwitcherLayout_Initialize(sws_WindowSwitcherLayout* _this, HMONITOR hMonitor, HWND hWnd, DWORD* settings)
+sws_error_t sws_WindowSwitcherLayout_Initialize(sws_WindowSwitcherLayout* _this, HMONITOR hMonitor, HWND hWnd, DWORD* settings, sws_vector* pHWNDList, HWND hWndTarget)
 {
 	sws_error_t rv = SWS_ERROR_SUCCESS;
 
@@ -535,22 +536,76 @@ sws_error_t sws_WindowSwitcherLayout_Initialize(sws_WindowSwitcherLayout* _this,
 		_this->bIncludeWallpaper = SWS_WINDOWSWITCHERLAYOUT_INCLUDE_WALLPAPER;
 		if (settings) _this->bIncludeWallpaper = settings[3];
 		_this->bWallpaperToggleBehavior = SWS_WINDOWSWITCHERLAYOUT_WALLPAPER_TOGGLE;
-		_this->hWndWallpaper = NULL;
+		_this->hWndWallpaper = sws_WindowHelpers_GetWallpaperHWND();
 		if (_this->bIncludeWallpaper)
 		{
-			_this->hWndWallpaper = sws_WindowHelpers_GetWallpaperHWND(hMonitor);
-			if (_this->bWallpaperAlwaysLast)
+			if (_this->bWallpaperAlwaysLast && !hWndTarget)
 			{
 				sws_WindowSwitcherLayoutWindow swsLayoutWindow;
-				sws_WindowSwitcherLayoutWindow_Initialize(&swsLayoutWindow, sws_WindowHelpers_GetWallpaperHWND(hMonitor));
+				sws_WindowSwitcherLayoutWindow_Initialize(&swsLayoutWindow, _this->hWndWallpaper);
 				sws_vector_PushBack(&_this->pWindowList, &swsLayoutWindow);
 			}
 		}
 	}
 	if (!rv)
 	{
-		rv = sws_WindowHelpers_RealEnumWindows((WNDENUMPROC)_sws_WindowSwitcherLayout_EnumWindowsCallback, (LPARAM)_this);
+		if (pHWNDList)
+		{
+			sws_window* windowList = pHWNDList->pList;
+			sws_window* window = NULL;
+			if (hWndTarget)
+			{
+				for (int i = 0; i < pHWNDList->cbSize; ++i)
+				{
+					if (windowList[i].hWnd == hWndTarget)
+					{
+						window = &(windowList[i]);
+						break;
+					}
+				}
+			}
+			if (hWndTarget && window && window->bIsApplicationFrameHost)
+			{
+				sws_WindowSwitcherLayoutWindow swsLayoutWindow;
+				sws_WindowSwitcherLayoutWindow_Initialize(&swsLayoutWindow, window->hWnd);
+				sws_vector_PushBack(&_this->pWindowList, &swsLayoutWindow);
+			}
+			else
+			{
+				for (int i = pHWNDList->cbSize - 1; i >= 0; i--)
+				{
+					BOOL isCloaked;
+					DwmGetWindowAttribute(windowList[i].hWnd, DWMWA_CLOAKED, &isCloaked, sizeof(BOOL));
+					if (isCloaked)
+					{
+						continue;
+					}
+					if (hWndTarget && hWndTarget != windowList[i].hWnd)
+					{
+						if (!window)
+						{
+							continue;
+						}
+						else if (!(window->dwProcessId == windowList[i].dwProcessId || !_wcsicmp(window->wszPath, windowList[i].wszPath)))
+						{
+							continue;
+						}
+					}
+					if (settings[4] && hMonitor != MonitorFromWindow(windowList[i].hWnd, MONITOR_DEFAULTTOPRIMARY))
+					{
+						continue;
+					}
+					sws_WindowSwitcherLayoutWindow swsLayoutWindow;
+					sws_WindowSwitcherLayoutWindow_Initialize(&swsLayoutWindow, windowList[i].hWnd);
+					sws_vector_PushBack(&_this->pWindowList, &swsLayoutWindow);
+				}
+			}
+		}
 	}
+	////if (!rv)
+	////{
+	////	rv = sws_WindowHelpers_RealEnumWindows((WNDENUMPROC)_sws_WindowSwitcherLayout_EnumWindowsCallback, (LPARAM)_this);
+	////}
 
 	_this->cbMaxHeight = 0;
 	_this->cbMaxWidth = 0;

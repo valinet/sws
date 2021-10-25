@@ -32,7 +32,8 @@ void sws_error_PrintStackTrace()
     frame.AddrStack.Offset = context.Rsp;
     frame.AddrStack.Mode = AddrModeFlat;
 #else
-    STACKFRAME frame = {};
+    STACKFRAME frame;
+    ZeroMemory(&frame, sizeof(STACKFRAME));
     frame.AddrPC.Offset = context.Eip;
     frame.AddrPC.Mode = AddrModeFlat;
     frame.AddrFrame.Offset = context.Ebp;
@@ -94,8 +95,9 @@ void sws_error_PrintStackTrace()
     CloseHandle(process);
 }
 
-char* sws_error_NumToDescription(sws_error_t errnum)
+char* sws_error_NumToDescription(sws_error_t errnum, BOOL* bType)
 {
+    if (bType) *bType = FALSE;
     char* ret = NULL;
     switch (errnum)
     {
@@ -124,6 +126,7 @@ char* sws_error_NumToDescription(sws_error_t errnum)
         ret = SWS_ERROR_UNABLE_TO_SET_DPI_AWARENESS_CONTEXT_TEXT;
         break;
     default:
+        if (bType) *bType = TRUE;
         FormatMessageA(
             FORMAT_MESSAGE_ALLOCATE_BUFFER | 
             FORMAT_MESSAGE_FROM_SYSTEM |
@@ -150,10 +153,11 @@ sws_error_t sws_error_Report(sws_error_t errnum, void* data)
     char* errdesc = NULL;
     _lock_file(stdout);
     printf("====================================\nAn error occured in the application.\nError number: 0x%x\n", errnum);
-    if (errdesc = sws_error_NumToDescription(errnum))
+    BOOL bShouldFree = FALSE;
+    if (errdesc = sws_error_NumToDescription(errnum, &bShouldFree))
     {
         printf("Description: %s\n", errdesc);
-        LocalFree(errdesc);
+        if (bShouldFree) LocalFree(errdesc);
     }
     else
     {
@@ -167,5 +171,5 @@ sws_error_t sws_error_Report(sws_error_t errnum, void* data)
     sws_error_PrintStackTrace();
     puts("====================================");
     _unlock_file(stdout);
-    return SWS_ERROR_SUCCESS;
+    return errnum;
 }

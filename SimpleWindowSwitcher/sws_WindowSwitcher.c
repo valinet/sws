@@ -1007,6 +1007,7 @@ static LRESULT _sws_WindowsSwitcher_WndProc(HWND hWnd, UINT uMsg, WPARAM wParam,
     }
     else if ((uMsg == WM_KEYUP && wParam == VK_MENU && !_this->bWasControl) ||
              (uMsg == WM_KEYUP && wParam == VK_SPACE) ||
+             (uMsg == WM_KEYUP && wParam == VK_RETURN) ||
              (uMsg == WM_KEYUP && wParam == (_this->mode == SWS_WINDOWSWITCHER_LAYOUTMODE_MINI ? VK_OEM_3 : VK_TAB) && !(GetKeyState(VK_MENU) & 0x8000) && !_this->bWasControl))
     {
         _sws_WindowSwitcher_SwitchToSelectedItemAndDismiss(_this);

@@ -1079,8 +1079,10 @@ static LRESULT _sws_WindowsSwitcher_WndProc(HWND hWnd, UINT uMsg, WPARAM wParam,
             }
             else
             {
+                int direction = SWS_WINDOWSWITCHERLAYOUT_COMPUTE_DIRECTION_FORWARD;
                 if ((uMsg == WM_KEYDOWN && (GetKeyState(VK_SHIFT) & 0x8000)) || (uMsg == WM_HOTKEY && (LOWORD(lParam) & MOD_SHIFT)))
                 {
+                    direction = SWS_WINDOWSWITCHERLAYOUT_COMPUTE_DIRECTION_BACKWARD;
                     if (_this->layout.iIndex == _this->layout.pWindowList.cbSize - 1)
                     {
                         _this->layout.iIndex = 0;
@@ -1106,7 +1108,7 @@ static LRESULT _sws_WindowsSwitcher_WndProc(HWND hWnd, UINT uMsg, WPARAM wParam,
                 {
                     sws_WindowSwitcherLayout_ComputeLayout(
                         &(_this->layout),
-                        (LOWORD(lParam) & MOD_SHIFT) ? SWS_WINDOWSWITCHERLAYOUT_COMPUTE_DIRECTION_BACKWARD : SWS_WINDOWSWITCHERLAYOUT_COMPUTE_DIRECTION_FORWARD,
+                        direction,
                         NULL
                     );
                     _this->cwIndex = -1;

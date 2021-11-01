@@ -1025,7 +1025,14 @@ static LRESULT _sws_WindowsSwitcher_WndProc(HWND hWnd, UINT uMsg, WPARAM wParam,
         {
             _this->bWasControl = TRUE;
         }
-        if ((uMsg == WM_KEYDOWN && wParam == VK_OEM_3) || (uMsg == WM_KEYDOWN && wParam == VK_TAB) || (uMsg == WM_HOTKEY && (LOWORD(lParam) & MOD_ALT)))
+        if ((uMsg == WM_KEYDOWN && wParam == VK_OEM_3) || 
+            (uMsg == WM_KEYDOWN && wParam == VK_TAB) || 
+            (uMsg == WM_HOTKEY && (LOWORD(lParam) & MOD_ALT)) || 
+            (uMsg == WM_KEYDOWN && wParam == VK_LEFT) ||
+            (uMsg == WM_KEYDOWN && wParam == VK_RIGHT) ||
+            (uMsg == WM_KEYDOWN && wParam == VK_UP) ||
+            (uMsg == WM_KEYDOWN && wParam == VK_DOWN)
+            )
         {
             if (_this->bEnabled && !IsWindowVisible(_this->hWnd))
             {
@@ -1079,31 +1086,84 @@ static LRESULT _sws_WindowsSwitcher_WndProc(HWND hWnd, UINT uMsg, WPARAM wParam,
             }
             else
             {
-                int direction = SWS_WINDOWSWITCHERLAYOUT_COMPUTE_DIRECTION_FORWARD;
-                if ((uMsg == WM_KEYDOWN && (GetKeyState(VK_SHIFT) & 0x8000)) || (uMsg == WM_HOTKEY && (LOWORD(lParam) & MOD_SHIFT)))
+                int direction = SWS_WINDOWSWITCHERLAYOUT_COMPUTE_DIRECTION_INITIAL;
+                sws_WindowSwitcherLayoutWindow* pWindowList = _this->layout.pWindowList.pList;
+
+                RECT rcPrev = pWindowList[_this->layout.iIndex].rcWindow;
+
+                int indexStart = _this->layout.iIndex; // avoids infinite cycles
+                if (
+                    (uMsg == WM_KEYDOWN && (GetKeyState(VK_SHIFT) & 0x8000)) ||
+                    (uMsg == WM_HOTKEY && (LOWORD(lParam) & MOD_SHIFT)) ||
+                    (uMsg == WM_KEYDOWN && wParam == VK_LEFT) ||
+                    (uMsg == WM_KEYDOWN && wParam == VK_UP)
+                    )
                 {
                     direction = SWS_WINDOWSWITCHERLAYOUT_COMPUTE_DIRECTION_BACKWARD;
-                    if (_this->layout.iIndex == _this->layout.pWindowList.cbSize - 1)
+
+                    while (TRUE)
                     {
-                        _this->layout.iIndex = 0;
-                    }
-                    else
-                    {
-                        _this->layout.iIndex++;
+                        if (_this->layout.iIndex == _this->layout.pWindowList.cbSize - 1)
+                        {
+                            _this->layout.iIndex = 0;
+                        }
+                        else
+                        {
+                            _this->layout.iIndex++;
+                        }
+
+                        if (uMsg == WM_KEYDOWN && wParam == VK_UP)
+                        {
+                            if (indexStart == _this->layout.iIndex)
+                            {
+                                indexStart = -1;
+                                break;
+                            }
+                            if (pWindowList[_this->layout.iIndex].rcWindow.top != rcPrev.top)
+                            {
+                                break;
+                            }
+                        }
+                        else
+                        {
+                            break;
+                        }
                     }
                 }
                 else
                 {
-                    if (_this->layout.iIndex == 0)
+                    direction = SWS_WINDOWSWITCHERLAYOUT_COMPUTE_DIRECTION_FORWARD;
+
+                    while (TRUE)
                     {
-                        _this->layout.iIndex = _this->layout.pWindowList.cbSize - 1;
-                    }
-                    else
-                    {
-                        _this->layout.iIndex--;
+                        if (_this->layout.iIndex == 0)
+                        {
+                            _this->layout.iIndex = _this->layout.pWindowList.cbSize - 1;
+                        }
+                        else
+                        {
+                            _this->layout.iIndex--;
+                        }
+
+                        if (uMsg == WM_KEYDOWN && wParam == VK_DOWN)
+                        {
+                            if (indexStart == _this->layout.iIndex)
+                            {
+                                indexStart = -1;
+                                break;
+                            }
+                            if (pWindowList[_this->layout.iIndex].rcWindow.top != rcPrev.top)
+                            {
+                                break;
+                            }
+                        }
+                        else
+                        {
+                            break;
+                        }
                     }
                 }
-                sws_WindowSwitcherLayoutWindow* pWindowList = _this->layout.pWindowList.pList;
+
                 if (!pWindowList[_this->layout.iIndex].hThumbnail)
                 {
                     sws_WindowSwitcherLayout_ComputeLayout(
@@ -1114,6 +1174,32 @@ static LRESULT _sws_WindowsSwitcher_WndProc(HWND hWnd, UINT uMsg, WPARAM wParam,
                     _this->cwIndex = -1;
                     _this->cwMask = 0;
                 }
+
+                // indexStart == -1 when there is a single row, so nothing to do on up/down
+                if (indexStart != -1 && ((uMsg == WM_KEYDOWN && wParam == VK_DOWN) || (uMsg == WM_KEYDOWN && wParam == VK_UP)))
+                {
+                    RECT rcCurrent = pWindowList[_this->layout.iIndex].rcWindow;
+
+                    int i = _this->layout.iIndex;
+                    int minIndex = _this->layout.iIndex;
+                    int minDist = INT_MAX;
+                    int xPrev = rcPrev.left + (rcPrev.right - rcPrev.left) / 2; // point of reference is middle of window rectangle
+
+                    while (pWindowList[i].rcWindow.top == rcCurrent.top)
+                    {
+                        int xCurr = pWindowList[i].rcWindow.left + (pWindowList[i].rcWindow.right - pWindowList[i].rcWindow.left) / 2;
+                        if (abs(xPrev - xCurr) < minDist)
+                        {
+                            minDist = abs(xPrev - xCurr);
+                            minIndex = i;
+                        }
+
+                        i = (uMsg == WM_KEYDOWN && wParam == VK_DOWN) ? (i - 1) : (i + 1);
+                    }
+
+                    _this->layout.iIndex = minIndex;
+                }
+
                 RedrawWindow(hWnd, NULL, NULL, RDW_INVALIDATE | RDW_INTERNALPAINT);
                 SetForegroundWindow(_this->hWnd);
             }

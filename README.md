@@ -1,10 +1,10 @@
-# sws
-sws (Simple Window Switcher) is an Alt-Tab replacement for Windows written in C.
+# Simple Window Switcher
+Simple Window Switcher (sws) is an Alt-Tab replacement for Windows.
 
 ![Build status](https://github.com/valinet/sws/actions/workflows/build.yml/badge.svg)
 
 ## Example usage
-An application which implements this is [ExplorerPatcher](https://github.com/valinet/ExplorerPatcher). This project can also be compiled in a library and used standalone in your current workflow.
+An application which implements this is [ExplorerPatcher](https://github.com/valinet/ExplorerPatcher). This project can also be compiled as a library and used standalone in your current workflow.
 
 ## Compiling
 

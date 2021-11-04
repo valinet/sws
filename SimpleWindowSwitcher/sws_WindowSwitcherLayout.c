@@ -572,6 +572,7 @@ sws_error_t sws_WindowSwitcherLayout_Initialize(sws_WindowSwitcherLayout* _this,
 			}
 			else
 			{
+				//HWND hWndForeground = GetForegroundWindow();
 				for (int i = pHWNDList->cbSize - 1; i >= 0; i--)
 				{
 					BOOL isCloaked;
@@ -579,6 +580,14 @@ sws_error_t sws_WindowSwitcherLayout_Initialize(sws_WindowSwitcherLayout* _this,
 					if (isCloaked)
 					{
 						continue;
+						/*if (!windowList[i].bIsApplicationFrameHost)
+						{
+							continue;
+						}
+						if (windowList[i].bIsApplicationFrameHost && windowList[i].hWnd != hWndForeground)
+						{
+							continue;
+						}*/
 					}
 					if (hWndTarget && hWndTarget != windowList[i].hWnd)
 					{

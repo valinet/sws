@@ -10,9 +10,14 @@ void _sws_WindowSwitcher_Wineventproc(
     DWORD dwmsEventTime
 )
 {
-    if (event == EVENT_SYSTEM_MOVESIZEEND && hwnd && idObject == OBJID_WINDOW)
+    if ((event == EVENT_SYSTEM_MOVESIZEEND || event == EVENT_OBJECT_CLOAKED || event == EVENT_OBJECT_UNCLOAKED) && hwnd && idObject == OBJID_WINDOW)
     {
-        PostMessageW(FindWindowW(_T(SWS_WINDOWSWITCHER_CLASSNAME), NULL), RegisterWindowMessageW(L"SHELLHOOK"), HSHELL_RUDEAPPACTIVATED, hwnd);
+        static DWORD last_dwmsEventTime;
+        if (last_dwmsEventTime != dwmsEventTime)
+        {
+            PostMessageW(FindWindowW(_T(SWS_WINDOWSWITCHER_CLASSNAME), NULL), RegisterWindowMessageW(L"SHELLHOOK"), HSHELL_RUDEAPPACTIVATED, hwnd);
+        }
+        last_dwmsEventTime = dwmsEventTime;
     }
 }
 
@@ -370,7 +375,7 @@ static void _sws_WindowSwitcher_WindowList_Remove(sws_WindowSwitcher* _this, HWN
     _this->pHWNDList = newVector;
 }
 
-static void _sws_WindowSwitcher_WindowList_PushToFront(sws_WindowSwitcher* _this, HWND hWnd, BOOL* bOk)
+static sws_window _sws_WindowSwitcher_WindowList_PushToFront(sws_WindowSwitcher* _this, HWND hWnd, BOOL* bOk)
 {
     if (bOk) *bOk = FALSE;
     sws_window* pHWNDList = _this->pHWNDList.pList;
@@ -391,6 +396,7 @@ static void _sws_WindowSwitcher_WindowList_PushToFront(sws_WindowSwitcher* _this
             pHWNDList[i] = pHWNDList[i - 1];
         }
         pHWNDList[0] = temp;
+        return temp;
     }
     else
     {
@@ -405,6 +411,7 @@ static void _sws_WindowSwitcher_WindowList_PushToFront(sws_WindowSwitcher* _this
         sws_window_Initialize(&window, hWnd);
         pHWNDList[0] = window;
         if (bOk) *bOk = TRUE;
+        return window;
     }
 }
 
@@ -629,6 +636,8 @@ static LRESULT _sws_WindowsSwitcher_WndProc(HWND hWnd, UINT uMsg, WPARAM wParam,
     {
         if (wParam == HSHELL_WINDOWCREATED || wParam == HSHELL_WINDOWDESTROYED || wParam == HSHELL_WINDOWACTIVATED || wParam == HSHELL_RUDEAPPACTIVATED)
         {
+            sws_window window;
+            window.hWnd = 0;
             BOOL bOk = FALSE;
             if (wParam == HSHELL_WINDOWDESTROYED)
             {
@@ -650,7 +659,7 @@ static LRESULT _sws_WindowsSwitcher_WndProc(HWND hWnd, UINT uMsg, WPARAM wParam,
                         GetWindowTextW(lParam, text, 200);
                         wprintf(L"[+] [%d] %d : %s\n", _this->pHWNDList.cbSize, lParam, text);
                     }*/
-                    _sws_WindowSwitcher_WindowList_PushToFront(_this, lParam, NULL);
+                    window = _sws_WindowSwitcher_WindowList_PushToFront(_this, lParam, NULL);
                     bOk = TRUE;
                 }
                 if (!lParam)
@@ -662,7 +671,7 @@ static LRESULT _sws_WindowsSwitcher_WndProc(HWND hWnd, UINT uMsg, WPARAM wParam,
             {
                 BOOL isCloaked = FALSE;
                 DwmGetWindowAttribute(lParam, DWMWA_CLOAKED, &isCloaked, sizeof(BOOL));
-                if (!isCloaked || !lParam)
+                if (!isCloaked || !lParam) // || (window.hWnd && window.bIsApplicationFrameHost))
                 {
                     long long start = milliseconds_now();
                     if (!IsWindowVisible(_this->hWnd))
@@ -1461,7 +1470,7 @@ __declspec(dllexport) sws_error_t sws_WindowSwitcher_Initialize(sws_WindowSwitch
     {
         if (!SetWinEventHook(
             EVENT_SYSTEM_MOVESIZEEND,
-            EVENT_SYSTEM_MOVESIZEEND,
+            EVENT_OBJECT_UNCLOAKED,
             NULL,
             _sws_WindowSwitcher_Wineventproc,
             0,

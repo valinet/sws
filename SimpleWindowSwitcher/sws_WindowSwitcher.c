@@ -884,7 +884,7 @@ static LRESULT _sws_WindowsSwitcher_WndProc(HWND hWnd, UINT uMsg, WPARAM wParam,
                     }
                     else
                     {
-                        SetTextColor(hdcPaint, SWS_WINDOWSWITCHER_CLOSE_COLOR);
+                        SetTextColor(hdcPaint, DttOpts.crText);
                         SetBkColor(hdcPaint, _this->bIsDarkMode ? SWS_WINDOWSWITCHER_BACKGROUND_COLOR : SWS_WINDOWSWITCHER_BACKGROUND_COLOR_LIGHT);
                         DrawTextW(
                             hdcPaint,
@@ -896,7 +896,7 @@ static LRESULT _sws_WindowsSwitcher_WndProc(HWND hWnd, UINT uMsg, WPARAM wParam,
                     }
                     SelectObject(hdcPaint, hOldFont2);
                 }
-                DttOpts.crText = _this->bIsDarkMode ? SWS_WINDOWSWITCHER_TEXT_COLOR : SWS_WINDOWSWITCHER_TEXT_COLOR_LIGHT;
+                DttOpts.crText = (_this->bIsDarkMode || (!_this->bIsDarkMode && (_this->cwMask & SWS_WINDOWFLAG_IS_ON_CLOSE))) ? SWS_WINDOWSWITCHER_TEXT_COLOR : SWS_WINDOWSWITCHER_TEXT_COLOR_LIGHT;
                 if (_this->hTheme && IsThemeActive())
                 {
                     DrawThemeTextEx(
@@ -913,7 +913,7 @@ static LRESULT _sws_WindowsSwitcher_WndProc(HWND hWnd, UINT uMsg, WPARAM wParam,
                 }
                 else
                 {
-                    SetTextColor(hdcPaint, _this->bIsDarkMode ? SWS_WINDOWSWITCHER_TEXT_COLOR : SWS_WINDOWSWITCHER_TEXT_COLOR_LIGHT);
+                    SetTextColor(hdcPaint, DttOpts.crText);
                     SetBkColor(hdcPaint, _this->cwMask & SWS_WINDOWFLAG_IS_ON_CLOSE ? SWS_WINDOWSWITCHER_CLOSE_COLOR : (_this->bIsDarkMode ? SWS_WINDOWSWITCHER_BACKGROUND_COLOR : SWS_WINDOWSWITCHER_BACKGROUND_COLOR_LIGHT));
                     DrawTextW(
                         hdcPaint,

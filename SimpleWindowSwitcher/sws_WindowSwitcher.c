@@ -531,7 +531,7 @@ static void _sws_WindowSwitcher_DrawContour(sws_WindowSwitcher* _this, HDC hdcPa
             DIB_RGB_COLORS, SRCPAINT);
     }
 
-    int thickness = direction * (1 + (contour_size * (_this->layout.cbDpiX / DEFAULT_DPI_X)));
+    int thickness = direction * (contour_size * (_this->layout.cbDpiX / DEFAULT_DPI_X));
     rc.left += thickness;
     rc.top += thickness;
     rc.right -= thickness;

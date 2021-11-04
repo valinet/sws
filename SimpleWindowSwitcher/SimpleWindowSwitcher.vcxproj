@@ -149,6 +149,7 @@
     <ClCompile Include="sws_error.c" />
     <ClCompile Include="sws_RegistryMonitor.c" />
     <ClCompile Include="sws_vector.c" />
+    <ClCompile Include="sws_window.c" />
     <ClCompile Include="sws_WindowHelpers.c" />
     <ClCompile Include="sws_WindowSwitcher.c" />
     <ClCompile Include="sws_WindowSwitcherLayout.c" />
@@ -160,6 +161,7 @@
     <ClInclude Include="sws_error.h" />
     <ClInclude Include="sws_RegistryMonitor.h" />
     <ClInclude Include="sws_vector.h" />
+    <ClInclude Include="sws_window.h" />
     <ClInclude Include="sws_WindowHelpers.h" />
     <ClInclude Include="sws_WindowSwitcherLayoutWindow.h" />
     <ClInclude Include="sws_WindowSwitcher.h" />

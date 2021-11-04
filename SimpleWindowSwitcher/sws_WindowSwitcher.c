@@ -87,6 +87,19 @@ static void CALLBACK _sws_WindowSwitcher_NotifyTransparencyChange(sws_WindowSwit
     }
 }
 
+inline long long milliseconds_now() {
+    LARGE_INTEGER s_frequency;
+    BOOL s_use_qpc = QueryPerformanceFrequency(&s_frequency);
+    if (s_use_qpc) {
+        LARGE_INTEGER now;
+        QueryPerformanceCounter(&now);
+        return (1000LL * now.QuadPart) / s_frequency.QuadPart;
+    }
+    else {
+        return GetTickCount();
+    }
+}
+
 static DWORD WINAPI _sws_WindowSwitcher_CalculateHelper(HMONITOR hMonitor, HDC hdcMonitor, LPRECT lprcMonitor, sws_WindowSwitcher* _this)
 {
     for (int LayoutMode = 0; LayoutMode < 2; ++LayoutMode)

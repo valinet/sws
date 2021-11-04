@@ -481,9 +481,14 @@ __declspec(dllexport) HICON sws_WindowHelpers_GetIconFromHWND(HWND hWnd, BOOL* b
 		////}
 
 		////if (wcsstr(wszPath, L"applicationframehost.exe"))
-		if (sws_WindowHelpers_IsWindowUWP(hWnd))
+		HRESULT hr = S_OK;
+		IShellItemImageFactory* imageFactory = NULL;
+		SIIGBF flags = SIIGBF_RESIZETOFIT;
+		BOOL bIsUWP = sws_WindowHelpers_IsWindowUWP(hWnd);
+		if (bIsUWP)
 		{
-			HRESULT hr = S_OK;
+			flags |= SIIGBF_ICONBACKGROUND;
+
 			IPropertyStore* propStore = NULL;
 			hr = SHGetPropertyStoreForWindow(
 				hWnd,
@@ -498,10 +503,9 @@ __declspec(dllexport) HICON sws_WindowHelpers_GetIconFromHWND(HWND hWnd, BOOL* b
 				PROPVARIANT prop;
 				ZeroMemory(&prop, sizeof(PROPVARIANT));
 				propStore->lpVtbl->GetValue(propStore, &pKey, &prop);
-				propStore->lpVtbl->Release(propStore);		
+				propStore->lpVtbl->Release(propStore);
 				if (prop.bstrVal)
 				{
-					IShellItemImageFactory* imageFactory;
 					SHCreateItemInKnownFolder(
 						&FOLDERID_AppsFolder,
 						KF_FLAG_DONT_VERIFY,
@@ -509,46 +513,56 @@ __declspec(dllexport) HICON sws_WindowHelpers_GetIconFromHWND(HWND hWnd, BOOL* b
 						&__uuidof_IShellItemImageFactory,
 						&imageFactory
 					);
-					if (SUCCEEDED(hr))
-					{
-						SIZE size;
-						size.cx = *szIcon;
-						size.cy = *szIcon;
-						HBITMAP hBitmap;
-						hr = imageFactory->lpVtbl->GetImage(
-							imageFactory,
-							size,
-							SIIGBF_RESIZETOFIT | SIIGBF_ICONBACKGROUND,
-							&hBitmap
-						);
-						if (SUCCEEDED(hr))
-						{
-							// Easiest way to get an HICON from an HBITMAP
-							// I have turned the Internet upside down and was unable to find this
-							// Only a convoluted example using GDI+
-							// This is from the disassembly of StartIsBack/StartAllBack
-							HIMAGELIST hImageList = ImageList_Create(size.cx, size.cy, ILC_COLOR32, 1, 0);
-							if (ImageList_Add(hImageList, hBitmap, NULL) != -1)
-							{
-								hIcon = ImageList_GetIcon(hImageList, 0, 0);
-								ImageList_Destroy(hImageList);
-								*szIcon = 0;
-							}
-							DeleteObject(hBitmap);
-
-							/*
-							void* Gdibitmap;
-							if (!_sws_Helpers_Gdiplus_HBITMAPToGdibitmap(hBitmap, &Gdibitmap))
-							{
-								hIcon = _sws_Helpers_Gdiplus_GetHICONFromGdiBitmap(Gdibitmap);
-								_sws_Helpers_Gdiplus_ReleaseBitmap(Gdibitmap);
-								*szIcon = 0;
-							}
-							DeleteObject(hBitmap);
-							*/
-						}
-					}
 				}
+			}
+		}
+		else
+		{
+			/*SHCreateItemFromParsingName(
+				wszPath,
+				NULL,
+				&__uuidof_IShellItemImageFactory,
+				&imageFactory
+			);*/
+		}
+
+		if (imageFactory)
+		{
+			SIZE size;
+			size.cx = *szIcon;
+			size.cy = *szIcon;
+			HBITMAP hBitmap;
+			hr = imageFactory->lpVtbl->GetImage(
+				imageFactory,
+				size,
+				flags,
+				&hBitmap
+			);
+			if (SUCCEEDED(hr))
+			{
+				// Easiest way to get an HICON from an HBITMAP
+				// I have turned the Internet upside down and was unable to find this
+				// Only a convoluted example using GDI+
+				// This is from the disassembly of StartIsBack/StartAllBack
+				HIMAGELIST hImageList = ImageList_Create(size.cx, size.cy, ILC_COLOR32, 1, 0);
+				if (ImageList_Add(hImageList, hBitmap, NULL) != -1)
+				{
+					hIcon = ImageList_GetIcon(hImageList, 0, 0);
+					ImageList_Destroy(hImageList);
+					if (bIsUWP) *szIcon = 0;
+				}
+				DeleteObject(hBitmap);
+
+				/*
+				void* Gdibitmap;
+				if (!_sws_Helpers_Gdiplus_HBITMAPToGdibitmap(hBitmap, &Gdibitmap))
+				{
+					hIcon = _sws_Helpers_Gdiplus_GetHICONFromGdiBitmap(Gdibitmap);
+					_sws_Helpers_Gdiplus_ReleaseBitmap(Gdibitmap);
+					*szIcon = 0;
+				}
+				DeleteObject(hBitmap);
+				*/
 			}
 		}
 		// Removed this because returned icons may not be alpha aware and actually

@@ -551,7 +551,9 @@ __declspec(dllexport) HICON sws_WindowHelpers_GetIconFromHWND(HWND hWnd, BOOL* b
 				}
 			}
 		}
-		if (!hIcon)
+		// Removed this because returned icons may not be alpha aware and actually
+		// few apps return anything here; better to just use the application icon
+		/*if (!hIcon)
 		{
 			SendMessageTimeoutW(hWnd, WM_GETICON, ICON_BIG, 0, SMTO_ABORTIFHUNG, 1000, &hIcon);
 		}
@@ -578,7 +580,7 @@ __declspec(dllexport) HICON sws_WindowHelpers_GetIconFromHWND(HWND hWnd, BOOL* b
 		if (!hIcon)
 		{
 			SendMessageTimeoutW(hWnd, WM_QUERYDRAGICON, 0, 0, 0, 1000, &hIcon);
-		}
+		}*/
 		if (!hIcon)
 		{
 			SHFILEINFOW shinfo;

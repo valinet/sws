@@ -39,6 +39,9 @@
     <ClCompile Include="sws_RegistryMonitor.c">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="sws_window.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="sws_def.h">
@@ -66,6 +69,12 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="sws_dll.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="sws_window.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="sws_utility.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>

@@ -16,6 +16,7 @@
 #include "sws_def.h"
 #include "sws_error.h"
 #include "sws_window.h"
+#include "sws_utility.h"
 #include "sws_WindowSwitcherLayout.h"
 #include "sws_RegistryMonitor.h"
 

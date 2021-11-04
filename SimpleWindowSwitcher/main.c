@@ -17,7 +17,7 @@ __declspec(dllexport) sws_error_t main(DWORD unused)
 
 	if (!rv)
 	{
-		rv = sws_WindowSwitcher_Initialize(&sws);
+		rv = sws_WindowSwitcher_Initialize(&sws, TRUE);
 	}
 	if (!rv)
 	{

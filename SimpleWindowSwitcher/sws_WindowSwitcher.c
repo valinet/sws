@@ -92,7 +92,7 @@ static DWORD WINAPI _sws_WindowSwitcher_CalculateHelper(HMONITOR hMonitor, HDC h
     for (int LayoutMode = 0; LayoutMode < 2; ++LayoutMode)
     {
         //Sleep(100);
-        long long start = milliseconds_now();
+        long long start = sws_milliseconds_now();
         ////POINT ptCursor;
         ////GetCursorPos(&ptCursor);
         ////_this->hMonitor = MonitorFromPoint(ptCursor, MONITOR_DEFAULTTOPRIMARY);
@@ -112,7 +112,7 @@ static DWORD WINAPI _sws_WindowSwitcher_CalculateHelper(HMONITOR hMonitor, HDC h
         {
             sws_WindowSwitcherLayout_ComputeLayout(&(_this->layout), SWS_WINDOWSWITCHERLAYOUT_COMPUTE_DIRECTION_INITIAL, NULL);
         }
-        long long elapsed = milliseconds_now() - start;
+        long long elapsed = sws_milliseconds_now() - start;
         //printf("Window switcher completed in %lld.\n", elapsed);
 
         //sws_WindowSwitcherLayoutWindow* pWindowList = _this->layout.pWindowList.pList;
@@ -495,10 +495,10 @@ void sws_WindowSwitcher_RefreshTheme(sws_WindowSwitcher* _this)
     }
     _this->hContourBrush = (HBRUSH)CreateSolidBrush(_this->bIsDarkMode ? SWS_WINDOWSWITCHER_CONTOUR_COLOR : SWS_WINDOWSWITCHER_CONTOUR_COLOR_LIGHT);
 
-    long long start = milliseconds_now();
+    long long start = sws_milliseconds_now();
     _this->lastMiniModehWnd = NULL;
     _sws_WindowSwitcher_Calculate(_this);
-    long long elapsed = milliseconds_now() - start;
+    long long elapsed = sws_milliseconds_now() - start;
     printf(
         "[sws] Recomputed layouts in %lld ms because: Settings changed.\n",
         elapsed);
@@ -605,9 +605,9 @@ static LRESULT _sws_WindowsSwitcher_WndProc(HWND hWnd, UINT uMsg, WPARAM wParam,
         {
             _sws_WindowSwitcher_WindowList_PushToFront(_this, _this->layout.hWndWallpaper, NULL);
         }
-        long long start = milliseconds_now();
+        long long start = sws_milliseconds_now();
         _sws_WindowSwitcher_Calculate(_this);
-        long long elapsed = milliseconds_now() - start;
+        long long elapsed = sws_milliseconds_now() - start;
         printf(
             "[sws] Recomputed layouts in %lld ms because: Toggle desktop.\n",
             elapsed);
@@ -673,13 +673,13 @@ static LRESULT _sws_WindowsSwitcher_WndProc(HWND hWnd, UINT uMsg, WPARAM wParam,
                 DwmGetWindowAttribute(lParam, DWMWA_CLOAKED, &isCloaked, sizeof(BOOL));
                 if (!isCloaked || !lParam) // || (window.hWnd && window.bIsApplicationFrameHost))
                 {
-                    long long start = milliseconds_now();
+                    long long start = sws_milliseconds_now();
                     if (!IsWindowVisible(_this->hWnd))
                     {
                         _this->lastMiniModehWnd = NULL;
                     }
                     _sws_WindowSwitcher_Calculate(_this);
-                    long long elapsed = milliseconds_now() - start;
+                    long long elapsed = sws_milliseconds_now() - start;
                     printf(
                         wParam == HSHELL_WINDOWCREATED ?
                         "[sws] Recomputed layouts in %lld ms because: Window created, mode %d.\n" :

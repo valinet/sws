@@ -497,6 +497,63 @@ void sws_WindowSwitcher_RefreshTheme(sws_WindowSwitcher* _this)
         elapsed);
 }
 
+static void _sws_WindowSwitcher_DrawContour(sws_WindowSwitcher* _this, HDC hdcPaint, RECT rc, int direction, int contour_size)
+{
+    BYTE r = 0, g = 0, b = 0;
+    if (_this->bIsDarkMode)
+    {
+        r = GetRValue(SWS_WINDOWSWITCHER_CONTOUR_COLOR);
+        g = GetBValue(SWS_WINDOWSWITCHER_CONTOUR_COLOR);
+        b = GetBValue(SWS_WINDOWSWITCHER_CONTOUR_COLOR);
+    }
+    else
+    {
+        r = GetRValue(SWS_WINDOWSWITCHER_CONTOUR_COLOR_LIGHT);
+        g = GetBValue(SWS_WINDOWSWITCHER_CONTOUR_COLOR_LIGHT);
+        b = GetBValue(SWS_WINDOWSWITCHER_CONTOUR_COLOR_LIGHT);
+    }
+
+    BITMAPINFO bi;
+    ZeroMemory(&bi, sizeof(BITMAPINFO));
+    bi.bmiHeader.biSize = sizeof(BITMAPINFOHEADER);
+    bi.bmiHeader.biWidth = 1;
+    bi.bmiHeader.biHeight = 1;
+    bi.bmiHeader.biPlanes = 1;
+    bi.bmiHeader.biBitCount = 32;
+    bi.bmiHeader.biCompression = BI_RGB;
+    RGBQUAD desiredColor = { b, g, r, 0xFF };
+    RGBQUAD transparent = { 0, 0, 0, 0 };
+
+    if (direction == SWS_CONTOUR_INNER)
+    {
+        StretchDIBits(hdcPaint, rc.left, rc.top, rc.right - rc.left, rc.bottom - rc.top,
+            0, 0, 1, 1, &desiredColor, &bi,
+            DIB_RGB_COLORS, SRCPAINT);
+    }
+
+    int thickness = direction * (1 + (contour_size * (_this->layout.cbDpiX / DEFAULT_DPI_X)));
+    rc.left += thickness;
+    rc.top += thickness;
+    rc.right -= thickness;
+    rc.bottom -= thickness;
+
+    StretchDIBits(hdcPaint, rc.left, rc.top, rc.right - rc.left, rc.bottom - rc.top,
+        0, 0, 1, 1, (direction == SWS_CONTOUR_INNER ? &transparent : &desiredColor), &bi,
+        DIB_RGB_COLORS, (direction == SWS_CONTOUR_INNER ? SRCAND : SRCPAINT));
+
+    if (direction == SWS_CONTOUR_OUTER)
+    {
+        rc.left -= thickness;
+        rc.top -= thickness;
+        rc.right += thickness;
+        rc.bottom += thickness;
+
+        StretchDIBits(hdcPaint, rc.left, rc.top, rc.right - rc.left, rc.bottom - rc.top,
+            0, 0, 1, 1, &transparent, &bi,
+            DIB_RGB_COLORS, SRCAND);
+    }
+}
+
 static LRESULT _sws_WindowsSwitcher_WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 {
     sws_WindowSwitcher* _this = NULL;
@@ -697,6 +754,22 @@ static LRESULT _sws_WindowsSwitcher_WndProc(HWND hWnd, UINT uMsg, WPARAM wParam,
 
             hOldFont = SelectObject(hdcPaint, _this->layout.hFontRegular);
 
+            // Draw highlight rectangle
+            if (pWindowList)
+            {
+                _sws_WindowSwitcher_DrawContour(_this, hdcPaint, pWindowList[_this->layout.iIndex].rcWindow, SWS_CONTOUR_INNER, SWS_WINDOWSWITCHER_CONTOUR_SIZE);
+            }
+
+            // Draw hover rectangle
+            if (pWindowList &&
+                _this->cwIndex != -1 &&
+                _this->cwIndex < _this->layout.pWindowList.cbSize &&
+                _this->cwMask & SWS_WINDOWFLAG_IS_ON_THUMBNAIL
+                )
+            {
+                _sws_WindowSwitcher_DrawContour(_this, hdcPaint, pWindowList[_this->cwIndex].rcThumbnail, SWS_CONTOUR_OUTER, SWS_WINDOWSWITCHER_HIGHLIGHT_SIZE);
+            }
+
             // Draw title
             for (unsigned int i = 0; i < _this->layout.pWindowList.cbSize; ++i)
             {
@@ -773,67 +846,6 @@ static LRESULT _sws_WindowsSwitcher_WndProc(HWND hWnd, UINT uMsg, WPARAM wParam,
                         _this->hBackgroundBrush,
                         DI_NORMAL
                     );
-                }
-            }
-
-            // Draw highlight rectangle
-            for (int j = (int)(_this->layout.iIndex); j < (int)_this->layout.iIndex + 1; ++j) // -1, +2
-            {
-                int k = j;
-                if (j == -1)
-                {
-                    k = _this->layout.pWindowList.cbSize - 1;
-                }
-                else if (j == _this->layout.pWindowList.cbSize)
-                {
-                    k = 0;
-                }
-                HBRUSH hBrush = _this->hBackgroundBrush;
-                if (pWindowList)
-                {
-                    rc = pWindowList[k].rcWindow;
-                    if (k == _this->layout.iIndex)
-                    {
-                        hBrush = _this->hContourBrush;
-                    }
-                    rc.left += 1;
-                    rc.top += 1;
-                    rc.right -= 1;
-                    rc.bottom -= 1;
-                    for (unsigned int i = 0; i < SWS_WINDOWSWITCHER_CONTOUR_SIZE * (_this->layout.cbDpiX / DEFAULT_DPI_X); ++i)
-                    {
-                        FrameRect(hdcPaint, &rc, hBrush);
-                        rc.left += 1;
-                        rc.top += 1;
-                        rc.right -= 1;
-                        rc.bottom -= 1;
-                    }
-                }
-                //if (_this->layout.bIncludeWallpaper && pWindowList[k].hWnd == _this->layout.hWndWallpaper)
-                //{
-                //    SetTimer(hWnd, SWS_WINDOWSWITCHER_TIMER_PEEKATDESKTOP, SWS_WINDOWSWITCHER_TIMER_PEEKATDESKTOP_DELAY, NULL);
-                //}
-            }
-
-            // Draw hover rectangle
-            if (pWindowList &&
-                _this->cwIndex != -1 &&
-                _this->cwIndex < _this->layout.pWindowList.cbSize &&
-                _this->cwMask & SWS_WINDOWFLAG_IS_ON_THUMBNAIL
-                )
-            {
-                RECT rc = pWindowList[_this->cwIndex].rcThumbnail;
-                rc.left -= 1;
-                rc.top -= 1;
-                rc.right += 1;
-                rc.bottom += 1;
-                for (unsigned int i = 0; i < SWS_WINDOWSWITCHER_HIGHLIGHT_SIZE * (_this->layout.cbDpiX / DEFAULT_DPI_X); ++i)
-                {
-                    FrameRect(hdcPaint, &rc, _this->hContourBrush);
-                    rc.left -= 1;
-                    rc.top -= 1;
-                    rc.right += 1;
-                    rc.bottom += 1;
                 }
             }
 

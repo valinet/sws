@@ -28,7 +28,8 @@ void sws_WindowSwitcherLayoutWindow_Clear(sws_WindowSwitcherLayoutWindow* _this)
         DwmUnregisterThumbnail(_this->hThumbnail);
         _this->hThumbnail = 0;
     }
-    if (_this->hIcon && !_this->bOwnProcess)
+    //if (_this->hIcon && !_this->bOwnProcess)
+    if (_this->hIcon)
     {
         DestroyIcon(_this->hIcon);
     }

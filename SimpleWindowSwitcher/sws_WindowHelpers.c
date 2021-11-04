@@ -552,22 +552,9 @@ __declspec(dllexport) HICON sws_WindowHelpers_GetIconFromHWND(HWND hWnd, BOOL* b
 					if (bIsUWP) *szIcon = 0;
 				}
 				DeleteObject(hBitmap);
-
-				/*
-				void* Gdibitmap;
-				if (!_sws_Helpers_Gdiplus_HBITMAPToGdibitmap(hBitmap, &Gdibitmap))
-				{
-					hIcon = _sws_Helpers_Gdiplus_GetHICONFromGdiBitmap(Gdibitmap);
-					_sws_Helpers_Gdiplus_ReleaseBitmap(Gdibitmap);
-					*szIcon = 0;
-				}
-				DeleteObject(hBitmap);
-				*/
 			}
 		}
-		// Removed this because returned icons may not be alpha aware and actually
-		// few apps return anything here; better to just use the application icon
-		/*if (!hIcon)
+		if (!hIcon)
 		{
 			SendMessageTimeoutW(hWnd, WM_GETICON, ICON_BIG, 0, SMTO_ABORTIFHUNG, 1000, &hIcon);
 		}
@@ -578,23 +565,30 @@ __declspec(dllexport) HICON sws_WindowHelpers_GetIconFromHWND(HWND hWnd, BOOL* b
 		if (!hIcon)
 		{
 #ifdef _WIN64
-			GetClassLong(hWnd, -34);
-#else
 			GetClassLongPtr(hWnd, -34);
+#else
+			GetClassLong(hWnd, -34);
 #endif
 		}
 		if (!hIcon)
 		{
 #ifdef _WIN64
-			GetClassLong(hWnd, -14);
-#else
 			GetClassLongPtr(hWnd, -14);
+#else
+			GetClassLong(hWnd, -14);
 #endif
 		}
 		if (!hIcon)
 		{
 			SendMessageTimeoutW(hWnd, WM_QUERYDRAGICON, 0, 0, 0, 1000, &hIcon);
-		}*/
+		}
+		if (*bOwnProcess)
+		{
+			hIcon = CopyIcon(hIcon);
+		}
+		// here, if hIcon was supplied, one should set its alpha channel properly:
+		// 255 for the actual icon contents
+		// 0 for the rest (the background), probably with a mask
 		if (!hIcon)
 		{
 			SHFILEINFOW shinfo;

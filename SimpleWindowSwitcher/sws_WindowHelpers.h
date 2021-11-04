@@ -183,4 +183,9 @@ inline void _sws_WindowHelpers_ToggleDesktop()
 	//PostMessageW(FindWindowExW(NULL, NULL, L"Shell_TrayWnd", NULL), 0x579, 3 - 1, 0); // 1 to restore
 	//PostMessageW(FindWindowExW(NULL, NULL, L"Shell_TrayWnd", NULL), 0x579, 3 - 0, 0); // 0 to show
 }
+
+inline BOOL sws_WindowHelpers_IsWindowUWP(HWND hWnd)
+{
+	return (GetPropW(hWnd, (LPCWSTR)0xA914));
+}
 #endif

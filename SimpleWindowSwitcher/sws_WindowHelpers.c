@@ -231,11 +231,6 @@ sws_error_t sws_WindowHelpers_RealEnumWindows(
 	return SWS_ERROR_SUCCESS;
 }
 
-BOOL _sws_WindowHelpers_IsWindowUWP(HWND hWnd)
-{
-	return (GetPropW(hWnd, (LPCWSTR)0xA914));
-}
-
 BOOL _sws_WindowHelpers_ShouldTreatShellManagedWindowAsNotShellManaged(HWND hWnd)
 {
 	return (GetPropW(hWnd, L"Microsoft.Windows.ShellManagedWindowAsNormalWindow") != NULL);
@@ -266,7 +261,7 @@ BOOL _sws_WindowHelpers_IsValidDesktopZOrderBand(HWND hWnd, int bAdditionalCheck
 		if (bAdditionalChecks)
 		{
 			//wprintf(L"%s %d %d\n", wszWindowText, dwBand, _sws_IsShellManagedWindow(hWnd));
-			return !(_sws_IsShellManagedWindow && _sws_IsShellManagedWindow(hWnd)) || _sws_WindowHelpers_ShouldTreatShellManagedWindowAsNotShellManaged(hWnd) || _sws_WindowHelpers_IsWindowUWP(hWnd);
+			return !(_sws_IsShellManagedWindow && _sws_IsShellManagedWindow(hWnd)) || _sws_WindowHelpers_ShouldTreatShellManagedWindowAsNotShellManaged(hWnd) || sws_WindowHelpers_IsWindowUWP(hWnd);
 		}
 	}
 	return bRet;
@@ -486,7 +481,7 @@ __declspec(dllexport) HICON sws_WindowHelpers_GetIconFromHWND(HWND hWnd, BOOL* b
 		////}
 
 		////if (wcsstr(wszPath, L"applicationframehost.exe"))
-		if (_sws_WindowHelpers_IsWindowUWP(hWnd))
+		if (sws_WindowHelpers_IsWindowUWP(hWnd))
 		{
 			HRESULT hr = S_OK;
 			IPropertyStore* propStore = NULL;

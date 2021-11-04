@@ -3,6 +3,7 @@
 #include <Windows.h>
 #include <Psapi.h>
 #include <Shlwapi.h>
+#include "sws_WindowHelpers.h"
 #include "sws_error.h"
 typedef struct _sws_window
 {

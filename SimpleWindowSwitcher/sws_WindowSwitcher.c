@@ -757,7 +757,26 @@ static LRESULT _sws_WindowsSwitcher_WndProc(HWND hWnd, UINT uMsg, WPARAM wParam,
             // Draw highlight rectangle
             if (pWindowList)
             {
-                _sws_WindowSwitcher_DrawContour(_this, hdcPaint, pWindowList[_this->layout.iIndex].rcWindow, SWS_CONTOUR_INNER, SWS_WINDOWSWITCHER_CONTOUR_SIZE);
+                if (!IsThemeActive() || _this->dwTheme == SWS_WINDOWSWITCHER_THEME_NONE)
+                {
+                    RECT rc = pWindowList[_this->layout.iIndex].rcWindow;
+                    rc.left += 1;
+                    rc.top += 1;
+                    rc.right -= 1;
+                    rc.bottom -= 1;
+                    for (unsigned int i = 0; i < SWS_WINDOWSWITCHER_CONTOUR_SIZE * (_this->layout.cbDpiX / DEFAULT_DPI_X); ++i)
+                    {
+                        FrameRect(hdcPaint, &rc, _this->hContourBrush);
+                        rc.left += 1;
+                        rc.top += 1;
+                        rc.right -= 1;
+                        rc.bottom -= 1;
+                    }
+                }
+                else
+                {
+                    _sws_WindowSwitcher_DrawContour(_this, hdcPaint, pWindowList[_this->layout.iIndex].rcWindow, SWS_CONTOUR_INNER, SWS_WINDOWSWITCHER_CONTOUR_SIZE);
+                }
             }
 
             // Draw hover rectangle
@@ -767,7 +786,26 @@ static LRESULT _sws_WindowsSwitcher_WndProc(HWND hWnd, UINT uMsg, WPARAM wParam,
                 _this->cwMask & SWS_WINDOWFLAG_IS_ON_THUMBNAIL
                 )
             {
-                _sws_WindowSwitcher_DrawContour(_this, hdcPaint, pWindowList[_this->cwIndex].rcThumbnail, SWS_CONTOUR_OUTER, SWS_WINDOWSWITCHER_HIGHLIGHT_SIZE);
+                if (!IsThemeActive() || _this->dwTheme == SWS_WINDOWSWITCHER_THEME_NONE)
+                {
+                    RECT rc = pWindowList[_this->cwIndex].rcThumbnail;
+                    rc.left -= 1;
+                    rc.top -= 1;
+                    rc.right += 1;
+                    rc.bottom += 1;
+                    for (unsigned int i = 0; i < SWS_WINDOWSWITCHER_HIGHLIGHT_SIZE * (_this->layout.cbDpiX / DEFAULT_DPI_X); ++i)
+                    {
+                        FrameRect(hdcPaint, &rc, _this->hContourBrush);
+                        rc.left -= 1;
+                        rc.top -= 1;
+                        rc.right += 1;
+                        rc.bottom += 1;
+                    }
+                }
+                else
+                {
+                    _sws_WindowSwitcher_DrawContour(_this, hdcPaint, pWindowList[_this->cwIndex].rcThumbnail, SWS_CONTOUR_OUTER, SWS_WINDOWSWITCHER_HIGHLIGHT_SIZE);
+                }
             }
 
             // Draw title

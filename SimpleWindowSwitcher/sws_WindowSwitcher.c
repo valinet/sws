@@ -784,7 +784,7 @@ static LRESULT _sws_WindowsSwitcher_WndProc(HWND hWnd, UINT uMsg, WPARAM wParam,
                     RECT rcText;
                     rcText.left = rc.left + _this->layout.cbLeftPadding + pWindowList[i].szIcon + _this->layout.cbRightPadding;
                     rcText.top = rc.top + _this->layout.cbTopPadding;
-                    rcText.right = rc.right - _this->layout.cbRowTitleHeight;
+                    rcText.right = rc.right - _this->layout.cbRowTitleHeight - _this->layout.cbRightPadding;
                     rcText.bottom = rc.top + _this->layout.cbRowTitleHeight;
 
                     wchar_t wszTitle[MAX_PATH];

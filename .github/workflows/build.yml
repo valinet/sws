@@ -7,7 +7,15 @@ jobs:
     runs-on: windows-latest
 
     steps:
-    - uses: actions/checkout@v2
+    - name: Checkout latest build
+      uses: actions/checkout@v2
+      
+    - name: Declare some variables
+      id: vars
+      shell: bash
+      run: |
+        echo "##[set-output name=branch;]$(echo ${GITHUB_REF#refs/heads/})"
+        echo "::set-output name=sha_short::$(git rev-parse --short HEAD)"
 
     - name: Add MSBuild to PATH
       uses: microsoft/setup-msbuild@v1.0.2
@@ -17,3 +25,10 @@ jobs:
       # Add additional options to the MSBuild command line here (like platform or verbosity level).
       # See https://docs.microsoft.com/visualstudio/msbuild/msbuild-command-line-reference
       run: msbuild /m /p:Configuration=Release /p:Platform=x64 SimpleWindowSwitcher.sln
+      
+    - name: Upload artifacts
+      uses: actions/upload-artifact@v2
+      with:
+        name: sws_bin_amd64_${{ steps.vars.outputs.sha_short }}_${{ steps.vars.outputs.branch }}
+        path: |
+          x64/Release/

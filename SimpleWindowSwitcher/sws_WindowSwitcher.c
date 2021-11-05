@@ -1065,14 +1065,14 @@ static LRESULT _sws_WindowsSwitcher_WndProc(HWND hWnd, UINT uMsg, WPARAM wParam,
         return 0;
     }
     else if ((uMsg == WM_KEYUP && wParam == VK_MENU && !_this->bWasControl) ||
-             (uMsg == WM_KEYUP && wParam == VK_SPACE) ||
-             (uMsg == WM_KEYUP && wParam == VK_RETURN) ||
+             ((uMsg == WM_KEYUP || uMsg == WM_SYSKEYUP) && wParam == VK_SPACE) ||
+             ((uMsg == WM_KEYUP || uMsg == WM_SYSKEYUP) && wParam == VK_RETURN) ||
              (uMsg == WM_KEYUP && wParam == (_this->mode == SWS_WINDOWSWITCHER_LAYOUTMODE_MINI ? VK_OEM_3 : VK_TAB) && !(GetKeyState(VK_MENU) & 0x8000) && !_this->bWasControl))
     {
         _sws_WindowSwitcher_SwitchToSelectedItemAndDismiss(_this);
         return 0;
     }
-    else if (uMsg == WM_HOTKEY || uMsg == WM_KEYDOWN)
+    else if (uMsg == WM_HOTKEY || uMsg == WM_KEYDOWN || uMsg == WM_SYSKEYDOWN)
     {
         /*if (uMsg == WM_HOTKEY && (int)wParam == 0)
         {
@@ -1084,13 +1084,13 @@ static LRESULT _sws_WindowsSwitcher_WndProc(HWND hWnd, UINT uMsg, WPARAM wParam,
         {
             _this->bWasControl = TRUE;
         }
-        if ((uMsg == WM_KEYDOWN && wParam == VK_OEM_3) || 
-            (uMsg == WM_KEYDOWN && wParam == VK_TAB) || 
+        if (((uMsg == WM_KEYDOWN || uMsg == WM_SYSKEYDOWN) && wParam == VK_OEM_3) || 
+            ((uMsg == WM_KEYDOWN || uMsg == WM_SYSKEYDOWN) && wParam == VK_TAB) ||
             (uMsg == WM_HOTKEY && (LOWORD(lParam) & MOD_ALT)) || 
-            (uMsg == WM_KEYDOWN && wParam == VK_LEFT) ||
-            (uMsg == WM_KEYDOWN && wParam == VK_RIGHT) ||
-            (uMsg == WM_KEYDOWN && wParam == VK_UP) ||
-            (uMsg == WM_KEYDOWN && wParam == VK_DOWN)
+            ((uMsg == WM_KEYDOWN || uMsg == WM_SYSKEYDOWN) && wParam == VK_LEFT) ||
+            ((uMsg == WM_KEYDOWN || uMsg == WM_SYSKEYDOWN) && wParam == VK_RIGHT) ||
+            ((uMsg == WM_KEYDOWN || uMsg == WM_SYSKEYDOWN) && wParam == VK_UP) ||
+            ((uMsg == WM_KEYDOWN || uMsg == WM_SYSKEYDOWN) && wParam == VK_DOWN)
             )
         {
             if (_this->bEnabled && !IsWindowVisible(_this->hWnd))
@@ -1152,10 +1152,10 @@ static LRESULT _sws_WindowsSwitcher_WndProc(HWND hWnd, UINT uMsg, WPARAM wParam,
 
                 int indexStart = _this->layout.iIndex; // avoids infinite cycles
                 if (
-                    (uMsg == WM_KEYDOWN && (GetKeyState(VK_SHIFT) & 0x8000)) ||
+                    ((uMsg == WM_KEYDOWN || uMsg == WM_SYSKEYDOWN) && (GetKeyState(VK_SHIFT) & 0x8000)) ||
                     (uMsg == WM_HOTKEY && (LOWORD(lParam) & MOD_SHIFT)) ||
-                    (uMsg == WM_KEYDOWN && wParam == VK_LEFT) ||
-                    (uMsg == WM_KEYDOWN && wParam == VK_UP)
+                    ((uMsg == WM_KEYDOWN || uMsg == WM_SYSKEYDOWN) && wParam == VK_LEFT) ||
+                    ((uMsg == WM_KEYDOWN || uMsg == WM_SYSKEYDOWN) && wParam == VK_UP)
                     )
                 {
                     direction = SWS_WINDOWSWITCHERLAYOUT_COMPUTE_DIRECTION_BACKWARD;
@@ -1171,7 +1171,7 @@ static LRESULT _sws_WindowsSwitcher_WndProc(HWND hWnd, UINT uMsg, WPARAM wParam,
                             _this->layout.iIndex++;
                         }
 
-                        if (uMsg == WM_KEYDOWN && wParam == VK_UP)
+                        if ((uMsg == WM_KEYDOWN || uMsg == WM_SYSKEYDOWN) && wParam == VK_UP)
                         {
                             if (indexStart == _this->layout.iIndex)
                             {
@@ -1204,7 +1204,7 @@ static LRESULT _sws_WindowsSwitcher_WndProc(HWND hWnd, UINT uMsg, WPARAM wParam,
                             _this->layout.iIndex--;
                         }
 
-                        if (uMsg == WM_KEYDOWN && wParam == VK_DOWN)
+                        if ((uMsg == WM_KEYDOWN || uMsg == WM_SYSKEYDOWN) && wParam == VK_DOWN)
                         {
                             if (indexStart == _this->layout.iIndex)
                             {
@@ -1235,7 +1235,7 @@ static LRESULT _sws_WindowsSwitcher_WndProc(HWND hWnd, UINT uMsg, WPARAM wParam,
                 }
 
                 // indexStart == -1 when there is a single row, so nothing to do on up/down
-                if (indexStart != -1 && ((uMsg == WM_KEYDOWN && wParam == VK_DOWN) || (uMsg == WM_KEYDOWN && wParam == VK_UP)))
+                if (indexStart != -1 && (((uMsg == WM_KEYDOWN || uMsg == WM_SYSKEYDOWN) && wParam == VK_DOWN) || ((uMsg == WM_KEYDOWN || uMsg == WM_SYSKEYDOWN) && wParam == VK_UP)))
                 {
                     RECT rcCurrent = pWindowList[_this->layout.iIndex].rcWindow;
 
@@ -1253,7 +1253,7 @@ static LRESULT _sws_WindowsSwitcher_WndProc(HWND hWnd, UINT uMsg, WPARAM wParam,
                             minIndex = i;
                         }
 
-                        i = (uMsg == WM_KEYDOWN && wParam == VK_DOWN) ? (i - 1) : (i + 1);
+                        i = ((uMsg == WM_KEYDOWN || uMsg == WM_SYSKEYDOWN) && wParam == VK_DOWN) ? (i - 1) : (i + 1);
                     }
 
                     _this->layout.iIndex = minIndex;

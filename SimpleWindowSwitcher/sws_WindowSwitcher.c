@@ -1,5 +1,99 @@
 #include "sws_WindowSwitcher.h"
 
+static HRESULT STDMETHODCALLTYPE _sws_WindowsSwitcher_IInputSwitchCallback_OnUpdateProfile(sws_IInputSwitchCallback* _this, IInputSwitchCallbackUpdateData *ud)
+{
+    // useful info: https://referencesource.microsoft.com/#system.windows.forms/winforms/Managed/System/WinForms/InputLanguage.cs,a01e59da9681988c
+
+    wchar_t pwszKLID[9];
+
+    uint16_t language = ud->dwID & 0xffff;
+    uint16_t device = (ud->dwID >> 16) & 0x0fff;
+    if (device == language)
+    {
+        swprintf_s(pwszKLID, 9, L"%08x", language);
+        PostMessageW(FindWindowW(_T(SWS_WINDOWSWITCHER_CLASSNAME), NULL), WM_INPUTLANGCHANGE, 0, LoadKeyboardLayoutW(pwszKLID, KLF_ACTIVATE));
+    }
+    else
+    {
+        wchar_t pwszLanguage[5];
+        swprintf_s(pwszLanguage, 5, L"%04x", language);
+        wchar_t pwszDevice[5];
+        swprintf_s(pwszDevice, 5, L"%04x", device);
+        HKEY hKey = NULL;
+        RegOpenKeyExW(HKEY_LOCAL_MACHINE, L"SYSTEM\\CurrentControlSet\\Control\\Keyboard Layouts", 0, KEY_READ, &hKey);
+        if (hKey)
+        {
+            DWORD cSubKeys = 0;
+            RegQueryInfoKeyW(hKey, NULL, NULL, NULL, &cSubKeys, NULL, NULL, NULL, NULL, NULL, NULL, NULL);
+            if (cSubKeys)
+            {
+                for (unsigned int i = 0; i < cSubKeys; ++i)
+                {
+                    wchar_t name[9];
+                    ZeroMemory(name, 9 * sizeof(wchar_t));
+                    DWORD name_size = 9;
+                    RegEnumKeyExW(hKey, i, name, &name_size, NULL, NULL, NULL, NULL);
+                    if (name[0] && name_size == 8)
+                    {
+                        if (!wcsncmp(name + 4, pwszLanguage, 4))
+                        {
+                            wchar_t layoutId[5];
+                            ZeroMemory(layoutId, 5 * sizeof(wchar_t));
+                            DWORD layoutId_size = 5 * sizeof(wchar_t);
+                            RegGetValueW(hKey, name, L"Layout Id", RRF_RT_REG_SZ, NULL, layoutId, &layoutId_size);
+                            if (layoutId[0] && layoutId_size == 5 * sizeof(wchar_t))
+                            {
+                                if (!wcsncmp(layoutId, pwszDevice, 4))
+                                {
+                                    PostMessageW(FindWindowW(_T(SWS_WINDOWSWITCHER_CLASSNAME), NULL), WM_INPUTLANGCHANGE, 0, LoadKeyboardLayoutW(name, KLF_ACTIVATE));
+                                    break;
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            RegCloseKey(hKey);
+        }
+    }
+    return S_OK;
+}
+
+static HRESULT STDMETHODCALLTYPE _sws_WindowsSwitcher_IInputSwitchCallback_QueryInterface(sws_IInputSwitchCallback* _this, REFIID riid, void** ppvObject)
+{
+    if (!IsEqualIID(riid, &sws_IID_IInputSwitchCallback) && !IsEqualIID(riid, &IID_IUnknown))
+    {
+        *ppvObject = NULL;
+        return E_NOINTERFACE;
+    }
+    *ppvObject = _this;
+    return S_OK;
+}
+
+static ULONG STDMETHODCALLTYPE _sws_WindowsSwitcher_IInputSwitchCallback_AddRefRelease(sws_IInputSwitchCallback* _this)
+{
+    return 1;
+}
+
+static HRESULT STDMETHODCALLTYPE _sws_WindowsSwitcher_IInputSwitchCallback_Stub(sws_IInputSwitchCallback* _this)
+{
+    return S_OK;
+}
+
+static const sws_IInputSwitchCallbackVtbl _sws_WindowSwitcher_InputSwitchCallbackVtbl = {
+    _sws_WindowsSwitcher_IInputSwitchCallback_QueryInterface,
+    _sws_WindowsSwitcher_IInputSwitchCallback_AddRefRelease,
+    _sws_WindowsSwitcher_IInputSwitchCallback_AddRefRelease,
+    _sws_WindowsSwitcher_IInputSwitchCallback_OnUpdateProfile,
+    _sws_WindowsSwitcher_IInputSwitchCallback_Stub,
+    _sws_WindowsSwitcher_IInputSwitchCallback_Stub,
+    _sws_WindowsSwitcher_IInputSwitchCallback_Stub,
+    _sws_WindowsSwitcher_IInputSwitchCallback_Stub,
+    _sws_WindowsSwitcher_IInputSwitchCallback_Stub,
+    _sws_WindowsSwitcher_IInputSwitchCallback_Stub,
+    _sws_WindowsSwitcher_IInputSwitchCallback_Stub
+};
+
 void _sws_WindowSwitcher_Wineventproc(
     HWINEVENTHOOK hWinEventHook,
     DWORD event,
@@ -561,6 +655,100 @@ static void _sws_WindowSwitcher_DrawContour(sws_WindowSwitcher* _this, HDC hdcPa
     }
 }
 
+static sws_error_t _sws_WindowSwitcher_RegisterHotkeys(sws_WindowSwitcher* _this, HKL hkl)
+{
+    sws_error_t rv = SWS_ERROR_SUCCESS;
+
+    if (hkl)
+    {
+        _this->vkTilde = MapVirtualKeyExW(0x29, MAPVK_VSC_TO_VK_EX, hkl);
+    }
+    else
+    {
+        _this->vkTilde = MapVirtualKeyW(0x29, MAPVK_VSC_TO_VK_EX);
+    }
+
+
+    /*if (!rv)
+    {
+        if (!RegisterHotKey(_this->hWnd, 0, MOD_ALT, VK_ESCAPE))
+        {
+            rv = sws_error_Report(sws_error_GetFromWin32Error(GetLastError()), NULL);
+        }
+    }*/
+    if (!rv)
+    {
+        if (!RegisterHotKey(_this->hWnd, 1, MOD_ALT, VK_TAB))
+        {
+            rv = sws_error_GetFromWin32Error(GetLastError());
+        }
+    }
+    if (!rv)
+    {
+        if (!RegisterHotKey(_this->hWnd, -1, MOD_ALT, _this->vkTilde))
+        {
+            rv = sws_error_GetFromWin32Error(GetLastError());
+        }
+    }
+    if (!rv)
+    {
+        if (!RegisterHotKey(_this->hWnd, 2, MOD_ALT | MOD_SHIFT, VK_TAB))
+        {
+            rv = sws_error_GetFromWin32Error(GetLastError());
+        }
+    }
+    if (!rv)
+    {
+        if (!RegisterHotKey(_this->hWnd, -2, MOD_ALT | MOD_SHIFT, _this->vkTilde))
+        {
+            rv = sws_error_GetFromWin32Error(GetLastError());
+        }
+    }
+    if (!rv)
+    {
+        if (!RegisterHotKey(_this->hWnd, 3, MOD_ALT | MOD_CONTROL, VK_TAB))
+        {
+            rv = sws_error_GetFromWin32Error(GetLastError());
+        }
+    }
+    if (!rv)
+    {
+        if (!RegisterHotKey(_this->hWnd, -3, MOD_ALT | MOD_CONTROL, _this->vkTilde))
+        {
+            rv = sws_error_GetFromWin32Error(GetLastError());
+        }
+    }
+    if (!rv)
+    {
+        if (!RegisterHotKey(_this->hWnd, 4, MOD_ALT | MOD_SHIFT | MOD_CONTROL, VK_TAB))
+        {
+            rv = sws_error_GetFromWin32Error(GetLastError());
+        }
+    }
+    if (!rv)
+    {
+        if (!RegisterHotKey(_this->hWnd, -4, MOD_ALT | MOD_SHIFT | MOD_CONTROL, _this->vkTilde))
+        {
+            rv = sws_error_GetFromWin32Error(GetLastError());
+        }
+    }
+
+    return rv;
+}
+
+static void _sws_WindowSwitcher_UnregisterHotkeys(sws_WindowSwitcher* _this)
+{
+    //UnregisterHotKey(_this->hWnd, 0);
+    UnregisterHotKey(_this->hWnd, 1);
+    UnregisterHotKey(_this->hWnd, 2);
+    UnregisterHotKey(_this->hWnd, 3);
+    UnregisterHotKey(_this->hWnd, 4);
+    UnregisterHotKey(_this->hWnd, -1);
+    UnregisterHotKey(_this->hWnd, -2);
+    UnregisterHotKey(_this->hWnd, -3);
+    UnregisterHotKey(_this->hWnd, -4);
+}
+
 static LRESULT _sws_WindowsSwitcher_WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 {
     sws_WindowSwitcher* _this = NULL;
@@ -1067,7 +1255,7 @@ static LRESULT _sws_WindowsSwitcher_WndProc(HWND hWnd, UINT uMsg, WPARAM wParam,
     else if ((uMsg == WM_KEYUP && wParam == VK_MENU && !_this->bWasControl) ||
              ((uMsg == WM_KEYUP || uMsg == WM_SYSKEYUP) && wParam == VK_SPACE) ||
              ((uMsg == WM_KEYUP || uMsg == WM_SYSKEYUP) && wParam == VK_RETURN) ||
-             (uMsg == WM_KEYUP && wParam == (_this->mode == SWS_WINDOWSWITCHER_LAYOUTMODE_MINI ? VK_OEM_3 : VK_TAB) && !(GetKeyState(VK_MENU) & 0x8000) && !_this->bWasControl))
+             (uMsg == WM_KEYUP && wParam == (_this->mode == SWS_WINDOWSWITCHER_LAYOUTMODE_MINI ? _this->vkTilde : VK_TAB) && !(GetKeyState(VK_MENU) & 0x8000) && !_this->bWasControl))
     {
         _sws_WindowSwitcher_SwitchToSelectedItemAndDismiss(_this);
         return 0;
@@ -1084,7 +1272,7 @@ static LRESULT _sws_WindowsSwitcher_WndProc(HWND hWnd, UINT uMsg, WPARAM wParam,
         {
             _this->bWasControl = TRUE;
         }
-        if (((uMsg == WM_KEYDOWN || uMsg == WM_SYSKEYDOWN) && wParam == VK_OEM_3) || 
+        if (((uMsg == WM_KEYDOWN || uMsg == WM_SYSKEYDOWN) && wParam == _this->vkTilde) ||
             ((uMsg == WM_KEYDOWN || uMsg == WM_SYSKEYDOWN) && wParam == VK_TAB) ||
             (uMsg == WM_HOTKEY && (LOWORD(lParam) & MOD_ALT)) || 
             ((uMsg == WM_KEYDOWN || uMsg == WM_SYSKEYDOWN) && wParam == VK_LEFT) ||
@@ -1265,8 +1453,14 @@ static LRESULT _sws_WindowsSwitcher_WndProc(HWND hWnd, UINT uMsg, WPARAM wParam,
         }
         return 0;
     }
+    else if (uMsg == WM_INPUTLANGCHANGE)
+    {
+        _sws_WindowSwitcher_UnregisterHotkeys(_this);
+        _sws_WindowSwitcher_RegisterHotkeys(_this, lParam);
+        return 0;
+    }
 
-    return DefWindowProc(hWnd, uMsg, wParam, lParam);
+    return DefWindowProcW(hWnd, uMsg, wParam, lParam);
 }
 
 static sws_error_t _sws_WindowSwitcher_RegisterWindowClass(sws_WindowSwitcher* _this)
@@ -1316,16 +1510,12 @@ __declspec(dllexport) void sws_WindowSwitcher_Clear(sws_WindowSwitcher* _this)
         {
             sws_WindowSwitcherLayout_Clear(&(_this->minilayouts[i]));
         }
+        if (_this->pInputSwitchControl)
+        {
+            _this->pInputSwitchControl->lpVtbl->Release(_this->pInputSwitchControl);
+        }
         sws_vector_Clear(&(_this->pHWNDList));
-        //UnregisterHotKey(_this->hWnd, 0);
-        UnregisterHotKey(_this->hWnd, 1);
-        UnregisterHotKey(_this->hWnd, 2);
-        UnregisterHotKey(_this->hWnd, 3);
-        UnregisterHotKey(_this->hWnd, 4);
-        UnregisterHotKey(_this->hWnd, -1);
-        UnregisterHotKey(_this->hWnd, -2);
-        UnregisterHotKey(_this->hWnd, -3);
-        UnregisterHotKey(_this->hWnd, -4);
+        _sws_WindowSwitcher_UnregisterHotkeys(_this);
         UnhookWinEvent(_this->global_hook);
         DestroyWindow(_this->hWnd);
         UnregisterClassW(_T(SWS_WINDOWSWITCHER_CLASSNAME), GetModuleHandle(NULL));
@@ -1483,73 +1673,7 @@ __declspec(dllexport) sws_error_t sws_WindowSwitcher_Initialize(sws_WindowSwitch
     }
     if (!rv)
     {
-        if (!RegisterShellHookWindow(_this->hWnd))
-        {
-            rv = sws_error_Report(sws_error_GetFromWin32Error(GetLastError()), NULL);
-        }
-    }
-    /*if (!rv)
-    {
-        if (!RegisterHotKey(_this->hWnd, 0, MOD_ALT, VK_ESCAPE))
-        {
-            rv = sws_error_Report(sws_error_GetFromWin32Error(GetLastError()), NULL);
-        }
-    }*/
-    if (!rv)
-    {
-        if (!RegisterHotKey(_this->hWnd, 1, MOD_ALT, VK_TAB))
-        {
-            rv = sws_error_Report(sws_error_GetFromWin32Error(GetLastError()), NULL);
-        }
-    }
-    if (!rv)
-    {
-        if (!RegisterHotKey(_this->hWnd, -1, MOD_ALT, VK_OEM_3))
-        {
-            rv = sws_error_Report(sws_error_GetFromWin32Error(GetLastError()), NULL);
-        }
-    }
-    if (!rv)
-    {
-        if (!RegisterHotKey(_this->hWnd, 2, MOD_ALT | MOD_SHIFT, VK_TAB))
-        {
-            rv = sws_error_Report(sws_error_GetFromWin32Error(GetLastError()), NULL);
-        }
-    }
-    if (!rv)
-    {
-        if (!RegisterHotKey(_this->hWnd, -2, MOD_ALT | MOD_SHIFT, VK_OEM_3))
-        {
-            rv = sws_error_Report(sws_error_GetFromWin32Error(GetLastError()), NULL);
-        }
-    }
-    if (!rv)
-    {
-        if (!RegisterHotKey(_this->hWnd, 3, MOD_ALT | MOD_CONTROL, VK_TAB))
-        {
-            rv = sws_error_Report(sws_error_GetFromWin32Error(GetLastError()), NULL);
-        }
-    }
-    if (!rv)
-    {
-        if (!RegisterHotKey(_this->hWnd, -3, MOD_ALT | MOD_CONTROL, VK_OEM_3))
-        {
-            rv = sws_error_Report(sws_error_GetFromWin32Error(GetLastError()), NULL);
-        }
-    }
-    if (!rv)
-    {
-        if (!RegisterHotKey(_this->hWnd, 4, MOD_ALT | MOD_SHIFT | MOD_CONTROL, VK_TAB))
-        {
-            rv = sws_error_Report(sws_error_GetFromWin32Error(GetLastError()), NULL);
-        }
-    }
-    if (!rv)
-    {
-        if (!RegisterHotKey(_this->hWnd, -4, MOD_ALT | MOD_SHIFT | MOD_CONTROL, VK_OEM_3))
-        {
-            rv = sws_error_Report(sws_error_GetFromWin32Error(GetLastError()), NULL);
-        }
+        rv = sws_error_Report(_sws_WindowSwitcher_RegisterHotkeys(_this, NULL), NULL);
     }
     if (!rv)
     {
@@ -1560,12 +1684,27 @@ __declspec(dllexport) sws_error_t sws_WindowSwitcher_Initialize(sws_WindowSwitch
     }
     if (!rv)
     {
-        _this->hEvExit = CreateEvent(NULL, FALSE, FALSE, NULL);
+        _this->hEvExit = CreateEventW(NULL, FALSE, FALSE, NULL);
         if (!_this->hEvExit)
         {
             rv = sws_error_Report(sws_error_GetFromWin32Error(GetLastError()), NULL);
         }
     }
+
+    if (!rv)
+    {
+        rv = sws_error_GetFromHRESULT(CoCreateInstance(&sws_CLSID_InputSwitchControl, NULL, CLSCTX_INPROC_SERVER, &sws_IID_InputSwitchControl, &(_this->pInputSwitchControl)));
+    }
+    if (!rv)
+    {
+        rv = sws_error_GetFromHRESULT(_this->pInputSwitchControl->lpVtbl->Init(_this->pInputSwitchControl, 100));
+    }
+    if (!rv)
+    {
+        _this->InputSwitchCallback.lpVtbl = &_sws_WindowSwitcher_InputSwitchCallbackVtbl;
+        rv = sws_error_GetFromHRESULT(_this->pInputSwitchControl->lpVtbl->SetCallback(_this->pInputSwitchControl, &(_this->InputSwitchCallback)));
+    }
+
     if (!rv)
     {
         _this->bWithRegMon = bWithRegMon;

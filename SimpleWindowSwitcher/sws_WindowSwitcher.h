@@ -64,6 +64,9 @@ typedef struct _sws_WindowSwitcher
     DWORD dwCornerPreference;
     DWORD dwShowDelay;
     BOOL bPrimaryOnly;
+    sws_IInputSwitchCallback InputSwitchCallback;
+    sws_IInputSwitchControl* pInputSwitchControl;
+    UINT vkTilde;
 
     DWORD dwRowHeight;
     DWORD dwMaxWP;

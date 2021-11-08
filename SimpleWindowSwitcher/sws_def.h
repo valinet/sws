@@ -102,4 +102,138 @@
 #define SWS_WINDOWSWITCHER_MAX_NUM_WINDOWS 100
 
 #define SWS_VECTOR_CAPACITY 20
+
+DEFINE_GUID(sws_CLSID_InputSwitchControl,
+    0xB9BC2A50,
+    0x43C3, 0x41AA, 0xa0, 0x86,
+    0x5D, 0xB1, 0x4e, 0x18, 0x4b, 0xae
+);
+
+DEFINE_GUID(sws_IID_InputSwitchControl,
+    0xB9BC2A50,
+    0x43C3, 0x41AA, 0xa0, 0x82,
+    0x5D, 0xB1, 0x4e, 0x18, 0x4b, 0xae
+);
+
+DEFINE_GUID(sws_IID_IInputSwitchCallback,
+    0xB9BC2A50,
+    0x43C3, 0x41AA, 0xa0, 0x83,
+    0x5D, 0xB1, 0x4e, 0x18, 0x4b, 0xae
+);
+
+typedef struct IInputSwitchCallbackUpdateData
+{
+    DWORD dwID; // OK
+    DWORD dw0; // always 0
+    LPCWSTR pwszLangShort; // OK ("ENG")
+    LPCWSTR pwszLang; // OK ("English (United States)")
+    LPCWSTR pwszKbShort; // OK ("US")
+    LPCWSTR pwszKb; // OK ("US keyboard")
+    LPCWSTR pwszUnknown5;
+    LPCWSTR pwszUnknown6;
+    LPCWSTR pwszLocale; // OK ("en-US")
+    LPCWSTR pwszUnknown8;
+    LPCWSTR pwszUnknown9;
+    LPCWSTR pwszUnknown10;
+    LPCWSTR pwszUnknown11;
+    LPCWSTR pwszUnknown12;
+    LPCWSTR pwszUnknown13;
+    LPCWSTR pwszUnknown14;
+    LPCWSTR pwszUnknown15;
+    LPCWSTR pwszUnknown16;
+    LPCWSTR pwszUnknown17;
+    DWORD dwUnknown18;
+    DWORD dwUnknown19;
+    DWORD dwNumber; // ???
+} IInputSwitchCallbackUpdateData;
+
+typedef interface sws_IInputSwitchControl sws_IInputSwitchControl;
+
+typedef interface sws_IInputSwitchCallback sws_IInputSwitchCallback;
+
+typedef struct sws_IInputSwitchControlVtbl
+{
+    BEGIN_INTERFACE
+
+    HRESULT(STDMETHODCALLTYPE* QueryInterface)(
+        sws_IInputSwitchControl* This,
+        /* [in] */ REFIID riid,
+        /* [annotation][iid_is][out] */
+        _COM_Outptr_  void** ppvObject);
+
+    ULONG(STDMETHODCALLTYPE* AddRef)(
+        sws_IInputSwitchControl* This);
+
+    ULONG(STDMETHODCALLTYPE* Release)(
+        sws_IInputSwitchControl* This);
+
+    HRESULT(STDMETHODCALLTYPE* Init)(
+        sws_IInputSwitchControl* This,
+        /* [in] */ unsigned int clientType);
+
+    HRESULT(STDMETHODCALLTYPE* SetCallback)(
+        sws_IInputSwitchControl* This,
+        /* [in] */ sws_IInputSwitchCallback* pInputSwitchCallback);
+
+    END_INTERFACE
+} sws_IInputSwitchControlVtbl;
+
+interface sws_IInputSwitchControl
+{
+    CONST_VTBL struct sws_IInputSwitchControlVtbl* lpVtbl;
+};
+
+typedef struct sws_IInputSwitchCallbackVtbl
+{
+    BEGIN_INTERFACE
+
+    HRESULT(STDMETHODCALLTYPE* QueryInterface)(
+        sws_IInputSwitchCallback* This,
+        /* [in] */ REFIID riid,
+        /* [annotation][iid_is][out] */
+        _COM_Outptr_  void** ppvObject);
+
+    ULONG(STDMETHODCALLTYPE* AddRef)(
+        sws_IInputSwitchCallback* This);
+
+    ULONG(STDMETHODCALLTYPE* Release)(
+        sws_IInputSwitchCallback* This);
+
+    HRESULT(STDMETHODCALLTYPE* OnUpdateProfile)(
+        sws_IInputSwitchCallback* This,
+        /* [in] */ IInputSwitchCallbackUpdateData* ud);
+
+    HRESULT(STDMETHODCALLTYPE* OnUpdateTsfFloatingFlags)(
+        sws_IInputSwitchCallback* This);
+
+    HRESULT(STDMETHODCALLTYPE* OnProfileCountChange)(
+        sws_IInputSwitchCallback* This,
+        /* [in] */ int a2,
+        /* [in] */ int a3);
+
+    HRESULT(STDMETHODCALLTYPE* OnShowHide)(
+        sws_IInputSwitchCallback* This,
+        /* [in] */ int dwShowStatus);
+
+    HRESULT(STDMETHODCALLTYPE* OnImeModeItemUpdate)(
+        sws_IInputSwitchCallback* This,
+        /* [in] */ void* ime);
+
+    HRESULT(STDMETHODCALLTYPE* OnModalitySelected)(
+        sws_IInputSwitchCallback* This);
+
+    HRESULT(STDMETHODCALLTYPE* OnContextFlagsChange)(
+        sws_IInputSwitchCallback* This,
+        /* [in] */ char flags);
+
+    HRESULT(STDMETHODCALLTYPE* OnTouchKeyboardManualInvoke)(
+        sws_IInputSwitchCallback* This);
+
+    END_INTERFACE
+} sws_IInputSwitchCallbackVtbl;
+
+interface sws_IInputSwitchCallback
+{
+    CONST_VTBL struct sws_IInputSwitchCallbackVtbl* lpVtbl;
+};
 #endif

@@ -497,6 +497,8 @@ static sws_window _sws_WindowSwitcher_WindowList_PushToFront(sws_WindowSwitcher*
         sws_window zero;
         ZeroMemory(&zero, sizeof(sws_window));
         sws_vector_PushBack(&(_this->pHWNDList), &zero);
+        // Reaquire list as vector may have been reallocated
+        pHWNDList = _this->pHWNDList.pList;
         for (int i = _this->pHWNDList.cbSize - 1; i > 0; i--)
         {
             pHWNDList[i] = pHWNDList[i - 1];

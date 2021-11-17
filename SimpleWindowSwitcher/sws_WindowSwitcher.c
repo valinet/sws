@@ -115,21 +115,6 @@ void _sws_WindowSwitcher_Wineventproc(
     }
 }
 
-static BOOL CALLBACK _sws_WindowSwitcher_EnumWindowsCallback(_In_ HWND hWnd, _In_ sws_WindowSwitcher* _this)
-{
-    if (sws_WindowHelpers_IsAltTabWindow(hWnd, _this->hWndWallpaper) || (_this->bIncludeWallpaper && !_this->bWallpaperAlwaysLast && hWnd == _this->hWndWallpaper))
-    {
-        sws_window window;
-        sws_window_Initialize(&window, hWnd);
-        if (sws_vector_PushBack(&_this->pHWNDList, &window) != SWS_ERROR_SUCCESS)
-        {
-            return FALSE;
-        }
-    }
-
-    return TRUE;
-}
-
 void sws_WindowSwitcher_SetTransparencyFromRegistry(sws_WindowSwitcher * _this, HKEY hOrigin)
 {
     HKEY hKey = NULL;
@@ -751,6 +736,24 @@ static void _sws_WindowSwitcher_UnregisterHotkeys(sws_WindowSwitcher* _this)
     UnregisterHotKey(_this->hWnd, -4);
 }
 
+static BOOL CALLBACK _sws_WindowSwitcher_EnumWindowsCallback(_In_ HWND hWnd, _In_ sws_WindowSwitcher* _this)
+{
+    if (sws_WindowHelpers_IsAltTabWindow(hWnd, _this->hWndWallpaper) || (_this->bIncludeWallpaper && !_this->bWallpaperAlwaysLast && hWnd == _this->hWndWallpaper))
+    {
+        _sws_WindowSwitcher_WindowList_PushToFront(_this, hWnd, NULL);
+        /*
+        sws_window window;
+        sws_window_Initialize(&window, hWnd);
+        if (sws_vector_PushBack(&_this->pHWNDList, &window) != SWS_ERROR_SUCCESS)
+        {
+            return FALSE;
+        }
+        */
+    }
+
+    return TRUE;
+}
+
 static LRESULT _sws_WindowsSwitcher_WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 {
     sws_WindowSwitcher* _this = NULL;
@@ -772,7 +775,7 @@ static LRESULT _sws_WindowsSwitcher_WndProc(HWND hWnd, UINT uMsg, WPARAM wParam,
     {
         _this->hWndWallpaper = sws_WindowHelpers_GetWallpaperHWND();
         sws_WindowHelpers_RealEnumWindows((WNDENUMPROC)_sws_WindowSwitcher_EnumWindowsCallback, (LPARAM)_this);
-        sws_window* pHWNDList = _this->pHWNDList.pList;
+        /*sws_window* pHWNDList = _this->pHWNDList.pList;
         sws_vector newVector;
         sws_vector_Initialize(&newVector, sizeof(sws_window));
         for (int i = _this->pHWNDList.cbSize - 1; i >= 0; i--)
@@ -780,7 +783,7 @@ static LRESULT _sws_WindowsSwitcher_WndProc(HWND hWnd, UINT uMsg, WPARAM wParam,
             sws_vector_PushBack(&newVector, &(pHWNDList[i]));
         }
         sws_vector_Clear(&(_this->pHWNDList));
-        _this->pHWNDList = newVector;
+        _this->pHWNDList = newVector;*/
 
         sws_WindowSwitcher_RefreshTheme(_this);
 

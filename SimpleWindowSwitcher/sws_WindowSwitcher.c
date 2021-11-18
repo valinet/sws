@@ -863,7 +863,10 @@ static LRESULT _sws_WindowsSwitcher_WndProc(HWND hWnd, UINT uMsg, WPARAM wParam,
             if (bOk && _this->bRudeChangesAllowed)
             {
                 BOOL isCloaked = FALSE;
-                DwmGetWindowAttribute(lParam, DWMWA_CLOAKED, &isCloaked, sizeof(BOOL));
+                if (IsWindow(lParam))
+                {
+                    DwmGetWindowAttribute(lParam, DWMWA_CLOAKED, &isCloaked, sizeof(BOOL));
+                }
                 if (!isCloaked || !lParam) // || (window.hWnd && window.bIsApplicationFrameHost))
                 {
                     long long start = sws_milliseconds_now();

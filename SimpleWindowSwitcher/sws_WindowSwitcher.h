@@ -73,6 +73,8 @@ typedef struct _sws_WindowSwitcher
     DWORD dwMaxHP;
     DWORD bIncludeWallpaper;
     DWORD bPerMonitor;
+    DWORD dwMaxAbsoluteWP;
+    DWORD dwMaxAbsoluteHP;
 } sws_WindowSwitcher;
 
 void sws_WindowSwitcher_RefreshTheme(sws_WindowSwitcher* _this);

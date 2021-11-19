@@ -647,9 +647,17 @@ sws_error_t sws_WindowSwitcherLayout_Initialize(sws_WindowSwitcherLayout* _this,
 		int pw = SWS_WINDOWSWITCHERLAYOUT_PERCENTAGEWIDTH;
 		if (settings) pw = settings[1];
 		_this->cbMaxWidth = (unsigned int)((double)(_this->mi.rcWork.right - _this->mi.rcWork.left) * (pw / 100.0));
+		if (settings && settings[5] != 0 && _this->cbMaxWidth > settings[5])
+		{
+			_this->cbMaxWidth = settings[5];
+		}
 		int ph = SWS_WINDOWSWITCHERLAYOUT_PERCENTAGEHEIGHT;
 		if (settings) ph = settings[2];
 		_this->cbMaxHeight = (unsigned int)((double)(_this->mi.rcWork.bottom - _this->mi.rcWork.top) * (ph / 100.0));
+		if (settings && settings[6] != 0 && _this->cbMaxHeight > settings[6])
+		{
+			_this->cbMaxHeight = settings[6];
+		}
 
 		HRESULT hr = GetDpiForMonitor(
 			hMonitor,

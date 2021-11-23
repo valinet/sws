@@ -1038,7 +1038,15 @@ static LRESULT _sws_WindowsSwitcher_WndProc(HWND hWnd, UINT uMsg, WPARAM wParam,
                     }
                     else
                     {
-                        GetWindowTextW(pWindowList[i].hWnd, wszTitle, MAX_PATH);
+                        HWND hWndGhost = _sws_GhostWindowFromHungWindow(pWindowList[i].hWnd);
+                        if (hWndGhost)
+                        {
+                            GetWindowTextW(hWndGhost, wszTitle, MAX_PATH);
+                        }
+                        else
+                        {
+                            GetWindowTextW(pWindowList[i].hWnd, wszTitle, MAX_PATH);
+                        }
                     }
                     if ((rcText.right - rcText.left) > (_this->layout.cbDpiX / DEFAULT_DPI_X) * 10)
                     {

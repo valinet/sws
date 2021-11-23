@@ -13,6 +13,8 @@ void(*_sws_AllowDarkModeForWindow)(HWND hWnd, INT64 bAllowDark);
 HMODULE _sws_hWin32u = 0;
 HINSTANCE _sws_hUser32 = 0;
 HINSTANCE _sws_hUxtheme = 0;
+pHungWindowFromGhostWindow _sws_HungWindowFromGhostWindow;
+pGhostWindowFromHungWindow _sws_GhostWindowFromHungWindow;
 
 sws_error_t sws_WindowHelpers_PermitDarkMode(HWND hWnd)
 {
@@ -351,7 +353,8 @@ BOOL sws_WindowHelpers_IsAltTabWindow(
 
 	if (_sws_WindowHelpers_IsValidDesktopZOrderBand(hwnd, TRUE) &&
 		_sws_WindowHelpers_IsWindowNotDesktopOrTray(hwnd, hWndWallpaper) &&
-		IsWindowVisible(hwnd))
+		IsWindowVisible(hwnd) && 
+		!_sws_HungWindowFromGhostWindow(hwnd))
 	{
 		return _sws_WindowHelpers_ShouldAddWindowToTrayHelper(hwnd);
 	}
@@ -681,6 +684,28 @@ sws_error_t sws_WindowHelpers_Initialize()
 			if (!_sws_hUser32)
 			{
 				rv = sws_error_Report(sws_error_GetFromInternalError(SWS_ERROR_LOADLIBRARY_FAILED), NULL);
+			}
+		}
+	}
+	if (!rv)
+	{
+		if (!_sws_HungWindowFromGhostWindow)
+		{
+			_sws_HungWindowFromGhostWindow = (pHungWindowFromGhostWindow)GetProcAddress(_sws_hUser32, "HungWindowFromGhostWindow");
+			if (!_sws_HungWindowFromGhostWindow)
+			{
+				rv = sws_error_Report(sws_error_GetFromInternalError(SWS_ERROR_FUNCTION_NOT_FOUND), NULL);
+			}
+		}
+	}
+	if (!rv)
+	{
+		if (!_sws_GhostWindowFromHungWindow)
+		{
+			_sws_GhostWindowFromHungWindow = (pGhostWindowFromHungWindow)GetProcAddress(_sws_hUser32, "GhostWindowFromHungWindow");
+			if (!_sws_GhostWindowFromHungWindow)
+			{
+				rv = sws_error_Report(sws_error_GetFromInternalError(SWS_ERROR_FUNCTION_NOT_FOUND), NULL);
 			}
 		}
 	}

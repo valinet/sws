@@ -84,6 +84,10 @@ typedef BOOL(WINAPI* pSetWindowCompositionAttribute)(HWND, WINCOMPATTRDATA*);
 extern pSetWindowCompositionAttribute _sws_SetWindowCompositionAttribute;
 typedef BOOL(WINAPI* pIsShellManagedWindow)(HWND);
 extern pIsShellManagedWindow _sws_IsShellManagedWindow;
+typedef HWND(WINAPI* pHungWindowFromGhostWindow)(HWND);
+extern pHungWindowFromGhostWindow _sws_HungWindowFromGhostWindow;
+typedef HWND(WINAPI* pGhostWindowFromHungWindow)(HWND);
+extern pGhostWindowFromHungWindow _sws_GhostWindowFromHungWindow;
 
 typedef HWND(WINAPI* pCreateWindowInBand)(
 	_In_ DWORD dwExStyle,

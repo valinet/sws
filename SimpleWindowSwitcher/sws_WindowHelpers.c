@@ -602,6 +602,10 @@ __declspec(dllexport) HICON sws_WindowHelpers_GetIconFromHWND(HWND hWnd, BOOL* b
 			);
 			hIcon = shinfo.hIcon;
 		}
+		if (!hIcon)
+		{
+			hIcon = LoadIconW(GetModuleHandleW(NULL), IDI_APPLICATION);
+		}
 		CloseHandle(hProcess);
 	}
 

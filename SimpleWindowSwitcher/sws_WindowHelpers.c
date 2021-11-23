@@ -562,27 +562,27 @@ __declspec(dllexport) HICON sws_WindowHelpers_GetIconFromHWND(HWND hWnd, BOOL* b
 		{
 			SendMessageTimeoutW(hWnd, WM_GETICON, ICON_SMALL, 0, SMTO_ABORTIFHUNG, 1000, &hIcon);
 		}
-		if (!hIcon)
+		/*if (!hIcon)
 		{
 #ifdef _WIN64
-			GetClassLongPtr(hWnd, -34);
+			hIcon = GetClassLongPtr(hWnd, GCLP_HICONSM);
 #else
-			GetClassLong(hWnd, -34);
+			hIcon = GetClassLong(hWnd, GCLP_HICONSM);
 #endif
 		}
 		if (!hIcon)
 		{
 #ifdef _WIN64
-			GetClassLongPtr(hWnd, -14);
+			hIcon = GetClassLongPtr(hWnd, GCLP_HICON);
 #else
-			GetClassLong(hWnd, -14);
+			hIcon = GetClassLong(hWnd, GCLP_HICON);
 #endif
-		}
+		}*/
 		if (!hIcon)
 		{
-			SendMessageTimeoutW(hWnd, WM_QUERYDRAGICON, 0, 0, 0, 1000, &hIcon);
+			SendMessageTimeoutW(hWnd, WM_QUERYDRAGICON, 0, 0, SMTO_ABORTIFHUNG, 1000, &hIcon);
 		}
-		if (*bOwnProcess)
+		if (*bOwnProcess && hIcon)
 		{
 			hIcon = CopyIcon(hIcon);
 		}

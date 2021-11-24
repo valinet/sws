@@ -787,6 +787,7 @@ static LRESULT _sws_WindowsSwitcher_WndProc(HWND hWnd, UINT uMsg, WPARAM wParam,
 
         sws_WindowSwitcher_RefreshTheme(_this);
 
+        _this->bIsMouseClicking = FALSE;
         _this->bEnabled = TRUE;
 
         KillTimer(hWnd, SWS_WINDOWSWITCHER_TIMER_STARTUP);
@@ -1220,7 +1221,6 @@ static LRESULT _sws_WindowsSwitcher_WndProc(HWND hWnd, UINT uMsg, WPARAM wParam,
                 RedrawWindow(hWnd, NULL, NULL, RDW_INVALIDATE | RDW_INTERNALPAINT);
             }
         }
-        _this->bIsMouseClicking = FALSE;
         return 0;
     }
     else if (uMsg == WM_LBUTTONDOWN)

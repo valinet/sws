@@ -518,7 +518,7 @@ void _sws_WindowSwitcher_SwitchToSelectedItemAndDismiss(sws_WindowSwitcher* _thi
         sws_WindowSwitcherLayoutWindow* pWindowList = _this->layout.pWindowList.pList;
         if (pWindowList)
         {
-            SwitchToThisWindow(pWindowList[_this->layout.iIndex].hWnd, TRUE);
+            SwitchToThisWindow(GetLastActivePopup(pWindowList[_this->layout.iIndex].hWnd), TRUE);
         }
     }
     ShowWindow(_this->hWnd, SW_HIDE);

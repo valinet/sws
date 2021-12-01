@@ -15,6 +15,8 @@ HINSTANCE _sws_hUser32 = 0;
 HINSTANCE _sws_hUxtheme = 0;
 pHungWindowFromGhostWindow _sws_HungWindowFromGhostWindow;
 pGhostWindowFromHungWindow _sws_GhostWindowFromHungWindow;
+pInternalGetWindowIcon _sws_InternalGetWindowIcon;
+pIsCoreWindow _sws_IsCoreWindow;
 
 sws_error_t sws_WindowHelpers_PermitDarkMode(HWND hWnd)
 {
@@ -557,13 +559,21 @@ __declspec(dllexport) HICON sws_WindowHelpers_GetIconFromHWND(HWND hWnd, BOOL* b
 				DeleteObject(hBitmap);
 			}
 		}
-		if (!hIcon)
+		/*if (!hIcon)
 		{
 			SendMessageTimeoutW(hWnd, WM_GETICON, ICON_BIG, 0, SMTO_ABORTIFHUNG, 1000, &hIcon);
-		}
+		}*/
 		if (!hIcon)
 		{
+			hIcon = _sws_InternalGetWindowIcon(hWnd, ICON_BIG);
+		}
+		/*if (!hIcon)
+		{
 			SendMessageTimeoutW(hWnd, WM_GETICON, ICON_SMALL, 0, SMTO_ABORTIFHUNG, 1000, &hIcon);
+		}*/
+		if (!hIcon)
+		{
+			hIcon = _sws_InternalGetWindowIcon(hWnd, ICON_SMALL);
 		}
 		/*if (!hIcon)
 		{
@@ -581,10 +591,12 @@ __declspec(dllexport) HICON sws_WindowHelpers_GetIconFromHWND(HWND hWnd, BOOL* b
 			hIcon = GetClassLong(hWnd, GCLP_HICON);
 #endif
 		}*/
-		if (!hIcon)
+
+		/*if (!hIcon)
 		{
 			SendMessageTimeoutW(hWnd, WM_QUERYDRAGICON, 0, 0, SMTO_ABORTIFHUNG, 1000, &hIcon);
-		}
+		}*/
+
 		if (*bOwnProcess && hIcon)
 		{
 			hIcon = CopyIcon(hIcon);
@@ -775,6 +787,28 @@ sws_error_t sws_WindowHelpers_Initialize()
 			}
 		}
 	}
+	if (!rv)
+	{
+		if (!_sws_InternalGetWindowIcon)
+		{
+			_sws_InternalGetWindowIcon = GetProcAddress(_sws_hUser32, "InternalGetWindowIcon");
+			if (!_sws_InternalGetWindowIcon)
+			{
+				rv = sws_error_Report(sws_error_GetFromInternalError(SWS_ERROR_FUNCTION_NOT_FOUND), NULL);
+			}
+		}
+	}
+	/*if (!rv)
+	{
+		if (!_sws_IsCoreWindow)
+		{
+			_sws_IsCoreWindow = GetProcAddress(_sws_hUser32, (LPCSTR)2572);
+			if (!_sws_IsCoreWindow)
+			{
+				rv = sws_error_Report(sws_error_GetFromInternalError(SWS_ERROR_FUNCTION_NOT_FOUND), NULL);
+			}
+		}
+	}*/
 	if (!rv)
 	{
 		if (!_sws_hUxtheme)

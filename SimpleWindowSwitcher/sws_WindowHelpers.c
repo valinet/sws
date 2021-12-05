@@ -5,6 +5,7 @@ NtUserBuildHwndList _sws_pNtUserBuildHwndList;
 pCreateWindowInBand _sws_CreateWindowInBand;
 pSetWindowCompositionAttribute _sws_SetWindowCompositionAttribute;
 pIsShellManagedWindow _sws_IsShellManagedWindow;
+pIsShellManagedWindow sws_IsShellFrameWindow;
 pGetWindowBand _sws_GetWindowBand;
 pSetWindowBand _sws_SetWindowBand;
 BOOL(*_sws_ShouldSystemUseDarkMode)();
@@ -465,13 +466,32 @@ BOOL sws_WindowHelpers_IsTaskbarWindow(HWND hWnd, HWND hWndWallpaper)
 	return FALSE;
 }
 
+BOOL sws_WindowHelpers_ShouldTreatShellManagedWindowAsNotShellManaged(HWND hWnd)
+{
+	return GetPropW(hWnd, L"Microsoft.Windows.ShellManagedWindowAsNormalWindow") != 0;
+}
+
 BOOL sws_WindowHelpers_IsAltTabWindow(HWND hWnd)
 {
-	HMENU hMenu = GetSystemMenu(hWnd, FALSE);
-	if (!hMenu)
+	// This identifies whether a window is a shell frame and includes those
+	// A shell frame corresponds to, as far as I can tell, the frame of a UWP app
+	// and we want those in the Alt-Tab list
+	if (sws_IsShellFrameWindow(hWnd))
+	{
+		return TRUE;
+	}
+	// Next, we need to check whether the window is shell managed and exclude it if so
+	// Shell managed windows, as far as I can tell, represent all immersive UI the
+	// Windows shell might present the user with, like: Start menu, Search (Win+Q),
+	// notifications, taskbars etc
+	if (_sws_IsShellManagedWindow(hWnd) && !sws_WindowHelpers_ShouldTreatShellManagedWindowAsNotShellManaged(hWnd))
 	{
 		return FALSE;
 	}
+	// Lastly, this check works with the remaining classic window and determines if it is a
+	// "task window" and only includes it in Alt-Tab if so; this check is taken from
+	// "AltTab.dll" in Windows 7 and this is how that OS decided to include a window in its
+	// window switcher
 	return _sws_IsTaskWindow(hWnd);
 }
 
@@ -767,6 +787,17 @@ sws_error_t sws_WindowHelpers_Initialize()
 		{
 			_sws_IsShellManagedWindow = (pSetWindowCompositionAttribute)GetProcAddress(_sws_hUser32, (LPCSTR)2574);
 			if (!_sws_IsShellManagedWindow)
+			{
+				rv = sws_error_Report(sws_error_GetFromInternalError(SWS_ERROR_FUNCTION_NOT_FOUND), NULL);
+			}
+		}
+	}
+	if (!rv)
+	{
+		if (!sws_IsShellFrameWindow)
+		{
+			sws_IsShellFrameWindow = (pSetWindowCompositionAttribute)GetProcAddress(_sws_hUser32, (LPCSTR)2573);
+			if (!sws_IsShellFrameWindow)
 			{
 				rv = sws_error_Report(sws_error_GetFromInternalError(SWS_ERROR_FUNCTION_NOT_FOUND), NULL);
 			}

@@ -51,6 +51,7 @@ sws_error_t sws_window_Initialize(sws_window* _this, HWND hWnd)
 	}
 	if (!rv)
 	{
+		/*
 		wchar_t path[MAX_PATH];
 		ZeroMemory(path, MAX_PATH);
 		memcpy(path, _this->wszPath, MAX_PATH);
@@ -60,6 +61,8 @@ sws_error_t sws_window_Initialize(sws_window* _this, HWND hWnd)
 		wcscat_s(syspath, MAX_PATH, L"\\ApplicationFrameHost.exe");
 		//wprintf(L"%s %s\n", path, syspath);
 		_this->bIsApplicationFrameHost = !_wcsicmp(path, syspath);
+		*/
+		_this->bIsApplicationFrameHost = sws_IsShellFrameWindow(hWnd);
 		//_this->bIsApplicationFrameHost = sws_WindowHelpers_IsWindowUWP(hWnd);
 	}
 

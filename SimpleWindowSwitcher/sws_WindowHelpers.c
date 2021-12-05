@@ -1,5 +1,6 @@
 #include "sws_WindowHelpers.h"
 
+ULONG_PTR _sws_gdiplus_token;
 NtUserBuildHwndList _sws_pNtUserBuildHwndList;
 pCreateWindowInBand _sws_CreateWindowInBand;
 pSetWindowCompositionAttribute _sws_SetWindowCompositionAttribute;
@@ -10,6 +11,8 @@ BOOL(*_sws_ShouldSystemUseDarkMode)();
 void(*_sws_RefreshImmersiveColorPolicyState)();
 void(*_sws_SetPreferredAppMode)(INT64);
 void(*_sws_AllowDarkModeForWindow)(HWND hWnd, INT64 bAllowDark);
+HMODULE _sws_hComctl32 = 0;
+HMODULE _sws_hShlwapi = 0;
 HMODULE _sws_hWin32u = 0;
 HINSTANCE _sws_hUser32 = 0;
 HINSTANCE _sws_hUxtheme = 0;
@@ -17,6 +20,8 @@ pHungWindowFromGhostWindow _sws_HungWindowFromGhostWindow;
 pGhostWindowFromHungWindow _sws_GhostWindowFromHungWindow;
 pInternalGetWindowIcon _sws_InternalGetWindowIcon;
 pIsCoreWindow _sws_IsCoreWindow;
+FARPROC sws_SHRegGetValueFromHKCUHKLM;
+FARPROC sws_LoadIconWithScaleDown;
 
 sws_error_t sws_WindowHelpers_PermitDarkMode(HWND hWnd)
 {
@@ -346,87 +351,128 @@ BOOL _sws_WindowHelpers_ShouldAddWindowToTrayHelper(HWND hWnd)
 	return FALSE;
 }
 
-BOOL sws_WindowHelpers_IsAltTabWindow(
-	_In_ HWND hwnd,
-	_In_ HWND hWndWallpaper
-)
+char __fastcall _sws_IsOwnerToolWindow(HWND hWnd)
 {
+	char v1; // bl
+	HWND v2; // rsi
+	HWND Window; // rdi
+	HWND v4; // rbp
+	HWND v5; // rax
+	HWND v6; // rcx
 
-
-	if (_sws_WindowHelpers_IsValidDesktopZOrderBand(hwnd, TRUE) &&
-		_sws_WindowHelpers_IsWindowNotDesktopOrTray(hwnd, hWndWallpaper) &&
-		IsWindowVisible(hwnd) && 
-		!_sws_HungWindowFromGhostWindow(hwnd))
+	v1 = 0;
+	v2 = hWnd;
+	Window = GetWindow(hWnd, 4u);
+	while ((GetWindowLongPtrW(v2, -20) & 0x40000) == 0 && Window)
 	{
-		return _sws_WindowHelpers_ShouldAddWindowToTrayHelper(hwnd);
-	}
-	return FALSE;
-	
-	BOOL isCloaked;
-	DwmGetWindowAttribute(hwnd, DWMWA_CLOAKED, &isCloaked, sizeof(BOOL));
-	if (isCloaked)
-	{
-		return FALSE;
-	}
-
-
-	const LONG_PTR windowLong = GetWindowLongPtrW(hwnd, GWL_STYLE);
-	if (!(windowLong & WS_VISIBLE) || !(windowLong & WS_SYSMENU)) {
-		return FALSE;
-	}
-
-
-	// https://forum.rehips.com/index.php?topic=9599.0
-	if (IsWindowVisible(hwnd))
-	{
-		LONG WinExStyle = GetWindowLong(hwnd, GWL_EXSTYLE);
-		if ((GetWindow(hwnd, GW_OWNER) == NULL || (WinExStyle & WS_EX_APPWINDOW)) &&
-			!(WinExStyle & WS_EX_TOOLWINDOW))
+		v4 = v2;
+		v2 = Window;
+		v5 = GetWindow(Window, 4u);
+		v6 = Window;
+		Window = v5;
+		if ((GetWindowLongPtrW(v6, -20) & 0x80) == 0x80)
 		{
-			return TRUE;
+			if ((GetWindowLongPtrW(v4, -20) & 0x10000) == 0 || Window)
+				return 1;
+
+			return v1;
 		}
 	}
+
+	return v1;
+}
+
+__int64 __fastcall _sws_IsTaskWindow(HWND a2)
+{
+	HWND v5; // rdi
+	unsigned int v6; // ebx
+	int WindowLongPtrW; // ebp
+	HWND Window; // rsi
+	char v9; // si
+	char v10; // al
+	char v11; // r12
+	BOOL v12; // bp
+	HWND i; // rcx
+	int v14; // eax
+	HWND v15; // rax
+	HWND v16; // rsi
+	RECT Rect; // [rsp+20h] [rbp-38h] BYREF
+	RECT rc; // [rsp+30h] [rbp-28h] BYREF
+
+	v5 = a2;
+	v6 = 0;
+	if (IsWindow(a2))
+	{
+		WindowLongPtrW = GetWindowLongPtrW(v5, -20);
+		Window = GetWindow(v5, 4u);
+		if (!IsWindow(Window)
+			//|| !IsWindowEnabled(Window)
+			|| (GetWindowRect(Window, &Rect), !IsWindowVisible(Window))
+			|| (v9 = 1, IsRectEmpty(&Rect)))
+		{
+			v9 = 0;
+		}
+
+		if ((WindowLongPtrW & 0x8000000) != 0 || (v10 = 0, (WindowLongPtrW & 0x80u) != 0))
+			v10 = 1;
+
+		v11 = v10;
+		v12 = (WindowLongPtrW & 0x40000i64) != 0;
+		if (v12)
+			v11 = 0;
+
+		GetWindowRect(v5, &rc);
+		if (IsWindowVisible(v5)
+			&& !IsRectEmpty(&rc)
+			//&& IsWindowEnabled(v5)
+			&& !v11
+			&& (v12 || !v9 && !_sws_IsOwnerToolWindow(v5))
+			&& !_sws_GhostWindowFromHungWindow(v5))
+		{
+			for (i = v5; ; i = v16)
+			{
+				v15 = GetWindow(i, 4u);
+				v16 = v15;
+				if (!v15)
+					break;
+
+				v14 = GetWindowLongPtrW(v15, -20);
+				if ((v14 & 0x40000i64) == 0 && ((v14 & 0x80u) != 0 || (v14 & 0x8000000) != 0))
+					break;
+
+				if (!IsWindowVisible(v16) || _sws_GhostWindowFromHungWindow(v16))
+					break;
+
+				v5 = v16;
+			}
+
+			return 1;
+		}
+	}
+
+	return v6;
+}
+
+BOOL sws_WindowHelpers_IsTaskbarWindow(HWND hWnd, HWND hWndWallpaper)
+{
+	if (_sws_WindowHelpers_IsValidDesktopZOrderBand(hWnd, TRUE) &&
+		_sws_WindowHelpers_IsWindowNotDesktopOrTray(hWnd, hWndWallpaper) &&
+		IsWindowVisible(hWnd) &&
+		!_sws_HungWindowFromGhostWindow(hWnd))
+	{
+		return _sws_WindowHelpers_ShouldAddWindowToTrayHelper(hWnd);
+	}
 	return FALSE;
+}
 
-	//TITLEBARINFO ti;
-	HWND hwndTry, hwndWalk = NULL;
-
-	wchar_t wszClassName[100];
-	GetClassNameW(hwnd, wszClassName, 100);
-	if (!wcscmp(wszClassName, L"#32770"))
+BOOL sws_WindowHelpers_IsAltTabWindow(HWND hWnd)
+{
+	HMENU hMenu = GetSystemMenu(hWnd, FALSE);
+	if (!hMenu)
 	{
-		// ??? somwhow allow Explorer dialog boxes
-		// but restrict Notepad ones...
-		return TRUE;
+		return FALSE;
 	}
-
-	if (!IsWindowVisible(hwnd))
-		return FALSE;
-
-	hwndTry = GetAncestor(hwnd, GA_ROOTOWNER);
-	while (hwndTry != hwndWalk)
-	{
-		hwndWalk = hwndTry;
-		hwndTry = GetLastActivePopup(hwndWalk);
-		if (IsWindowVisible(hwndTry))
-			break;
-	}
-	if (hwndWalk != hwnd)
-		return FALSE;
-
-	// the following removes some task tray programs and "Program Manager"
-	TITLEBARINFO ti;
-	ti.cbSize = sizeof(ti);
-	GetTitleBarInfo(hwnd, &ti);
-	if (ti.rgstate[0] & STATE_SYSTEM_INVISIBLE)
-		return FALSE;
-
-	// Tool windows should not be displayed either, these do not appear in the
-	// task bar.
-	if (GetWindowLong(hwnd, GWL_EXSTYLE) & WS_EX_TOOLWINDOW)
-		return FALSE;
-
-	return TRUE;
+	return _sws_IsTaskWindow(hWnd);
 }
 
 void sws_WindowHelpers_GetDesktopText(wchar_t* wszTitle)
@@ -442,192 +488,7 @@ void sws_WindowHelpers_GetDesktopText(wchar_t* wszTitle)
 	}
 }
 
-__declspec(dllexport) HICON sws_WindowHelpers_GetIconFromHWND(HWND hWnd, BOOL* bOwnProcess, BOOL bIsDesktop, UINT* szIcon)
-{
-	HICON hIcon = NULL;
-
-	wchar_t wszPath[MAX_PATH];
-	ZeroMemory(wszPath, MAX_PATH * sizeof(wchar_t));
-
-	if (bIsDesktop)
-	{
-		GetSystemDirectory(wszPath, MAX_PATH);
-		wcscat_s(wszPath, MAX_PATH, L"\\imageres.dll");
-		return ExtractIconW(
-			GetModuleHandle(NULL),
-			wszPath,
-			-110
-		);
-	}
-
-	DWORD dwHWndPid;
-	GetWindowThreadProcessId(hWnd, &dwHWndPid);
-	if (dwHWndPid == GetCurrentProcessId())
-	{
-		*bOwnProcess = TRUE;
-	}
-
-	DWORD dwProcessId, dwSize = MAX_PATH;
-	GetWindowThreadProcessId(hWnd, &dwProcessId);
-	HANDLE hProcess;
-	hProcess = OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, FALSE, dwProcessId);
-	if (hProcess)
-	{
-		////wchar_t exeName[MAX_PATH + 1];
-		////QueryFullProcessImageNameW(GetCurrentProcess(), 0, exeName, &dwSize);
-		////CharLowerW(exeName);
-		//QueryFullProcessImageNameW(hProcess, 0, wszPath, dwSize);
-		GetModuleFileNameExW((HMODULE)hProcess, NULL, wszPath, MAX_PATH);
-		CharLowerW(wszPath);
-
-		////if (!wcscmp(exeName, wszPath))
-		////{
-		////	*bOwnProcess = TRUE;
-		////}
-
-		////if (wcsstr(wszPath, L"applicationframehost.exe"))
-		HRESULT hr = S_OK;
-		IShellItemImageFactory* imageFactory = NULL;
-		SIIGBF flags = SIIGBF_RESIZETOFIT;
-		BOOL bIsUWP = sws_WindowHelpers_IsWindowUWP(hWnd);
-		if (bIsUWP)
-		{
-			flags |= SIIGBF_ICONBACKGROUND;
-
-			IPropertyStore* propStore = NULL;
-			hr = SHGetPropertyStoreForWindow(
-				hWnd,
-				&__uuidof_IPropertyStore,
-				&propStore
-			);
-			if (SUCCEEDED(hr))
-			{
-				PROPERTYKEY pKey;
-				pKey.fmtid = __uuidof_AppUserModelIdProperty;
-				pKey.pid = 5;
-				PROPVARIANT prop;
-				ZeroMemory(&prop, sizeof(PROPVARIANT));
-				propStore->lpVtbl->GetValue(propStore, &pKey, &prop);
-				propStore->lpVtbl->Release(propStore);
-				if (prop.bstrVal)
-				{
-					SHCreateItemInKnownFolder(
-						&FOLDERID_AppsFolder,
-						KF_FLAG_DONT_VERIFY,
-						prop.bstrVal,
-						&__uuidof_IShellItemImageFactory,
-						&imageFactory
-					);
-				}
-			}
-		}
-		else
-		{
-			/*SHCreateItemFromParsingName(
-				wszPath,
-				NULL,
-				&__uuidof_IShellItemImageFactory,
-				&imageFactory
-			);*/
-		}
-
-		if (imageFactory)
-		{
-			SIZE size;
-			size.cx = *szIcon;
-			size.cy = *szIcon;
-			HBITMAP hBitmap;
-			hr = imageFactory->lpVtbl->GetImage(
-				imageFactory,
-				size,
-				flags,
-				&hBitmap
-			);
-			if (SUCCEEDED(hr))
-			{
-				// Easiest way to get an HICON from an HBITMAP
-				// I have turned the Internet upside down and was unable to find this
-				// Only a convoluted example using GDI+
-				// This is from the disassembly of StartIsBack/StartAllBack
-				HIMAGELIST hImageList = ImageList_Create(size.cx, size.cy, ILC_COLOR32, 1, 0);
-				if (ImageList_Add(hImageList, hBitmap, NULL) != -1)
-				{
-					hIcon = ImageList_GetIcon(hImageList, 0, 0);
-					ImageList_Destroy(hImageList);
-					if (bIsUWP) *szIcon = 0;
-				}
-				DeleteObject(hBitmap);
-			}
-		}
-		/*if (!hIcon)
-		{
-			SendMessageTimeoutW(hWnd, WM_GETICON, ICON_BIG, 0, SMTO_ABORTIFHUNG, 1000, &hIcon);
-		}*/
-		if (!hIcon)
-		{
-			hIcon = _sws_InternalGetWindowIcon(hWnd, ICON_BIG);
-		}
-		/*if (!hIcon)
-		{
-			SendMessageTimeoutW(hWnd, WM_GETICON, ICON_SMALL, 0, SMTO_ABORTIFHUNG, 1000, &hIcon);
-		}*/
-		if (!hIcon)
-		{
-			hIcon = _sws_InternalGetWindowIcon(hWnd, ICON_SMALL);
-		}
-		/*if (!hIcon)
-		{
-#ifdef _WIN64
-			hIcon = GetClassLongPtr(hWnd, GCLP_HICONSM);
-#else
-			hIcon = GetClassLong(hWnd, GCLP_HICONSM);
-#endif
-		}
-		if (!hIcon)
-		{
-#ifdef _WIN64
-			hIcon = GetClassLongPtr(hWnd, GCLP_HICON);
-#else
-			hIcon = GetClassLong(hWnd, GCLP_HICON);
-#endif
-		}*/
-
-		/*if (!hIcon)
-		{
-			SendMessageTimeoutW(hWnd, WM_QUERYDRAGICON, 0, 0, SMTO_ABORTIFHUNG, 1000, &hIcon);
-		}*/
-
-		if (*bOwnProcess && hIcon)
-		{
-			hIcon = CopyIcon(hIcon);
-		}
-		// here, if hIcon was supplied, one should set its alpha channel properly:
-		// 255 for the actual icon contents
-		// 0 for the rest (the background), probably with a mask
-		if (!hIcon)
-		{
-			SHFILEINFOW shinfo;
-			ZeroMemory(&shinfo, sizeof(SHFILEINFOW));
-			SHGetFileInfoW(
-				wszPath,
-				FILE_ATTRIBUTE_NORMAL,
-				&shinfo,
-				sizeof(SHFILEINFOW),
-				SHGFI_ICON
-			);
-			hIcon = shinfo.hIcon;
-		}
-		if (!hIcon)
-		{
-			hIcon = LoadIconW(GetModuleHandleW(NULL), IDI_APPLICATION);
-		}
-		CloseHandle(hProcess);
-	}
-
-	return hIcon;
-}
-
-static BOOL CALLBACK _sws_WindowHelpers_GetWallpaperHWNDCallback(_In_ HWND hwnd, _Out_ LPARAM lParam)
+static BOOL CALLBACK _sws_WindowHelpers_GetWallpaperHWNDCallback(HWND hwnd, LPARAM lParam)
 {
 	HWND* ret = (HWND*)lParam;
 
@@ -643,29 +504,178 @@ static BOOL CALLBACK _sws_WindowHelpers_GetWallpaperHWNDCallback(_In_ HWND hwnd,
 	return TRUE;
 }
 
-HWND sws_WindowHelpers_GetWallpaperHWND()
+BOOL sws_WindowHelpers_EnsureWallpaperHWND()
 {
-	HWND hWnd = NULL;
 	HWND progman = FindWindowW(L"Progman", NULL);
 	if (progman)
 	{
 		SendMessageTimeoutW(progman, 0x052C, 0, 0, SMTO_NORMAL, 1000, NULL);
-		EnumWindows(_sws_WindowHelpers_GetWallpaperHWNDCallback, &hWnd);
+		return TRUE;
 	}
+	return FALSE;
+}
+
+HWND sws_WindowHelpers_GetWallpaperHWND()
+{
+	HWND hWnd = NULL;
+	EnumWindows(_sws_WindowHelpers_GetWallpaperHWNDCallback, &hWnd);
 	return hWnd;
 }
 
-void sws_WindowHelpers_Release()
+BOOL CALLBACK sws_WindowHelpers_AddAltTabWindowsToTimeStampedHWNDList(HWND hWnd, HDPA hdpa)
 {
+	if (!hdpa)
+	{
+		return FALSE;
+	}
+	if (sws_WindowHelpers_IsAltTabWindow(hWnd, NULL))
+	{
+		sws_tshwnd* tshwnd = malloc(sizeof(sws_tshwnd));
+		if (tshwnd)
+		{
+			sws_tshwnd_Initialize(tshwnd, hWnd);
+			sws_tshwnd_ModifyTimestamp(tshwnd, sws_WindowHelpers_GetStartTime());
+			DPA_AppendPtr(hdpa, tshwnd);
+		}
+	}
+	return TRUE;
+}
+
+// https://stackoverflow.com/questions/5309914/updatelayeredwindow-and-drawtext
+HBITMAP sws_WindowHelpers_CreateAlphaTextBitmap(LPCWSTR inText, HFONT inFont, DWORD dwTextFlags, SIZE size, COLORREF inColour)
+{
+	// Create DC and select font into it 
+	HDC hTextDC = CreateCompatibleDC(NULL);
+	HFONT hOldFont = (HFONT)SelectObject(hTextDC, inFont);
+	HBITMAP hMyDIB = NULL;
+
+	// Get text area 
+	RECT TextArea = { 0, 0, size.cx, size.cy };
+	if ((TextArea.right > TextArea.left) && (TextArea.bottom > TextArea.top))
+	{
+		BITMAPINFOHEADER BMIH;
+		memset(&BMIH, 0x0, sizeof(BITMAPINFOHEADER));
+		void* pvBits = NULL;
+
+		// Specify DIB setup 
+		BMIH.biSize = sizeof(BMIH);
+		BMIH.biWidth = TextArea.right - TextArea.left;
+		BMIH.biHeight = TextArea.bottom - TextArea.top;
+		BMIH.biPlanes = 1;
+		BMIH.biBitCount = 32;
+		BMIH.biCompression = BI_RGB;
+
+		// Create and select DIB into DC 
+		hMyDIB = CreateDIBSection(hTextDC, (LPBITMAPINFO)&BMIH, 0, (LPVOID*)&pvBits, NULL, 0);
+		HBITMAP hOldBMP = (HBITMAP)SelectObject(hTextDC, hMyDIB);
+		if (hOldBMP != NULL)
+		{
+			// Set up DC properties 
+			SetTextColor(hTextDC, 0x00FFFFFF);
+			SetBkColor(hTextDC, 0x00000000);
+			SetBkMode(hTextDC, OPAQUE);
+
+			// Draw text to buffer 
+			DrawTextW(hTextDC, inText, -1, &TextArea, dwTextFlags);
+			BYTE* DataPtr = (BYTE*)pvBits;
+			BYTE FillR = GetRValue(inColour);
+			BYTE FillG = GetGValue(inColour);
+			BYTE FillB = GetBValue(inColour);
+			BYTE ThisA;
+			for (int LoopY = 0; LoopY < BMIH.biHeight; LoopY++) {
+				for (int LoopX = 0; LoopX < BMIH.biWidth; LoopX++) {
+					ThisA = *DataPtr; // Move alpha and pre-multiply with RGB 
+					*DataPtr++ = (FillB * ThisA) >> 8;
+					*DataPtr++ = (FillG * ThisA) >> 8;
+					*DataPtr++ = (FillR * ThisA) >> 8;
+					*DataPtr++ = ThisA; // Set Alpha 
+				}
+			}
+
+			// De-select bitmap 
+			SelectObject(hTextDC, hOldBMP);
+		}
+	}
+
+	// De-select font and destroy temp DC 
+	SelectObject(hTextDC, hOldFont);
+	DeleteDC(hTextDC);
+
+	// Return DIBSection 
+	return hMyDIB;
+}
+
+void sws_WindowHelpers_Clear()
+{
+	GdiplusShutdown(_sws_gdiplus_token);
+	_sws_gdiplus_token = 0;
 	FreeLibrary(_sws_hWin32u);
 	FreeLibrary(_sws_hUser32);
 	FreeLibrary(_sws_hUxtheme);
+	FreeLibrary(_sws_hShlwapi);
+	FreeLibrary(_sws_hComctl32);
 }
 
 sws_error_t sws_WindowHelpers_Initialize()
 {
 	sws_error_t rv = SWS_ERROR_SUCCESS;
 
+	if (_sws_gdiplus_token)
+	{
+		return rv;
+	}
+	GetSystemTimeAsFileTime(&sws_start_ft);
+	if (!rv)
+	{
+		_sws_hComctl32 = LoadLibraryW(L"Comctl32.dll");
+		if (!_sws_hComctl32)
+		{
+			rv = sws_error_Report(sws_error_GetFromInternalError(SWS_ERROR_LOADLIBRARY_FAILED), NULL);
+		}
+	}
+	if (!rv)
+	{
+		sws_LoadIconWithScaleDown = GetProcAddress(_sws_hComctl32, "LoadIconWithScaleDown");
+		if (!sws_LoadIconWithScaleDown)
+		{
+			rv = sws_error_Report(sws_error_GetFromInternalError(SWS_ERROR_FUNCTION_NOT_FOUND), NULL);
+		}
+	}
+	if (!rv)
+	{
+		sws_LoadIconWithScaleDown(
+			(HINSTANCE)NULL,
+			(PCWSTR)MAKEINTRESOURCEW(IDI_APPLICATION),
+			(int)128,
+			(int)128,
+			(HICON*)(&(sws_DefAppIcon))
+		);
+		sws_LegacyDefAppIcon = LoadIconW(NULL, MAKEINTRESOURCEW(IDI_APPLICATION));
+	}
+	if (!rv)
+	{
+		UINT32 gdiplusStartupInput[100];
+		ZeroMemory(&gdiplusStartupInput, 100);
+		gdiplusStartupInput[0] = 1;
+		rv = sws_error_Report(sws_error_GetFromGdiplusStatus(GdiplusStartup(&_sws_gdiplus_token, &gdiplusStartupInput)), NULL);
+	}
+	if (!rv)
+	{
+		_sws_hShlwapi = LoadLibraryW(L"Shlwapi.dll");
+		if (!_sws_hShlwapi)
+		{
+			rv = sws_error_Report(sws_error_GetFromInternalError(SWS_ERROR_LOADLIBRARY_FAILED), NULL);
+		}
+	}
+	if (!rv)
+	{
+		sws_SHRegGetValueFromHKCUHKLM = GetProcAddress(_sws_hShlwapi, "SHRegGetValueFromHKCUHKLM");
+		if (!sws_SHRegGetValueFromHKCUHKLM)
+		{
+			rv = sws_error_Report(sws_error_GetFromInternalError(SWS_ERROR_FUNCTION_NOT_FOUND), NULL);
+		}
+
+	}
 	if (!rv)
 	{
 		if (!_sws_hWin32u)
@@ -782,6 +792,28 @@ sws_error_t sws_WindowHelpers_Initialize()
 		{
 			_sws_IsTopLevelWindow = GetProcAddress(_sws_hUser32, "IsTopLevelWindow");
 			if (!_sws_IsTopLevelWindow)
+			{
+				rv = sws_error_Report(sws_error_GetFromInternalError(SWS_ERROR_FUNCTION_NOT_FOUND), NULL);
+			}
+		}
+	}
+	/*if (!rv)
+	{
+		if (!_sws_GetProgmanWindow)
+		{
+			_sws_GetProgmanWindow = GetProcAddress(_sws_hUser32, "GetProgmanWindow");
+			if (!_sws_GetProgmanWindow)
+			{
+				rv = sws_error_Report(sws_error_GetFromInternalError(SWS_ERROR_FUNCTION_NOT_FOUND), NULL);
+			}
+		}
+	}*/
+	if (!rv)
+	{
+		if (!sws_InternalGetWindowText)
+		{
+			sws_InternalGetWindowText = GetProcAddress(_sws_hUser32, "InternalGetWindowText");
+			if (!sws_InternalGetWindowText)
 			{
 				rv = sws_error_Report(sws_error_GetFromInternalError(SWS_ERROR_FUNCTION_NOT_FOUND), NULL);
 			}

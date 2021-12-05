@@ -11,8 +11,10 @@
 #include "sws_error.h"
 #include "sws_vector.h"
 #include "sws_window.h"
+#include "sws_utility.h"
 #include "sws_WindowSwitcherLayoutWindow.h"
 #include "sws_WindowHelpers.h"
+#include "sws_IconPainter.h"
 
 typedef struct _sws_WindowSwitcherLayout
 {
@@ -56,6 +58,7 @@ typedef struct _sws_WindowSwitcherLayout
 	HWND hWndWallpaper;
 	HFONT hFontRegular;
 	HFONT hFontRegular2;
+	long long timestamp;
 } sws_WindowSwitcherLayout;
 
 static BOOL CALLBACK _sws_WindowSwitcherLayout_EnumWindowsCallback(_In_ HWND hWnd, _In_ sws_WindowSwitcherLayout* _this);
@@ -66,6 +69,13 @@ sws_error_t sws_WindowSwitcherLayout_ComputeLayout(sws_WindowSwitcherLayout* _th
 
 void sws_WindowSwitcherLayout_Clear(sws_WindowSwitcherLayout* _this);
 
-sws_error_t sws_WindowSwitcherLayout_Initialize(sws_WindowSwitcherLayout* _this, HMONITOR hMonitor, HWND hWnd, DWORD* settings, sws_vector* pHWNDList, HWND hWndTarget);
+sws_error_t sws_WindowSwitcherLayout_Initialize(
+	sws_WindowSwitcherLayout* _this, 
+	HMONITOR hMonitor,
+	HWND hWnd,
+	DWORD* settings,
+	sws_vector* pHWNDList,
+	HWND hWndTarget
+);
 
 #endif

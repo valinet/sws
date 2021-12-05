@@ -29,6 +29,10 @@ typedef HRESULT sws_error_t;
 #define SWS_ERROR_UNABLE_TO_SET_DPI_AWARENESS_CONTEXT_TEXT  "Unable to set the requested DPI awareness context"
 #define SWS_ERROR_INVALID_PARAMETER                         0xA0010007
 #define SWS_ERROR_INVALID_PARAMETER_TEXT                    "One or more of the parameters supplied is invalid"
+#define SWS_ERROR_SHELL_NOT_FOUND							0xA0010008
+#define SWS_ERROR_SHELL_NOT_FOUND_TEXT		                "A compatible shell application is not available"
+#define SWS_ERROR_NOERROR_JUST_PRINT_STACKTRACE				0xA0010009
+#define SWS_ERROR_NOERROR_JUST_PRINT_STACKTRACE_TEXT	    "THIS IS NOT A BUG, A DELIBERATE STACK TRACE REQUEST HAS BEEN MADE"
 
 #ifdef __cplusplus
 extern "C"
@@ -58,6 +62,11 @@ extern "C"
 	inline sws_error_t sws_error_GetFromErrno(errno_t err)
 	{
 		return sws_error_GetFromInternalError(err);
+	}
+
+	inline sws_error_t sws_error_GetFromGdiplusStatus(int err)
+	{
+		return err;
 	}
 #ifdef __cplusplus
 }

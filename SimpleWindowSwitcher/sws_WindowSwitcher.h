@@ -19,6 +19,7 @@
 #include "sws_utility.h"
 #include "sws_WindowSwitcherLayout.h"
 #include "sws_RegistryMonitor.h"
+#include "sws_tshwnd.h"
 
 typedef struct _sws_WindowSwitcher
 {
@@ -30,10 +31,10 @@ typedef struct _sws_WindowSwitcher
     HWND hWnd;
     UINT msgShellHook;
     sws_WindowSwitcherLayout layout;
-    sws_WindowSwitcherLayout layouts[SWS_WINDOWSWITCHER_MAX_NUM_MONITORS];
-    sws_WindowSwitcherLayout minilayouts[SWS_WINDOWSWITCHER_MAX_NUM_MONITORS];
-    UINT numLayouts;
-    UINT numLayoutsMax;
+    //sws_WindowSwitcherLayout layouts[SWS_WINDOWSWITCHER_MAX_NUM_MONITORS];
+    //sws_WindowSwitcherLayout minilayouts[SWS_WINDOWSWITCHER_MAX_NUM_MONITORS];
+    //UINT numLayouts;
+    //UINT numLayoutsMax;
     HBRUSH hContourBrush;
     HBRUSH hBackgroundBrush;
     HBRUSH hCloseButtonBrush;
@@ -48,12 +49,10 @@ typedef struct _sws_WindowSwitcher
     DWORD cwMask;
     HANDLE hEvExit;
     BOOL bIsDarkMode;
-    BOOL bIsQuick;
     BOOL bIsMouseClicking;
     long long last_change;
-    BOOL bRudeChangesAllowed;
     sws_vector pHWNDList;
-    BOOL bEnabled;
+    HDPA htshwnds;
     BOOL bWallpaperAlwaysLast;
     HWND hWndWallpaper;
     UINT mode;
@@ -67,6 +66,10 @@ typedef struct _sws_WindowSwitcher
     sws_IInputSwitchCallback InputSwitchCallback;
     sws_IInputSwitchControl* pInputSwitchControl;
     UINT vkTilde;
+    UINT dwOverrideMode;
+    UINT opacity;
+    HANDLE hShowThread;
+    HANDLE hShowSignal;
 
     DWORD dwRowHeight;
     DWORD dwMaxWP;
@@ -98,5 +101,7 @@ __declspec(dllexport) sws_error_t sws_WindowSwitcher_RunMessageQueue(sws_WindowS
 __declspec(dllexport) void sws_WindowSwitcher_Clear(sws_WindowSwitcher* _this);
 
 __declspec(dllexport) sws_error_t sws_WindowSwitcher_Initialize(sws_WindowSwitcher** __this, BOOL bWithRegMon);
+
+void sws_WindowSwitcher_Paint(sws_WindowSwitcher* _this);
 
 #endif

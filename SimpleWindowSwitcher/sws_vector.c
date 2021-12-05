@@ -44,6 +44,9 @@ void sws_vector_Clear(sws_vector* _this)
 {
 	if (_this)
 	{
+#if defined(DEBUG) | defined(_DEBUG)
+		printf("[sws] >> vector::free: %p\n", _this->pList);
+#endif
 		free(_this->pList);
 		memset(_this, 0, sizeof(sws_vector));
 	}
@@ -67,6 +70,10 @@ sws_error_t sws_vector_Initialize(sws_vector* _this, unsigned int cbElementSize)
 		{
 			rv = sws_error_Report(sws_error_GetFromInternalError(SWS_ERROR_NO_MEMORY), NULL);
 		}
+#if defined(DEBUG) | defined(_DEBUG)
+		printf("[sws] >> vector::alloc: %p\n", _this->pList);
+		//sws_error_Report(sws_error_GetFromInternalError(SWS_ERROR_NOERROR_JUST_PRINT_STACKTRACE), NULL);
+#endif
 		_this->cbElementSize = cbElementSize;
 		_this->cbCapacity = SWS_VECTOR_CAPACITY;
 		_this->cbSize = 0;

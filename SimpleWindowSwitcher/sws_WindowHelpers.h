@@ -12,8 +12,12 @@
 #include <ShlObj.h>
 #include <commctrl.h>
 #pragma comment(lib, "Comctl32.lib")
+#pragma comment(lib, "Gdiplus.lib")
 #include "sws_def.h"
 #include "sws_error.h"
+#include "sws_tshwnd.h"
+
+extern ULONG_PTR _sws_gdiplus_token;
 
 // References:
 // RealEnumWindows: https://stackoverflow.com/questions/38205375/enumwindows-function-in-win10-enumerates-only-desktop-apps
@@ -116,11 +120,27 @@ extern pSetWindowBand _sws_SetWindowBand;
 typedef BOOL(WINAPI* pGetWindowBand)(HWND hWnd, PDWORD pdwBand);
 extern pGetWindowBand _sws_GetWindowBand;
 
+extern FARPROC sws_SHRegGetValueFromHKCUHKLM;
+
 extern BOOL(*_sws_ShouldSystemUseDarkMode)();
 extern void(*_sws_RefreshImmersiveColorPolicyState)();
 extern HINSTANCE _sws_hUxtheme;
 
 BOOL(*_sws_IsTopLevelWindow)(HWND);
+
+HWND(*_sws_GetProgmanWindow)();
+
+int(*sws_InternalGetWindowText)(HWND, LPWSTR, int);
+
+FILETIME sws_start_ft;
+
+HICON sws_DefAppIcon;
+HICON sws_LegacyDefAppIcon;
+
+inline FILETIME sws_WindowHelpers_GetStartTime()
+{
+	return sws_start_ft;
+}
 
 enum ZBID
 {
@@ -171,17 +191,19 @@ sws_error_t sws_WindowHelpers_ShouldSystemUseDarkMode(DWORD* dwRes);
 
 sws_error_t sws_WindowHelpers_SetWindowBlur(HWND hWnd, int type, DWORD Color, DWORD Opacity);
 
-BOOL sws_WindowHelpers_IsAltTabWindow(_In_ HWND hwnd, _In_ HWND hWndWallpaper);
+BOOL sws_WindowHelpers_IsTaskbarWindow(HWND hWnd, HWND hWndWallpaper);
+
+BOOL sws_WindowHelpers_IsAltTabWindow(HWND hwnd);
 
 void sws_WindowHelpers_GetDesktopText(wchar_t* wszTitle);
 
-__declspec(dllexport) HICON sws_WindowHelpers_GetIconFromHWND(HWND hWnd, BOOL* bOwnProcess, BOOL bIsDesktop, UINT* szIcon);
-
-static BOOL CALLBACK _sws_WindowHelpers_GetWallpaperHWNDCallback(_In_ HWND hwnd, _Out_ LPARAM lParam);
+BOOL sws_WindowHelpers_EnsureWallpaperHWND();
 
 HWND sws_WindowHelpers_GetWallpaperHWND();
 
-void sws_WindowHelpers_Release();
+HBITMAP sws_WindowHelpers_CreateAlphaTextBitmap(LPCWSTR inText, HFONT inFont, DWORD dwTextFlags, SIZE size, COLORREF inColour);
+
+void sws_WindowHelpers_Clear();
 
 sws_error_t sws_WindowHelpers_Initialize();
 
@@ -196,4 +218,6 @@ inline BOOL sws_WindowHelpers_IsWindowUWP(HWND hWnd)
 {
 	return (GetPropW(hWnd, (LPCWSTR)0xA914));
 }
+
+BOOL CALLBACK sws_WindowHelpers_AddAltTabWindowsToTimeStampedHWNDList(HWND hWnd, HDPA hdpa);
 #endif

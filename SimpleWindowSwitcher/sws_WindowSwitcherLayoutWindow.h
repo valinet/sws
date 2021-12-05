@@ -4,6 +4,7 @@
 #include <dwmapi.h>
 #pragma comment(lib, "Dwmapi.lib")
 #include "sws_error.h"
+#include "sws_WindowHelpers.h"
 
 typedef struct _sws_WindowSwitcherLayoutWindow
 {
@@ -14,6 +15,7 @@ typedef struct _sws_WindowSwitcherLayoutWindow
     RECT rcWindow;
     int iRowMax;
     HICON hIcon;
+    UINT dwIconSource;
     UINT szIcon;
     RECT rcIcon;
     BOOL bIsUWP;

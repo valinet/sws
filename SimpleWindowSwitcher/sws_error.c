@@ -125,6 +125,15 @@ char* sws_error_NumToDescription(sws_error_t errnum, BOOL* bType)
     case SWS_ERROR_UNABLE_TO_SET_DPI_AWARENESS_CONTEXT:
         ret = SWS_ERROR_UNABLE_TO_SET_DPI_AWARENESS_CONTEXT_TEXT;
         break;
+    case SWS_ERROR_INVALID_PARAMETER:
+        ret = SWS_ERROR_INVALID_PARAMETER_TEXT;
+        break;
+    case SWS_ERROR_SHELL_NOT_FOUND:
+        ret = SWS_ERROR_SHELL_NOT_FOUND;
+        break;
+    case SWS_ERROR_NOERROR_JUST_PRINT_STACKTRACE:
+        ret = SWS_ERROR_NOERROR_JUST_PRINT_STACKTRACE_TEXT;
+        break;
     default:
         if (bType) *bType = TRUE;
         FormatMessageA(

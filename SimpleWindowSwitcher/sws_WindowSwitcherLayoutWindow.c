@@ -29,7 +29,7 @@ void sws_WindowSwitcherLayoutWindow_Clear(sws_WindowSwitcherLayoutWindow* _this)
         _this->hThumbnail = 0;
     }
     //if (_this->hIcon && !_this->bOwnProcess)
-    if (_this->hIcon)
+    if (_this->hIcon && sws_DefAppIcon && _this->hIcon != sws_DefAppIcon && sws_LegacyDefAppIcon && _this->hIcon != sws_LegacyDefAppIcon)
     {
         DestroyIcon(_this->hIcon);
     }

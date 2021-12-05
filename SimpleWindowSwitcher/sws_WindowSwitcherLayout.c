@@ -186,10 +186,17 @@ sws_error_t sws_WindowSwitcherLayout_ComputeLayout(sws_WindowSwitcherLayout* _th
 						_this->cbThumbnailAvailableHeight) /
 						(pWindowList[iCurrentWindow].sizWindow.cy);
 				}
-				if (width > _this->cbMaxTileWidth)
+				if (width > _this->cbMaxTileWidth || width > pWindowList[iCurrentWindow].sizWindow.cx)
 				{
 					original_width = width;
-					width = _this->cbMaxTileWidth;
+					if (width > _this->cbMaxTileWidth)
+					{
+						width = _this->cbMaxTileWidth;
+					}
+					if (width > pWindowList[iCurrentWindow].sizWindow.cx)
+					{
+						width = pWindowList[iCurrentWindow].sizWindow.cx;
+					}
 				}
 
 				if (bFinishedLayout)
@@ -499,7 +506,14 @@ void sws_WindowSwitcherLayout_Clear(sws_WindowSwitcherLayout* _this)
 	}
 }
 
-sws_error_t sws_WindowSwitcherLayout_Initialize(sws_WindowSwitcherLayout* _this, HMONITOR hMonitor, HWND hWnd, DWORD* settings, sws_vector* pHWNDList, HWND hWndTarget)
+sws_error_t sws_WindowSwitcherLayout_Initialize(
+	sws_WindowSwitcherLayout* _this, 
+	HMONITOR hMonitor, 
+	HWND hWnd, 
+	DWORD* settings, 
+	sws_vector* pHWNDList, 
+	HWND hWndTarget
+)
 {
 	sws_error_t rv = SWS_ERROR_SUCCESS;
 
@@ -549,6 +563,15 @@ sws_error_t sws_WindowSwitcherLayout_Initialize(sws_WindowSwitcherLayout* _this,
 	}
 	if (!rv)
 	{
+		/*WCHAR wszShellExperienceHostPath[MAX_PATH];
+		GetWindowsDirectoryW(wszShellExperienceHostPath, MAX_PATH);
+		wcscat_s(wszShellExperienceHostPath, MAX_PATH, L"\\SystemApps\\ShellExperienceHost_cw5n1h2txyewy\\ShellExperienceHost.exe");
+		WCHAR wszStartMenuExperienceHostPath[MAX_PATH];
+		GetWindowsDirectoryW(wszStartMenuExperienceHostPath, MAX_PATH);
+		wcscat_s(wszStartMenuExperienceHostPath, MAX_PATH, L"\\SystemApps\\Microsoft.Windows.StartMenuExperienceHost_cw5n1h2txyewy\\StartMenuExperienceHost.exe");
+		WCHAR wszSearchHostPath[MAX_PATH];
+		GetWindowsDirectoryW(wszSearchHostPath, MAX_PATH);
+		wcscat_s(wszSearchHostPath, MAX_PATH, L"\\SystemApps\\MicrosoftWindows.Client.CBS_cw5n1h2txyewy\\SearchHost.exe");*/
 		if (pHWNDList)
 		{
 			sws_window* windowList = pHWNDList->pList;
@@ -575,6 +598,12 @@ sws_error_t sws_WindowSwitcherLayout_Initialize(sws_WindowSwitcherLayout* _this,
 				//HWND hWndForeground = GetForegroundWindow();
 				for (int i = pHWNDList->cbSize - 1; i >= 0; i--)
 				{
+					/*if (!_wcsicmp(wszShellExperienceHostPath, windowList[i].wszPath) ||
+						!_wcsicmp(wszStartMenuExperienceHostPath, windowList[i].wszPath) ||
+						!_wcsicmp(wszSearchHostPath, windowList[i].wszPath))
+					{
+						continue;
+					}*/
 					BOOL isCloaked;
 					DwmGetWindowAttribute(windowList[i].hWnd, DWMWA_CLOAKED, &isCloaked, sizeof(BOOL));
 					if (isCloaked)
@@ -595,7 +624,7 @@ sws_error_t sws_WindowSwitcherLayout_Initialize(sws_WindowSwitcherLayout* _this,
 						{
 							continue;
 						}
-						else if (!(window->dwProcessId == windowList[i].dwProcessId || !_wcsicmp(window->wszPath, windowList[i].wszPath)))
+						else if (window->dwProcessId != windowList[i].dwProcessId && _wcsicmp(window->wszPath, windowList[i].wszPath))
 						{
 							continue;
 						}
@@ -700,25 +729,24 @@ sws_error_t sws_WindowSwitcherLayout_Initialize(sws_WindowSwitcherLayout* _this,
 				pWindowList[iCurrentWindow].rcIcon.right = _this->cbRowTitleHeight * (SWS_WINDOWSWITCHERLAYOUT_PERCENTAGEICON / 100.0);
 				pWindowList[iCurrentWindow].rcIcon.bottom = pWindowList[iCurrentWindow].rcIcon.right;
 				pWindowList[iCurrentWindow].szIcon = pWindowList[iCurrentWindow].rcIcon.right;
-				int szIcon = pWindowList[iCurrentWindow].szIcon / factor;
-				pWindowList[iCurrentWindow].hIcon = sws_WindowHelpers_GetIconFromHWND(
-					pWindowList[iCurrentWindow].hWnd, 
-					&(pWindowList[iCurrentWindow].bOwnProcess), 
-					_this->bIncludeWallpaper && pWindowList[iCurrentWindow].hWnd == _this->hWndWallpaper, 
-					&szIcon
-				);
-				pWindowList[iCurrentWindow].bIsUWP = FALSE;
-				if (!szIcon)
+				pWindowList[iCurrentWindow].hIcon = sws_DefAppIcon;
+				/*sws_IconPainter_CallbackParams* params = malloc(sizeof(sws_IconPainter_CallbackParams));
+				if (params)
 				{
-					pWindowList[iCurrentWindow].bIsUWP = TRUE;
-					szIcon = pWindowList[iCurrentWindow].rcIcon.right;
-					szIcon = szIcon * factor;
-					szIcon = pWindowList[iCurrentWindow].rcIcon.right - szIcon;
-					pWindowList[iCurrentWindow].rcIcon.left = szIcon / 2;
-					pWindowList[iCurrentWindow].rcIcon.top = szIcon / 2;
-					pWindowList[iCurrentWindow].rcIcon.right = pWindowList[iCurrentWindow].rcIcon.right + szIcon;
-					pWindowList[iCurrentWindow].rcIcon.bottom = pWindowList[iCurrentWindow].rcIcon.bottom + szIcon;
-				}
+					params->hWnd = hWnd;
+					params->index = iCurrentWindow;
+					if (!_this->timestamp)
+					{
+						_this->timestamp = sws_milliseconds_now();
+					}
+					params->timestamp = _this->timestamp;
+					params->bIsDesktop = (_this->bIncludeWallpaper && pWindowList[iCurrentWindow].hWnd == _this->hWndWallpaper);
+					if (!sws_IconPainter_ExtractAndDrawIconAsync(pWindowList[iCurrentWindow].hWnd, params))
+					{
+						pWindowList[iCurrentWindow].hIcon = sws_DefAppIcon;
+						free(params);
+					}
+				}*/
 			}
 		}
 	}

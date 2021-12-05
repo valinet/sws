@@ -609,11 +609,30 @@ void sws_WindowHelpers_Clear()
 {
 	GdiplusShutdown(_sws_gdiplus_token);
 	_sws_gdiplus_token = 0;
-	FreeLibrary(_sws_hWin32u);
-	FreeLibrary(_sws_hUser32);
-	FreeLibrary(_sws_hUxtheme);
-	FreeLibrary(_sws_hShlwapi);
-	FreeLibrary(_sws_hComctl32);
+	if (sws_DefAppIcon)
+	{
+		DestroyIcon(sws_DefAppIcon);
+	}
+	if (_sws_hWin32u)
+	{
+		FreeLibrary(_sws_hWin32u);
+	}
+	if (_sws_hUser32)
+	{
+		FreeLibrary(_sws_hUser32);
+	}
+	if (_sws_hUxtheme)
+	{
+		FreeLibrary(_sws_hUxtheme);
+	}
+	if (_sws_hShlwapi)
+	{
+		FreeLibrary(_sws_hShlwapi);
+	}
+	if (_sws_hComctl32)
+	{
+		FreeLibrary(_sws_hComctl32);
+	}
 }
 
 sws_error_t sws_WindowHelpers_Initialize()
@@ -655,7 +674,7 @@ sws_error_t sws_WindowHelpers_Initialize()
 	if (!rv)
 	{
 		UINT32 gdiplusStartupInput[100];
-		ZeroMemory(&gdiplusStartupInput, 100);
+		ZeroMemory(gdiplusStartupInput, 100);
 		gdiplusStartupInput[0] = 1;
 		rv = sws_error_Report(sws_error_GetFromGdiplusStatus(GdiplusStartup(&_sws_gdiplus_token, &gdiplusStartupInput)), NULL);
 	}

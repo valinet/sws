@@ -40,13 +40,13 @@ void sws_IconPainter_DrawIcon(HICON hIcon, HDC hDC, HBRUSH hBrush, void* pGdipGr
                 GdipGetImageHeight((void*)pGdipBitmap, (UINT*)(rct + 3));
                 INT PixelFormat;
                 GdipGetImagePixelFormat((void*)pGdipBitmap, &PixelFormat);
-                INT LockedBitmapData[20]; // make sure this is large enough
+                INT LockedBitmapData[100]; // make sure this is large enough
                 GdipBitmapLockBits(
                     (void*)pGdipBitmap,
                     (INT*)rct,
                     (INT)0, // Gdiplus::ImageLockModeRead
                     (INT)PixelFormat,
-                    (void*)&LockedBitmapData
+                    (void*)LockedBitmapData
                 );
                 if (*(BYTE**)(LockedBitmapData + 4)) // Scan0
                 {

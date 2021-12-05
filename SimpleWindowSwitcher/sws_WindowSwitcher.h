@@ -70,6 +70,8 @@ typedef struct _sws_WindowSwitcher
     UINT opacity;
     HANDLE hShowThread;
     HANDLE hShowSignal;
+    BOOL bNoPerApplicationListPrevious;
+    BOOL bIsInitialized;
 
     DWORD dwRowHeight;
     DWORD dwMaxWP;
@@ -78,7 +80,12 @@ typedef struct _sws_WindowSwitcher
     DWORD bPerMonitor;
     DWORD dwMaxAbsoluteWP;
     DWORD dwMaxAbsoluteHP;
+    DWORD bNoPerApplicationList;
 } sws_WindowSwitcher;
+
+sws_error_t sws_WindowSwitcher_RegisterHotkeys(sws_WindowSwitcher* _this, HKL hkl);
+
+void sws_WindowSwitcher_UnregisterHotkeys(sws_WindowSwitcher* _this);
 
 void sws_WindowSwitcher_RefreshTheme(sws_WindowSwitcher* _this);
 

@@ -425,7 +425,7 @@ static void _sws_WindowSwitcher_DrawContour(sws_WindowSwitcher* _this, HDC hdcPa
     }
 }
 
-static sws_error_t _sws_WindowSwitcher_RegisterHotkeys(sws_WindowSwitcher* _this, HKL hkl)
+sws_error_t sws_WindowSwitcher_RegisterHotkeys(sws_WindowSwitcher* _this, HKL hkl)
 {
     sws_error_t rv = SWS_ERROR_SUCCESS;
 
@@ -453,11 +453,14 @@ static sws_error_t _sws_WindowSwitcher_RegisterHotkeys(sws_WindowSwitcher* _this
             rv = sws_error_GetFromWin32Error(GetLastError());
         }
     }
-    if (!rv)
+    if (!_this->bNoPerApplicationList)
     {
-        if (!RegisterHotKey(_this->hWnd, -1, MOD_ALT, _this->vkTilde))
+        if (!rv)
         {
-            rv = sws_error_GetFromWin32Error(GetLastError());
+            if (!RegisterHotKey(_this->hWnd, -1, MOD_ALT, _this->vkTilde))
+            {
+                rv = sws_error_GetFromWin32Error(GetLastError());
+            }
         }
     }
     if (!rv)
@@ -467,11 +470,14 @@ static sws_error_t _sws_WindowSwitcher_RegisterHotkeys(sws_WindowSwitcher* _this
             rv = sws_error_GetFromWin32Error(GetLastError());
         }
     }
-    if (!rv)
+    if (!_this->bNoPerApplicationList)
     {
-        if (!RegisterHotKey(_this->hWnd, -2, MOD_ALT | MOD_SHIFT, _this->vkTilde))
+        if (!rv)
         {
-            rv = sws_error_GetFromWin32Error(GetLastError());
+            if (!RegisterHotKey(_this->hWnd, -2, MOD_ALT | MOD_SHIFT, _this->vkTilde))
+            {
+                rv = sws_error_GetFromWin32Error(GetLastError());
+            }
         }
     }
     if (!rv)
@@ -481,11 +487,14 @@ static sws_error_t _sws_WindowSwitcher_RegisterHotkeys(sws_WindowSwitcher* _this
             rv = sws_error_GetFromWin32Error(GetLastError());
         }
     }
-    if (!rv)
+    if (!_this->bNoPerApplicationList)
     {
-        if (!RegisterHotKey(_this->hWnd, -3, MOD_ALT | MOD_CONTROL, _this->vkTilde))
+        if (!rv)
         {
-            rv = sws_error_GetFromWin32Error(GetLastError());
+            if (!RegisterHotKey(_this->hWnd, -3, MOD_ALT | MOD_CONTROL, _this->vkTilde))
+            {
+                rv = sws_error_GetFromWin32Error(GetLastError());
+            }
         }
     }
     if (!rv)
@@ -495,28 +504,35 @@ static sws_error_t _sws_WindowSwitcher_RegisterHotkeys(sws_WindowSwitcher* _this
             rv = sws_error_GetFromWin32Error(GetLastError());
         }
     }
-    if (!rv)
+    if (!_this->bNoPerApplicationList)
     {
-        if (!RegisterHotKey(_this->hWnd, -4, MOD_ALT | MOD_SHIFT | MOD_CONTROL, _this->vkTilde))
+        if (!rv)
         {
-            rv = sws_error_GetFromWin32Error(GetLastError());
+            if (!RegisterHotKey(_this->hWnd, -4, MOD_ALT | MOD_SHIFT | MOD_CONTROL, _this->vkTilde))
+            {
+                rv = sws_error_GetFromWin32Error(GetLastError());
+            }
         }
     }
+    _this->bNoPerApplicationListPrevious = _this->bNoPerApplicationList;
 
     return rv;
 }
 
-static void _sws_WindowSwitcher_UnregisterHotkeys(sws_WindowSwitcher* _this)
+void sws_WindowSwitcher_UnregisterHotkeys(sws_WindowSwitcher* _this)
 {
     //UnregisterHotKey(_this->hWnd, 0);
     UnregisterHotKey(_this->hWnd, 1);
     UnregisterHotKey(_this->hWnd, 2);
     UnregisterHotKey(_this->hWnd, 3);
     UnregisterHotKey(_this->hWnd, 4);
-    UnregisterHotKey(_this->hWnd, -1);
-    UnregisterHotKey(_this->hWnd, -2);
-    UnregisterHotKey(_this->hWnd, -3);
-    UnregisterHotKey(_this->hWnd, -4);
+    if (!_this->bNoPerApplicationListPrevious)
+    {
+        UnregisterHotKey(_this->hWnd, -1);
+        UnregisterHotKey(_this->hWnd, -2);
+        UnregisterHotKey(_this->hWnd, -3);
+        UnregisterHotKey(_this->hWnd, -4);
+    }
 }
 
 void sws_WindowSwitcher_Paint(sws_WindowSwitcher* _this)
@@ -1414,8 +1430,8 @@ static LRESULT _sws_WindowsSwitcher_WndProc(HWND hWnd, UINT uMsg, WPARAM wParam,
     }
     else if (uMsg == WM_INPUTLANGCHANGE)
     {
-        _sws_WindowSwitcher_UnregisterHotkeys(_this);
-        _sws_WindowSwitcher_RegisterHotkeys(_this, lParam);
+        sws_WindowSwitcher_UnregisterHotkeys(_this);
+        sws_WindowSwitcher_RegisterHotkeys(_this, lParam);
         return 0;
     }
 
@@ -1494,7 +1510,7 @@ __declspec(dllexport) void sws_WindowSwitcher_Clear(sws_WindowSwitcher* _this)
         printf("[sws] tshwnd::destroy: list count: %d\n", DPA_GetPtrCount(_this->htshwnds));
 #endif
         DPA_DestroyCallback(_this->htshwnds, _sws_WindowSwitcher_free_stub, 0);
-        _sws_WindowSwitcher_UnregisterHotkeys(_this);
+        sws_WindowSwitcher_UnregisterHotkeys(_this);
         UnhookWinEvent(_this->global_hook);
         DestroyWindow(_this->hWnd);
         _this->hWnd = NULL;
@@ -1525,6 +1541,7 @@ __declspec(dllexport) void sws_WindowSwitcher_Clear(sws_WindowSwitcher* _this)
         {
             memset(_this, 0, sizeof(sws_WindowSwitcher));
         }
+#if defined(DEBUG) | defined(_DEBUG)
         _CrtSetReportMode(_CRT_WARN, _CRTDBG_MODE_FILE);
         _CrtSetReportFile(_CRT_WARN, _CRTDBG_FILE_STDOUT);
         _CrtSetReportMode(_CRT_ERROR, _CRTDBG_MODE_FILE);
@@ -1532,6 +1549,7 @@ __declspec(dllexport) void sws_WindowSwitcher_Clear(sws_WindowSwitcher* _this)
         _CrtSetReportMode(_CRT_ASSERT, _CRTDBG_MODE_FILE);
         _CrtSetReportFile(_CRT_ASSERT, _CRTDBG_FILE_STDOUT);
         _CrtDumpMemoryLeaks();
+#endif
     }
 }
 
@@ -1539,6 +1557,7 @@ __declspec(dllexport) sws_error_t sws_WindowSwitcher_Initialize(sws_WindowSwitch
 {
     sws_error_t rv = SWS_ERROR_SUCCESS;
     sws_WindowSwitcher* _this = NULL;
+#if defined(DEBUG) | defined(_DEBUG)
     _CrtSetReportMode(_CRT_WARN, _CRTDBG_MODE_FILE);
     _CrtSetReportFile(_CRT_WARN, _CRTDBG_FILE_STDOUT);
     _CrtSetReportMode(_CRT_ERROR, _CRTDBG_MODE_FILE);
@@ -1546,6 +1565,7 @@ __declspec(dllexport) sws_error_t sws_WindowSwitcher_Initialize(sws_WindowSwitch
     _CrtSetReportMode(_CRT_ASSERT, _CRTDBG_MODE_FILE);
     _CrtSetReportFile(_CRT_ASSERT, _CRTDBG_FILE_STDOUT);
     _CrtDumpMemoryLeaks();
+#endif
 
     if (!rv)
     {
@@ -1561,7 +1581,7 @@ __declspec(dllexport) sws_error_t sws_WindowSwitcher_Initialize(sws_WindowSwitch
         else
         {
             (*__this)->bIsDynamic = FALSE;
-            memset((*__this), 0, sizeof(sws_WindowSwitcher));
+            //memset((*__this), 0, sizeof(sws_WindowSwitcher));
         }
         _this = *__this;
     }
@@ -1678,7 +1698,7 @@ __declspec(dllexport) sws_error_t sws_WindowSwitcher_Initialize(sws_WindowSwitch
     }
     if (!rv)
     {
-        rv = sws_error_Report(_sws_WindowSwitcher_RegisterHotkeys(_this, NULL), NULL);
+        rv = sws_error_Report(sws_WindowSwitcher_RegisterHotkeys(_this, NULL), NULL);
     }
     if (!rv)
     {
@@ -1729,14 +1749,23 @@ __declspec(dllexport) sws_error_t sws_WindowSwitcher_Initialize(sws_WindowSwitch
             );
             _sws_WindowSwitcher_NotifyTransparencyChange(_this, FALSE, &dwInitial, dwSize);
         }
-        _this->dwShowDelay = SWS_WINDOWSWITCHER_SHOWDELAY;
-        _this->dwMaxWP = SWS_WINDOWSWITCHERLAYOUT_PERCENTAGEWIDTH;
-        _this->dwMaxHP = SWS_WINDOWSWITCHERLAYOUT_PERCENTAGEHEIGHT;
-        _this->bIncludeWallpaper = SWS_WINDOWSWITCHERLAYOUT_INCLUDE_WALLPAPER;
-        _this->dwRowHeight = SWS_WINDOWSWITCHERLAYOUT_ROWHEIGHT;
-        _this->dwColorScheme = 0;
-        _this->dwTheme = SWS_WINDOWSWITCHER_THEME_NONE;
-        _this->dwCornerPreference = DWMWCP_ROUND;
+        if (_this->bIsDynamic)
+        {
+            _this->dwShowDelay = SWS_WINDOWSWITCHER_SHOWDELAY;
+            _this->dwMaxWP = SWS_WINDOWSWITCHERLAYOUT_PERCENTAGEWIDTH;
+            _this->dwMaxHP = SWS_WINDOWSWITCHERLAYOUT_PERCENTAGEHEIGHT;
+            _this->bIncludeWallpaper = SWS_WINDOWSWITCHERLAYOUT_INCLUDE_WALLPAPER;
+            _this->dwRowHeight = SWS_WINDOWSWITCHERLAYOUT_ROWHEIGHT;
+            _this->dwColorScheme = 0;
+            _this->dwTheme = SWS_WINDOWSWITCHER_THEME_NONE;
+            _this->dwCornerPreference = DWMWCP_ROUND;
+            _this->bPrimaryOnly = FALSE;
+            _this->bPerMonitor = FALSE;
+            _this->dwMaxAbsoluteWP = 0;
+            _this->dwMaxAbsoluteHP = 0;
+            _this->bNoPerApplicationList = FALSE;
+            _this->bNoPerApplicationListPrevious = FALSE;
+        }
         BOOL bExcludedFromPeek = TRUE;
         DwmSetWindowAttribute(_this->hWnd, DWMWA_EXCLUDED_FROM_PEEK, &bExcludedFromPeek, sizeof(BOOL));
     }
@@ -1752,6 +1781,10 @@ __declspec(dllexport) sws_error_t sws_WindowSwitcher_Initialize(sws_WindowSwitch
         GetWindowRect(_this->hWndWallpaper, &rc);
         printf("[sws] Wallpaper RECT %d %d %d %d\n", rc.left, rc.top, rc.right - rc.left, rc.bottom - rc.top);
         sws_WindowSwitcher_RefreshTheme(_this);
+    }
+    if (!rv)
+    {
+        _this->bIsInitialized = TRUE;
     }
 
     if (rv && (*__this) && (*__this)->bIsDynamic)

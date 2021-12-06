@@ -1491,6 +1491,24 @@ __declspec(dllexport) sws_error_t sws_WindowSwitcher_RunMessageQueue(sws_WindowS
     }
 }
 
+void sws_WindowSwitcher_InitializeDefaultSettings(sws_WindowSwitcher* _this)
+{
+    _this->dwShowDelay = SWS_WINDOWSWITCHER_SHOWDELAY;
+    _this->dwMaxWP = SWS_WINDOWSWITCHERLAYOUT_PERCENTAGEWIDTH;
+    _this->dwMaxHP = SWS_WINDOWSWITCHERLAYOUT_PERCENTAGEHEIGHT;
+    _this->bIncludeWallpaper = SWS_WINDOWSWITCHERLAYOUT_INCLUDE_WALLPAPER;
+    _this->dwRowHeight = SWS_WINDOWSWITCHERLAYOUT_ROWHEIGHT;
+    _this->dwColorScheme = 0;
+    _this->dwTheme = SWS_WINDOWSWITCHER_THEME_NONE;
+    _this->dwCornerPreference = DWMWCP_ROUND;
+    _this->bPrimaryOnly = FALSE;
+    _this->bPerMonitor = FALSE;
+    _this->dwMaxAbsoluteWP = 0;
+    _this->dwMaxAbsoluteHP = 0;
+    _this->bNoPerApplicationList = FALSE;
+    _this->bNoPerApplicationListPrevious = FALSE;
+}
+
 __declspec(dllexport) void sws_WindowSwitcher_Clear(sws_WindowSwitcher* _this)
 {
     if (_this)
@@ -1751,20 +1769,7 @@ __declspec(dllexport) sws_error_t sws_WindowSwitcher_Initialize(sws_WindowSwitch
         }
         if (_this->bIsDynamic)
         {
-            _this->dwShowDelay = SWS_WINDOWSWITCHER_SHOWDELAY;
-            _this->dwMaxWP = SWS_WINDOWSWITCHERLAYOUT_PERCENTAGEWIDTH;
-            _this->dwMaxHP = SWS_WINDOWSWITCHERLAYOUT_PERCENTAGEHEIGHT;
-            _this->bIncludeWallpaper = SWS_WINDOWSWITCHERLAYOUT_INCLUDE_WALLPAPER;
-            _this->dwRowHeight = SWS_WINDOWSWITCHERLAYOUT_ROWHEIGHT;
-            _this->dwColorScheme = 0;
-            _this->dwTheme = SWS_WINDOWSWITCHER_THEME_NONE;
-            _this->dwCornerPreference = DWMWCP_ROUND;
-            _this->bPrimaryOnly = FALSE;
-            _this->bPerMonitor = FALSE;
-            _this->dwMaxAbsoluteWP = 0;
-            _this->dwMaxAbsoluteHP = 0;
-            _this->bNoPerApplicationList = FALSE;
-            _this->bNoPerApplicationListPrevious = FALSE;
+            sws_WindowSwitcher_InitializeDefaultSettings(_this);
         }
         BOOL bExcludedFromPeek = TRUE;
         DwmSetWindowAttribute(_this->hWnd, DWMWA_EXCLUDED_FROM_PEEK, &bExcludedFromPeek, sizeof(BOOL));

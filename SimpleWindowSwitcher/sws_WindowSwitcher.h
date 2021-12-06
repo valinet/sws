@@ -111,4 +111,6 @@ __declspec(dllexport) sws_error_t sws_WindowSwitcher_Initialize(sws_WindowSwitch
 
 void sws_WindowSwitcher_Paint(sws_WindowSwitcher* _this);
 
+void sws_WindowSwitcher_InitializeDefaultSettings(sws_WindowSwitcher* _this);
+
 #endif

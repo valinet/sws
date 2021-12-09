@@ -652,9 +652,13 @@ sws_error_t sws_WindowSwitcherLayout_Initialize(
 	if (settings) _this->cbRowHeight = settings[0];
 	_this->cbRowTitleHeight = SWS_WINDOWSWITCHERLAYOUT_ROWTITLEHEIGHT;
 	_this->cbMasterTopPadding = SWS_WINDOWSWITCHERLAYOUT_MASTER_PADDING_TOP;
+	if (settings) _this->cbMasterTopPadding = settings[8];
 	_this->cbMasterBottomPadding = SWS_WINDOWSWITCHERLAYOUT_MASTER_PADDING_BOTTOM;
+	if (settings) _this->cbMasterBottomPadding = _this->cbMasterTopPadding;
 	_this->cbMasterLeftPadding = SWS_WINDOWSWITCHERLAYOUT_MASTER_PADDING_LEFT;
+	if (settings) _this->cbMasterLeftPadding = _this->cbMasterTopPadding;
 	_this->cbMasterRightPadding = SWS_WINDOWSWITCHERLAYOUT_MASTER_PADDING_RIGHT;
+	if (settings) _this->cbMasterRightPadding = _this->cbMasterTopPadding;
 	_this->cbElementTopPadding = SWS_WINDOWSWITCHERLAYOUT_ELEMENT_PADDING_TOP;
 	_this->cbElementBottomPadding = SWS_WINDOWSWITCHERLAYOUT_ELEMENT_PADDING_BOTTOM;
 	_this->cbElementLeftPadding = SWS_WINDOWSWITCHERLAYOUT_ELEMENT_PADDING_LEFT;

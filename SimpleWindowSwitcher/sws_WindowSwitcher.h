@@ -81,6 +81,7 @@ typedef struct _sws_WindowSwitcher
     DWORD dwMaxAbsoluteWP;
     DWORD dwMaxAbsoluteHP;
     DWORD bNoPerApplicationList;
+    DWORD dwMasterPadding;
 } sws_WindowSwitcher;
 
 sws_error_t sws_WindowSwitcher_RegisterHotkeys(sws_WindowSwitcher* _this, HKL hkl);

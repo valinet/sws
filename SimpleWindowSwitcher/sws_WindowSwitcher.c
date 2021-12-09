@@ -1507,6 +1507,7 @@ void sws_WindowSwitcher_InitializeDefaultSettings(sws_WindowSwitcher* _this)
     _this->dwMaxAbsoluteHP = 0;
     _this->bNoPerApplicationList = FALSE;
     _this->bNoPerApplicationListPrevious = FALSE;
+    _this->dwMasterPadding = SWS_WINDOWSWITCHERLAYOUT_MASTER_PADDING_TOP;
 }
 
 __declspec(dllexport) void sws_WindowSwitcher_Clear(sws_WindowSwitcher* _this)

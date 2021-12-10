@@ -187,7 +187,15 @@ static DWORD WINAPI _sws_WindowSwitcher_Calculate(sws_WindowSwitcher* _this)
         HWND hFw = GetForegroundWindow(), hOwner = GetWindow(hFw, GW_OWNER);
         _this->lastMiniModehWnd = hOwner ? hOwner : hFw;
     }
-    sws_WindowSwitcherLayout_Initialize(&(_this->layout), _this->hMonitor, _this->hWnd, &(_this->dwRowHeight), &(_this->pHWNDList), (_this->mode ? _this->lastMiniModehWnd: NULL));
+    sws_WindowSwitcherLayout_Initialize(
+        &(_this->layout), 
+        _this->hMonitor, 
+        _this->hWnd, 
+        &(_this->dwRowHeight), 
+        &(_this->pHWNDList), 
+        (_this->mode ? _this->lastMiniModehWnd: NULL),
+        _this->hWndWallpaper
+    );
     long long init = sws_milliseconds_now();
     wchar_t* wszClassName[100];
     GetClassNameW(GetForegroundWindow(), wszClassName, 100);

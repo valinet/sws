@@ -75,7 +75,8 @@ sws_error_t sws_WindowSwitcherLayout_Initialize(
 	HWND hWnd,
 	DWORD* settings,
 	sws_vector* pHWNDList,
-	HWND hWndTarget
+	HWND hWndTarget,
+	HWND hWndWallpaper
 );
 
 #endif

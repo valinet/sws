@@ -512,7 +512,8 @@ sws_error_t sws_WindowSwitcherLayout_Initialize(
 	HWND hWnd, 
 	DWORD* settings, 
 	sws_vector* pHWNDList, 
-	HWND hWndTarget
+	HWND hWndTarget,
+	HWND hWndWallpaper
 )
 {
 	sws_error_t rv = SWS_ERROR_SUCCESS;
@@ -550,7 +551,7 @@ sws_error_t sws_WindowSwitcherLayout_Initialize(
 		_this->bIncludeWallpaper = SWS_WINDOWSWITCHERLAYOUT_INCLUDE_WALLPAPER;
 		if (settings) _this->bIncludeWallpaper = settings[3];
 		_this->bWallpaperToggleBehavior = SWS_WINDOWSWITCHERLAYOUT_WALLPAPER_TOGGLE;
-		_this->hWndWallpaper = sws_WindowHelpers_GetWallpaperHWND();
+		_this->hWndWallpaper = hWndWallpaper;
 		if (_this->bIncludeWallpaper)
 		{
 			if (_this->bWallpaperAlwaysLast && !hWndTarget)

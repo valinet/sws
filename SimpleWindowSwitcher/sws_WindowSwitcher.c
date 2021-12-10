@@ -193,7 +193,7 @@ static DWORD WINAPI _sws_WindowSwitcher_Calculate(sws_WindowSwitcher* _this)
     GetClassNameW(GetForegroundWindow(), wszClassName, 100);
     if (_this->mode == SWS_WINDOWSWITCHER_LAYOUTMODE_FULL && _this->layout.bIncludeWallpaper && _this->layout.bWallpaperAlwaysLast && !wcscmp(wszClassName, L"WorkerW"))
     {
-        sws_WindowSwitcherLayout_ComputeLayout(&(_this->layout), SWS_WINDOWSWITCHERLAYOUT_COMPUTE_DIRECTION_INITIAL, sws_WindowHelpers_GetWallpaperHWND());
+        sws_WindowSwitcherLayout_ComputeLayout(&(_this->layout), SWS_WINDOWSWITCHERLAYOUT_COMPUTE_DIRECTION_INITIAL, _this->hWndWallpaper);
     }
     else
     {
@@ -1777,11 +1777,13 @@ __declspec(dllexport) sws_error_t sws_WindowSwitcher_Initialize(sws_WindowSwitch
     }
     if (!rv)
     {
-        while (!sws_WindowHelpers_EnsureWallpaperHWND())
+        if (sws_WindowHelpers_EnsureWallpaperHWND())
         {
+            _this->hWndWallpaper = sws_WindowHelpers_GetWallpaperHWND();
         }
-        while (!(_this->hWndWallpaper = sws_WindowHelpers_GetWallpaperHWND()))
+        if (!_this->hWndWallpaper)
         {
+            _this->hWndWallpaper = GetDesktopWindow();
         }
         RECT rc;
         GetWindowRect(_this->hWndWallpaper, &rc);

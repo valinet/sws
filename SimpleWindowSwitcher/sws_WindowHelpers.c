@@ -529,12 +529,12 @@ BOOL sws_WindowHelpers_EnsureWallpaperHWND()
 	HWND progman = FindWindowW(L"Progman", NULL);
 	if (progman)
 	{
-		INT res = -1;
-		SendMessageTimeoutW(progman, 0x052C, 0, 0, SMTO_NORMAL, 1000, &res);
-		if (!res)
-		{
-			return TRUE;
-		}
+		INT res1 = -1, res2 = -1, res3 = -1;
+		SendMessageTimeoutW(progman, 0x052C, 0x0d, 0, SMTO_NORMAL, 1000, &res1);
+		SendMessageTimeoutW(progman, 0x052C, 0x0d, 1, SMTO_NORMAL, 1000, &res2);
+		SendMessageTimeoutW(progman, 0x052C, 0, 0, SMTO_NORMAL, 1000, &res3);
+		//printf("[sws] Wallpaper results: %d %d %d\n", res1, res2, res3);
+		return !res1 && !res2 && !res3;
 	}
 	return FALSE;
 }

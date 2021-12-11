@@ -1787,18 +1787,33 @@ __declspec(dllexport) sws_error_t sws_WindowSwitcher_Initialize(sws_WindowSwitch
     }
     if (!rv)
     {
-        if (sws_WindowHelpers_EnsureWallpaperHWND())
+        if (_this->dwWallpaperSupport == SWS_WALLPAPERSUPPORT_EXPLORER)
         {
+            int k = 0;
+            while (!sws_WindowHelpers_EnsureWallpaperHWND())
+            {
+                //printf("[sws] Ensuring wallpaper\n");
+                k++;
+                if (k == 100)
+                {
+                    break;
+                }
+                Sleep(100);
+            }
+            Sleep(100);
             _this->hWndWallpaper = sws_WindowHelpers_GetWallpaperHWND();
+            if (_this->hWndWallpaper)
+            {
+                RECT rc;
+                GetWindowRect(_this->hWndWallpaper, &rc);
+                printf("[sws] Wallpaper RECT %d %d %d %d\n", rc.left, rc.top, rc.right - rc.left, rc.bottom - rc.top);
+                sws_WindowSwitcher_RefreshTheme(_this);
+            }
+            else
+            {
+                _this->dwWallpaperSupport = SWS_WALLPAPERSUPPORT_NONE;
+            }
         }
-        if (!_this->hWndWallpaper)
-        {
-            _this->hWndWallpaper = GetDesktopWindow();
-        }
-        RECT rc;
-        GetWindowRect(_this->hWndWallpaper, &rc);
-        printf("[sws] Wallpaper RECT %d %d %d %d\n", rc.left, rc.top, rc.right - rc.left, rc.bottom - rc.top);
-        sws_WindowSwitcher_RefreshTheme(_this);
     }
     if (!rv)
     {

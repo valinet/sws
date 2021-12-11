@@ -549,7 +549,7 @@ sws_error_t sws_WindowSwitcherLayout_Initialize(
 	{
 		_this->bWallpaperAlwaysLast = SWS_WINDOWSWITCHERLAYOUT_WALLPAPER_ALWAYS_LAST;
 		_this->bIncludeWallpaper = SWS_WINDOWSWITCHERLAYOUT_INCLUDE_WALLPAPER;
-		if (settings) _this->bIncludeWallpaper = settings[3];
+		if (settings) _this->bIncludeWallpaper = settings[3] && settings[9];
 		_this->bWallpaperToggleBehavior = SWS_WINDOWSWITCHERLAYOUT_WALLPAPER_TOGGLE;
 		_this->hWndWallpaper = hWndWallpaper;
 		if (_this->bIncludeWallpaper)

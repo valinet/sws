@@ -182,9 +182,10 @@ static void CALLBACK _sws_WindowSwitcher_NotifyTransparencyChange(sws_WindowSwit
 static DWORD WINAPI _sws_WindowSwitcher_Calculate(sws_WindowSwitcher* _this)
 {
     long long start = sws_milliseconds_now();
+    HWND hFw = GetForegroundWindow();
     if (!_this->lastMiniModehWnd)
     {
-        HWND hFw = GetForegroundWindow(), hOwner = GetWindow(hFw, GW_OWNER);
+        HWND hOwner = GetWindow(hFw, GW_OWNER);
         _this->lastMiniModehWnd = hOwner ? hOwner : hFw;
     }
     sws_WindowSwitcherLayout_Initialize(
@@ -198,10 +199,11 @@ static DWORD WINAPI _sws_WindowSwitcher_Calculate(sws_WindowSwitcher* _this)
     );
     long long init = sws_milliseconds_now();
     wchar_t* wszClassName[100];
-    GetClassNameW(GetForegroundWindow(), wszClassName, 100);
-    if (_this->mode == SWS_WINDOWSWITCHER_LAYOUTMODE_FULL && _this->layout.bIncludeWallpaper && _this->layout.bWallpaperAlwaysLast && !wcscmp(wszClassName, L"WorkerW"))
+    GetClassNameW(hFw, wszClassName, 100);
+    BOOL bIsWallpaperInForeground = !wcscmp(wszClassName, L"WorkerW") && (GetParent(hFw) == FindWindowW(L"Progman", NULL));
+    if (_this->mode == SWS_WINDOWSWITCHER_LAYOUTMODE_FULL && _this->layout.bIncludeWallpaper && _this->layout.bWallpaperAlwaysLast && bIsWallpaperInForeground)
     {
-        sws_WindowSwitcherLayout_ComputeLayout(&(_this->layout), SWS_WINDOWSWITCHERLAYOUT_COMPUTE_DIRECTION_INITIAL, _this->hWndWallpaper);
+        sws_WindowSwitcherLayout_ComputeLayout(&(_this->layout), SWS_WINDOWSWITCHERLAYOUT_COMPUTE_DIRECTION_INITIAL, _this->layout.hWndWallpaper);
     }
     else
     {

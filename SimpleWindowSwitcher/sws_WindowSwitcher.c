@@ -969,7 +969,7 @@ static void WINAPI _sws_WindowSwitcher_Show(sws_WindowSwitcher* _this)
                     _this->layout.timestamp = sws_milliseconds_now();
                 }
                 params->timestamp = _this->layout.timestamp;
-                params->bIsDesktop = (_this->bIncludeWallpaper && pWindowList[iCurrentWindow].hWnd == _this->hWndWallpaper);
+                params->bIsDesktop = (_this->layout.bIncludeWallpaper && pWindowList[iCurrentWindow].hWnd == _this->hWndWallpaper);
                 if (!sws_IconPainter_ExtractAndDrawIconAsync(pWindowList[iCurrentWindow].hWnd, params))
                 {
                     pWindowList[iCurrentWindow].hIcon = sws_LegacyDefAppIcon;

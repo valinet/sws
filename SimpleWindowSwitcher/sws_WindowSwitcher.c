@@ -1185,12 +1185,12 @@ static LRESULT _sws_WindowsSwitcher_WndProc(HWND hWnd, UINT uMsg, WPARAM wParam,
         }
         return 0;
     }
-    else if (uMsg == WM_LBUTTONDOWN)
+    else if (uMsg == WM_LBUTTONDOWN || uMsg == WM_MBUTTONDOWN)
     {
         _this->bIsMouseClicking = TRUE;
         return 0;
     }
-    else if (uMsg == WM_LBUTTONUP)
+    else if (uMsg == WM_LBUTTONUP || uMsg == WM_MBUTTONUP)
     {
         if (_this->bIsMouseClicking)
         {
@@ -1206,17 +1206,22 @@ static LRESULT _sws_WindowsSwitcher_WndProc(HWND hWnd, UINT uMsg, WPARAM wParam,
                     {
                         if (_this->cwIndex != -1 &&
                             _this->cwIndex < _this->layout.pWindowList.cbSize &&
-                            _this->cwMask & SWS_WINDOWFLAG_IS_ON_CLOSE &&
+                            (uMsg == WM_MBUTTONUP ? 1 : (_this->cwMask & SWS_WINDOWFLAG_IS_ON_CLOSE)) &&
                             !(_this->layout.bIncludeWallpaper && pWindowList[i].hWnd == _this->layout.hWndWallpaper)
                             )
                         {
                             PostMessageW(pWindowList[i].hWnd, WM_SYSCOMMAND, SC_CLOSE, 0);
                             //EndTask(pWindowList[i].hWnd, FALSE, FALSE);
                             //PostMessageW(pWindowList[i].hWnd, WM_CLOSE, 0, 0);
-                            return 0;
+                            break;
+                        }
+                        if (uMsg == WM_MBUTTONUP)
+                        {
+                            break;
                         }
                         _this->layout.iIndex = i;
                         _sws_WindowSwitcher_SwitchToSelectedItemAndDismiss(_this);
+                        break;
                     }
                 }
             }

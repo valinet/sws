@@ -529,7 +529,7 @@ BOOL sws_WindowHelpers_EnsureWallpaperHWND()
 	HWND progman = FindWindowW(L"Progman", NULL);
 	if (progman)
 	{
-		INT res1 = -1, res2 = -1, res3 = -1;
+		PDWORD_PTR res1 = -1, res2 = -1, res3 = -1;
 		SendMessageTimeoutW(progman, 0x052C, 0x0d, 0, SMTO_NORMAL, 1000, &res1);
 		SendMessageTimeoutW(progman, 0x052C, 0x0d, 1, SMTO_NORMAL, 1000, &res2);
 		SendMessageTimeoutW(progman, 0x052C, 0, 0, SMTO_NORMAL, 1000, &res3);

@@ -147,7 +147,9 @@
   <ItemGroup>
     <ClCompile Include="main.c" />
     <ClCompile Include="sws_error.c" />
+    <ClCompile Include="sws_IconPainter.c" />
     <ClCompile Include="sws_RegistryMonitor.c" />
+    <ClCompile Include="sws_tshwnd.c" />
     <ClCompile Include="sws_vector.c" />
     <ClCompile Include="sws_window.c" />
     <ClCompile Include="sws_WindowHelpers.c" />
@@ -159,7 +161,9 @@
     <ClInclude Include="sws_def.h" />
     <ClInclude Include="sws_dll.h" />
     <ClInclude Include="sws_error.h" />
+    <ClInclude Include="sws_IconPainter.h" />
     <ClInclude Include="sws_RegistryMonitor.h" />
+    <ClInclude Include="sws_tshwnd.h" />
     <ClInclude Include="sws_utility.h" />
     <ClInclude Include="sws_vector.h" />
     <ClInclude Include="sws_window.h" />

@@ -42,6 +42,12 @@
     <ClCompile Include="sws_window.c">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="sws_IconPainter.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="sws_tshwnd.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="sws_def.h">
@@ -75,6 +81,12 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="sws_utility.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="sws_IconPainter.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="sws_tshwnd.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>

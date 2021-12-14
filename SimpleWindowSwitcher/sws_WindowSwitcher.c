@@ -738,7 +738,7 @@ void sws_WindowSwitcher_Paint(sws_WindowSwitcher* _this)
                 INT w = pWindowList[i].rcIcon.right;
                 INT h = pWindowList[i].rcIcon.bottom;
                 // I don't understand why this is necessary, but otherwise icons
-                // ontained from the file system have a black plate as background
+                // obtained from the file system have a black plate as background
                 RGBQUAD bkcol2 = bkcol;
                 if (bkcol2.rgbReserved == 255) bkcol2.rgbReserved = 254;
                 sws_IconPainter_DrawIcon(pWindowList[i].hIcon, hdcPaint, _this->hBackgroundBrush, pGdipGraphics, x, y, w, h, bkcol2);

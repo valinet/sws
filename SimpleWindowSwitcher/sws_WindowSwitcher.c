@@ -911,7 +911,7 @@ static void WINAPI _sws_WindowSwitcher_Show(sws_WindowSwitcher* _this)
         int rv = DPA_Search(_this->htshwnds, tshwnd, 0, sws_tshwnd_CompareHWND, 0, 0);
         if (rv != -1)
         {
-            sws_tshwnd* found_tshwnd = DPA_GetPtr(_this->htshwnds, rv);
+            sws_tshwnd* found_tshwnd = DPA_FastGetPtr(_this->htshwnds, rv);
             sws_tshwnd_ModifyTimestamp(tshwnd, found_tshwnd->ft);
         }
     }

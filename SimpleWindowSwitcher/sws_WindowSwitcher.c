@@ -198,7 +198,8 @@ static DWORD WINAPI _sws_WindowSwitcher_Calculate(sws_WindowSwitcher* _this)
         _this->hWndWallpaper
     );
     long long init = sws_milliseconds_now();
-    wchar_t* wszClassName[100];
+    wchar_t wszClassName[100];
+    ZeroMemory(wszClassName, 100);
     GetClassNameW(hFw, wszClassName, 100);
     BOOL bIsWallpaperInForeground = !wcscmp(wszClassName, L"WorkerW") && (GetParent(hFw) == FindWindowW(L"Progman", NULL));
     if (_this->mode == SWS_WINDOWSWITCHER_LAYOUTMODE_FULL && _this->layout.bIncludeWallpaper && _this->layout.bWallpaperAlwaysLast && bIsWallpaperInForeground)

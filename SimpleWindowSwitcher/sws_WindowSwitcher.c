@@ -826,7 +826,7 @@ void sws_WindowSwitcher_Paint(sws_WindowSwitcher* _this)
                     hdcPaint,
                     0,
                     0,
-                    L"\u274C",
+                    L"\u2715",
                     -1,
                     dwTextFlags,
                     &rcText,
@@ -839,7 +839,7 @@ void sws_WindowSwitcher_Paint(sws_WindowSwitcher* _this)
                 size.cx = rcText.right - rcText.left;
                 size.cy = rcText.bottom - rcText.top;
                 HBITMAP hBitmap = sws_WindowHelpers_CreateAlphaTextBitmap(
-                    L"\u274C",
+                    L"\u2715",
                     _this->layout.hFontRegular,
                     dwTextFlags,
                     size,

@@ -1034,7 +1034,7 @@ static LRESULT _sws_WindowsSwitcher_WndProc(HWND hWnd, UINT uMsg, WPARAM wParam,
                     else
                     {
                         free(tshwnd);
-                        sws_tshwnd_UpdateTimestamp(DPA_GetPtr(_this->htshwnds, rv));
+                        sws_tshwnd_UpdateTimestamp(DPA_FastGetPtr(_this->htshwnds, rv));
                     }
                 }
             }
@@ -1051,7 +1051,7 @@ static LRESULT _sws_WindowsSwitcher_WndProc(HWND hWnd, UINT uMsg, WPARAM wParam,
                 else
                 {
                     free(tshwnd);
-                    sws_tshwnd_UpdateTimestamp(DPA_GetPtr(_this->htshwnds, rv));
+                    sws_tshwnd_UpdateTimestamp(DPA_FastGetPtr(_this->htshwnds, rv));
                 }
             }
 
@@ -1068,7 +1068,7 @@ static LRESULT _sws_WindowsSwitcher_WndProc(HWND hWnd, UINT uMsg, WPARAM wParam,
                 int rv = DPA_Search(_this->htshwnds, tshwnd, 0, sws_tshwnd_CompareHWND, 0, 0);
                 if (rv != -1)
                 {
-                    free(DPA_GetPtr(_this->htshwnds, rv));
+                    free(DPA_FastGetPtr(_this->htshwnds, rv));
                     DPA_DeletePtr(_this->htshwnds, rv);
                 }
                 free(tshwnd);

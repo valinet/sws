@@ -526,6 +526,64 @@ static BOOL CALLBACK _sws_WindowHelpers_GetWallpaperHWNDCallback(HWND hwnd, LPAR
 
 BOOL sws_WindowHelpers_EnsureWallpaperHWND()
 {
+	BOOL bOk = FALSE;
+	HRESULT hr = E_FAIL;
+	IShellWindows* spShellWindows = NULL;
+	hr = CoCreateInstance(
+		&CLSID_ShellWindows,
+		NULL,
+		CLSCTX_ALL,
+		&IID_IShellWindows,
+		&spShellWindows
+	);
+	if (spShellWindows)
+	{
+		VARIANT vtEmpty;
+		ZeroMemory(&vtEmpty, sizeof(VARIANT));
+		VARIANT vtLoc;
+		ZeroMemory(&vtLoc, sizeof(VARIANT));
+		vtLoc.vt = VT_INT;
+		vtLoc.intVal = CSIDL_DESKTOP;
+		long lhwnd = 0;
+		IDispatch* spdisp = NULL;
+		hr = spShellWindows->lpVtbl->FindWindowSW(
+			spShellWindows,
+			&vtLoc,
+			&vtEmpty,
+			SWC_DESKTOP,
+			&lhwnd,
+			SWFO_NEEDDISPATCH,
+			&spdisp
+		);
+		if (spdisp)
+		{
+			IServiceProvider* spdisp2 = NULL;
+			hr = spdisp->lpVtbl->QueryInterface(spdisp, &IID_IServiceProvider, &spdisp2);
+			if (spdisp2)
+			{
+				IShellBrowser* spBrowser = NULL;
+				hr = spdisp2->lpVtbl->QueryService(spdisp2, &SID_STopLevelBrowser, &IID_IShellBrowser, &spBrowser);
+				if (spBrowser)
+				{
+					//printf("[sws] [sws] %p %p %p %p %p\n", spBrowser, lhwnd, GetWindowLongPtrW(FindWindowW(L"Progman", NULL), 0), FindWindowW(L"Progman", NULL), GetDesktopWindow());
+					PDWORD_PTR res1 = -1, res2 = -1, res3 = -1;
+					SendMessageTimeoutW(lhwnd, 0x052C, 0x0d, 0, SMTO_NORMAL, 1000, &res1);
+					SendMessageTimeoutW(lhwnd, 0x052C, 0x0d, 1, SMTO_NORMAL, 1000, &res2);
+					SendMessageTimeoutW(lhwnd, 0x052C, 0, 0, SMTO_NORMAL, 1000, &res3);
+					bOk = !res1 && !res2 && !res3;
+					spBrowser->lpVtbl->Release(spBrowser);
+				}
+				spdisp2->lpVtbl->Release(spdisp2);
+			}
+			spdisp->lpVtbl->Release(spdisp);
+		}
+		spShellWindows->lpVtbl->Release(spShellWindows);
+	}
+	return bOk;
+}
+
+/*BOOL sws_WindowHelpers_EnsureWallpaperHWND()
+{
 	HWND progman = FindWindowW(L"Progman", NULL);
 	if (progman)
 	{
@@ -533,11 +591,11 @@ BOOL sws_WindowHelpers_EnsureWallpaperHWND()
 		SendMessageTimeoutW(progman, 0x052C, 0x0d, 0, SMTO_NORMAL, 1000, &res1);
 		SendMessageTimeoutW(progman, 0x052C, 0x0d, 1, SMTO_NORMAL, 1000, &res2);
 		SendMessageTimeoutW(progman, 0x052C, 0, 0, SMTO_NORMAL, 1000, &res3);
-		//printf("[sws] Wallpaper results: %d %d %d\n", res1, res2, res3);
+		//printf("[sws] Wallpaper results: %d %d %d\n", res1, res2, res3);		
 		return !res1 && !res2 && !res3;
 	}
 	return FALSE;
-}
+}*/
 
 HWND sws_WindowHelpers_GetWallpaperHWND()
 {

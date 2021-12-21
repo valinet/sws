@@ -13,6 +13,8 @@
 #include <commctrl.h>
 #pragma comment(lib, "Comctl32.lib")
 #pragma comment(lib, "Gdiplus.lib")
+#include <ExDisp.h>
+#include <ShlGuid.h>
 #include "sws_def.h"
 #include "sws_error.h"
 #include "sws_tshwnd.h"
@@ -35,12 +37,6 @@ DEFINE_GUID(__uuidof_IShellItem2,
 	0x7e9fb0d3,
 	0x919f, 0x4307, 0xab, 0x2e,
 	0x9b, 0x18, 0x60, 0x31, 0x0c, 0x93
-);
-
-DEFINE_GUID(FOLDERID_AppsFolder,
-	0x1e87508d,
-	0x89c2, 0x42f0, 0x8a, 0x7e,
-	0x64, 0x5a, 0x0f, 0x50, 0xca, 0x58
 );
 
 DEFINE_GUID(__uuidof_IPropertyStore,

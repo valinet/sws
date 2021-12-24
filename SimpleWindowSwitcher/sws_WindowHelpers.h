@@ -213,6 +213,7 @@ inline void _sws_WindowHelpers_ToggleDesktop()
 
 inline BOOL sws_WindowHelpers_IsWindowUWP(HWND hWnd)
 {
+	return sws_IsShellFrameWindow(hWnd);
 	return (GetPropW(hWnd, (LPCWSTR)0xA914));
 }
 

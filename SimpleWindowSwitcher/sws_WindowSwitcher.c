@@ -1,5 +1,52 @@
 #include "sws_WindowSwitcher.h"
 
+static void _sws_WindowSwitcher_UpdateAccessibleText(sws_WindowSwitcher* _this)
+{
+    if (!_this->layout.pWindowList.cbSize)
+    {
+        SetWindowTextW(_this->hWndAccessible, L"");
+    }
+    else
+    {
+        sws_WindowSwitcherLayoutWindow* pWindowList = _this->layout.pWindowList.pList;
+        WCHAR wszAccText[MAX_PATH * 2], wszWindowText[MAX_PATH];
+        ZeroMemory(wszAccText, MAX_PATH * 2 * sizeof(WCHAR));
+        ZeroMemory(wszWindowText, MAX_PATH * sizeof(WCHAR));
+        if (_this->layout.bIncludeWallpaper && pWindowList[_this->layout.iIndex].hWnd == _this->layout.hWndWallpaper)
+        {
+            sws_WindowHelpers_GetDesktopText(wszWindowText);
+        }
+        else
+        {
+            HWND hWndGhost = _sws_GhostWindowFromHungWindow(pWindowList[_this->layout.iIndex].hWnd);
+            if (hWndGhost)
+            {
+                sws_InternalGetWindowText(hWndGhost, wszWindowText, MAX_PATH);
+            }
+            else
+            {
+                sws_InternalGetWindowText(pWindowList[_this->layout.iIndex].hWnd, wszWindowText, MAX_PATH);
+            }
+        }
+        swprintf_s(
+            wszAccText,
+            MAX_PATH * 2,
+            L"%s: %d out of %d",
+            wszWindowText,
+            _this->layout.pWindowList.cbSize - _this->layout.iIndex,
+            _this->layout.pWindowList.cbSize
+        );
+        //wprintf(L"[sws] Accesible text: %s.\n", wszAccText);
+        SetWindowTextW(_this->hWndAccessible, wszAccText);
+        NotifyWinEvent(
+            EVENT_OBJECT_LIVEREGIONCHANGED,
+            _this->hWndAccessible,
+            OBJID_CLIENT,
+            CHILDID_SELF
+        );
+    }
+}
+
 static int _sws_WindowSwitcher_free_stub(void* p, void *pData)
 {
     // This enables correct reporting of DPAs being freed in Debug builds
@@ -985,6 +1032,7 @@ static void WINAPI _sws_WindowSwitcher_Show(sws_WindowSwitcher* _this)
     {
         SetTimer(_this->hWnd, SWS_WINDOWSWITCHER_TIMER_ASYNCKEYCHECK, SWS_WINDOWSWITCHER_TIMER_ASYNCKEYCHECK_DELAY, NULL);
     }
+    _sws_WindowSwitcher_UpdateAccessibleText(_this);
 }
 
 static LRESULT _sws_WindowsSwitcher_WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
@@ -1012,6 +1060,11 @@ static LRESULT _sws_WindowsSwitcher_WndProc(HWND hWnd, UINT uMsg, WPARAM wParam,
             KillTimer(hWnd, SWS_WINDOWSWITCHER_TIMER_ASYNCKEYCHECK);
             return 0;
         }
+    }
+    else if (uMsg == WM_TIMER && wParam == SWS_WINDOWSWITCHER_TIMER_UPDATEACCESSIBLETEXT)
+    {
+        _sws_WindowSwitcher_UpdateAccessibleText(_this);
+        KillTimer(_this->hWnd, SWS_WINDOWSWITCHER_TIMER_UPDATEACCESSIBLETEXT);
     }
     else if (_this && uMsg == _this->msgShellHook && lParam)
     {
@@ -1440,6 +1493,7 @@ static LRESULT _sws_WindowsSwitcher_WndProc(HWND hWnd, UINT uMsg, WPARAM wParam,
                     RedrawWindow(hWnd, NULL, NULL, RDW_INVALIDATE | RDW_INTERNALPAINT);
                 }
                 SetForegroundWindow(_this->hWnd);
+                _sws_WindowSwitcher_UpdateAccessibleText(_this);
             }
         }
         return 0;
@@ -1530,6 +1584,20 @@ __declspec(dllexport) void sws_WindowSwitcher_Clear(sws_WindowSwitcher* _this)
 {
     if (_this)
     {
+        if (_this->pAccPropServices != NULL)
+        {
+            MSAAPROPID props[] = { LiveSetting_Property_GUID };
+            _this->pAccPropServices->lpVtbl->ClearHwndProps(
+                _this->pAccPropServices,
+                _this->hWndAccessible,
+                OBJID_CLIENT,
+                CHILDID_SELF,
+                props,
+                ARRAYSIZE(props));
+            _this->pAccPropServices->lpVtbl->Release(_this->pAccPropServices);
+            _this->pAccPropServices = NULL;
+        }
+        DestroyWindow(_this->hWndAccessible);
         CloseHandle(_this->hEvExit);
         if (_this->bWithRegMon)
         {
@@ -1762,6 +1830,35 @@ __declspec(dllexport) sws_error_t sws_WindowSwitcher_Initialize(sws_WindowSwitch
     {
         _this->InputSwitchCallback.lpVtbl = &_sws_WindowSwitcher_InputSwitchCallbackVtbl;
         rv = sws_error_GetFromHRESULT(_this->pInputSwitchControl->lpVtbl->SetCallback(_this->pInputSwitchControl, &(_this->InputSwitchCallback)));
+    }
+    if (!rv)
+    {
+        _this->hWndAccessible = CreateWindowExW(
+            0,
+            L"Static",
+            L"",
+            WS_CHILD,
+            0, 0, 0, 0,
+            _this->hWnd,
+            NULL,
+            (HINSTANCE)GetWindowLongPtrW(_this->hWnd, GWLP_HINSTANCE),
+            NULL
+        );
+        if (!_this->hWndAccessible)
+        {
+            rv = sws_error_Report(sws_error_GetFromWin32Error(GetLastError()), NULL);
+        }
+    }
+    if (!rv)
+    {
+        rv = sws_error_GetFromHRESULT(CoCreateInstance(&CLSID_AccPropServices, NULL, CLSCTX_INPROC, &IID_IAccPropServices, &(_this->pAccPropServices)));
+    }
+    if (!rv)
+    {
+        VARIANT var;
+        var.vt = VT_I4;
+        var.lVal = 2; //Assertive;
+        rv = sws_error_GetFromHRESULT(_this->pAccPropServices->lpVtbl->SetHwndProp(_this->pAccPropServices, _this->hWndAccessible, OBJID_CLIENT, CHILDID_SELF, LiveSetting_Property_GUID, var));
     }
 
     if (!rv)

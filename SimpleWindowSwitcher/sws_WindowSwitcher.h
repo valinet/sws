@@ -13,6 +13,7 @@
 #pragma comment(lib, "Shlwapi.lib")
 #include <roapi.h>
 #pragma comment(lib, "runtimeobject.lib")
+#include <oleacc.h>
 #include "sws_def.h"
 #include "sws_error.h"
 #include "sws_window.h"
@@ -72,6 +73,8 @@ typedef struct _sws_WindowSwitcher
     HANDLE hShowSignal;
     BOOL bNoPerApplicationListPrevious;
     BOOL bIsInitialized;
+    HWND hWndAccessible;
+    IAccPropServices* pAccPropServices;
 
     DWORD dwRowHeight;
     DWORD dwMaxWP;
@@ -84,6 +87,8 @@ typedef struct _sws_WindowSwitcher
     DWORD dwMasterPadding;
     DWORD dwWallpaperSupport;
 } sws_WindowSwitcher;
+
+static void _sws_WindowSwitcher_UpdateAccessibleText(sws_WindowSwitcher* _this);
 
 sws_error_t sws_WindowSwitcher_RegisterHotkeys(sws_WindowSwitcher* _this, HKL hkl);
 

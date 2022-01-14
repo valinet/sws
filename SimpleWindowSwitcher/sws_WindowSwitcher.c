@@ -1893,6 +1893,7 @@ __declspec(dllexport) sws_error_t sws_WindowSwitcher_Initialize(sws_WindowSwitch
         if (_this->dwWallpaperSupport == SWS_WALLPAPERSUPPORT_EXPLORER)
         {
             int k = 0;
+            Sleep(500);
             while (!sws_WindowHelpers_EnsureWallpaperHWND())
             {
                 //printf("[sws] Ensuring wallpaper\n");

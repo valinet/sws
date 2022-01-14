@@ -8,6 +8,7 @@ typedef struct _sws_IconPainter_CallbackParams
 	HWND hWnd;
 	int index;
 	BOOL bIsDesktop;
+	BOOL bUseApplicationIcon;
 } sws_IconPainter_CallbackParams;
 
 static void _sws_IconPainter_Callback(

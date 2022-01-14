@@ -86,6 +86,8 @@ typedef struct _sws_WindowSwitcher
     DWORD bNoPerApplicationList;
     DWORD dwMasterPadding;
     DWORD dwWallpaperSupport;
+    DWORD bSwitcherIsPerApplication;
+    DWORD bAlwaysUseWindowTitleAndIcon;
 } sws_WindowSwitcher;
 
 static void _sws_WindowSwitcher_UpdateAccessibleText(sws_WindowSwitcher* _this);

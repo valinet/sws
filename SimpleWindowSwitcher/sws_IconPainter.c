@@ -179,8 +179,16 @@ static void _sws_IconPainter_Callback(
         GetWindowThreadProcessId(hWnd, &dwProcessId);
         sws_WindowSwitcherLayoutWindow* pWindowList = _this->layout.pWindowList.pList;
 
-        if (!hIcon)
+        if (!hIcon || (params->bUseApplicationIcon && !pWindowList[params->index].dwIconSource))
         {
+            if (params->bUseApplicationIcon && !pWindowList[params->index].dwIconSource)
+            {
+                if (hIcon && dwProcessId != GetCurrentProcessId())
+                {
+                    DestroyIcon(hIcon);
+                }
+                pWindowList[params->index].dwIconSource = 1;
+            }
             switch (pWindowList[params->index].dwIconSource)
             {
             case 0:

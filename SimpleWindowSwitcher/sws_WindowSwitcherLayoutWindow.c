@@ -19,6 +19,7 @@ void sws_WindowSwitcherLayoutWindow_Erase(sws_WindowSwitcherLayoutWindow* _this)
     _this->rcThumbnail = rc;
     _this->rcWindow = rc;
     _this->iRowMax = 0;
+    ZeroMemory(_this->wszPath, MAX_PATH);
 }
 
 void sws_WindowSwitcherLayoutWindow_Clear(sws_WindowSwitcherLayoutWindow* _this)
@@ -33,10 +34,10 @@ void sws_WindowSwitcherLayoutWindow_Clear(sws_WindowSwitcherLayoutWindow* _this)
     {
         DestroyIcon(_this->hIcon);
     }
-    sws_WindowSwitcherLayoutWindow_Initialize(_this, 0);
+    sws_WindowSwitcherLayoutWindow_Initialize(_this, 0, NULL);
 }
 
-sws_error_t sws_WindowSwitcherLayoutWindow_Initialize(sws_WindowSwitcherLayoutWindow* _this, HWND hWnd)
+sws_error_t sws_WindowSwitcherLayoutWindow_Initialize(sws_WindowSwitcherLayoutWindow* _this, HWND hWnd, WCHAR* wszPath)
 {
     sws_error_t rv = SWS_ERROR_SUCCESS;
 
@@ -54,6 +55,10 @@ sws_error_t sws_WindowSwitcherLayoutWindow_Initialize(sws_WindowSwitcherLayoutWi
     if (!rv)
     {
         _this->hWnd = hWnd;
+    }
+    if (!rv && wszPath)
+    {
+        wcscpy_s(_this->wszPath, MAX_PATH, wszPath);
     }
 
     return rv;

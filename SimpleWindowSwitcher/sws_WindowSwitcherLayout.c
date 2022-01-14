@@ -5,7 +5,7 @@ static BOOL CALLBACK _sws_WindowSwitcherLayout_EnumWindowsCallback(_In_ HWND hWn
 	if (sws_WindowHelpers_IsAltTabWindow(hWnd, _this->hWndWallpaper) || (_this->bIncludeWallpaper && !_this->bWallpaperAlwaysLast && hWnd == _this->hWndWallpaper))
 	{
 		sws_WindowSwitcherLayoutWindow swsLayoutWindow;
-		sws_WindowSwitcherLayoutWindow_Initialize(&swsLayoutWindow, hWnd);
+		sws_WindowSwitcherLayoutWindow_Initialize(&swsLayoutWindow, hWnd, NULL);
 		sws_vector_PushBack(&_this->pWindowList, &swsLayoutWindow);
 		DWORD band;
 		_sws_GetWindowBand(hWnd, &band);
@@ -557,7 +557,7 @@ sws_error_t sws_WindowSwitcherLayout_Initialize(
 			if (_this->bWallpaperAlwaysLast && !hWndTarget)
 			{
 				sws_WindowSwitcherLayoutWindow swsLayoutWindow;
-				sws_WindowSwitcherLayoutWindow_Initialize(&swsLayoutWindow, _this->hWndWallpaper);
+				sws_WindowSwitcherLayoutWindow_Initialize(&swsLayoutWindow, _this->hWndWallpaper, NULL);
 				sws_vector_PushBack(&_this->pWindowList, &swsLayoutWindow);
 			}
 		}
@@ -591,7 +591,7 @@ sws_error_t sws_WindowSwitcherLayout_Initialize(
 			if (hWndTarget && window && window->bIsApplicationFrameHost)
 			{
 				sws_WindowSwitcherLayoutWindow swsLayoutWindow;
-				sws_WindowSwitcherLayoutWindow_Initialize(&swsLayoutWindow, window->hWnd);
+				sws_WindowSwitcherLayoutWindow_Initialize(&swsLayoutWindow, window->hWnd, window->wszPath);
 				sws_vector_PushBack(&_this->pWindowList, &swsLayoutWindow);
 			}
 			else
@@ -634,8 +634,24 @@ sws_error_t sws_WindowSwitcherLayout_Initialize(
 					{
 						continue;
 					}
+					if (!hWndTarget && settings[10])
+					{
+						BOOL bShouldContinue = FALSE;
+						for (int j = i - 1; j >= 0; j--)
+						{
+							if (windowList[i].dwProcessId == windowList[j].dwProcessId && !_wcsicmp(windowList[i].wszPath, windowList[j].wszPath))
+							{
+								bShouldContinue = TRUE;
+								break;
+							}
+						}
+						if (bShouldContinue)
+						{
+							continue;
+						}
+					}
 					sws_WindowSwitcherLayoutWindow swsLayoutWindow;
-					sws_WindowSwitcherLayoutWindow_Initialize(&swsLayoutWindow, windowList[i].hWnd);
+					sws_WindowSwitcherLayoutWindow_Initialize(&swsLayoutWindow, windowList[i].hWnd, windowList[i].wszPath);
 					sws_vector_PushBack(&_this->pWindowList, &swsLayoutWindow);
 				}
 			}

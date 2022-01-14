@@ -15,6 +15,7 @@
 #pragma comment(lib, "Gdiplus.lib")
 #include <ExDisp.h>
 #include <ShlGuid.h>
+#include <Propkey.h>
 #include "sws_def.h"
 #include "sws_error.h"
 #include "sws_tshwnd.h"

@@ -20,11 +20,12 @@ typedef struct _sws_WindowSwitcherLayoutWindow
     RECT rcIcon;
     BOOL bIsUWP;
     BOOL bOwnProcess;
+    WCHAR wszPath[MAX_PATH];
 } sws_WindowSwitcherLayoutWindow;
 
 void sws_WindowSwitcherLayoutWindow_Erase(sws_WindowSwitcherLayoutWindow* _this);
 
 void sws_WindowSwitcherLayoutWindow_Clear(sws_WindowSwitcherLayoutWindow* _this);
 
-sws_error_t sws_WindowSwitcherLayoutWindow_Initialize(sws_WindowSwitcherLayoutWindow* _this, HWND hWnd);
+sws_error_t sws_WindowSwitcherLayoutWindow_Initialize(sws_WindowSwitcherLayoutWindow* _this, HWND hWnd, WCHAR* wszPath);
 #endif

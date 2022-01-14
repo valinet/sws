@@ -634,7 +634,7 @@ sws_error_t sws_WindowSwitcherLayout_Initialize(
 					{
 						continue;
 					}
-					if (!hWndTarget && settings[10])
+					if (!hWndTarget && settings[10] && !windowList[i].bIsApplicationFrameHost)
 					{
 						BOOL bShouldContinue = FALSE;
 						for (int j = i - 1; j >= 0; j--)

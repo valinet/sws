@@ -24,6 +24,16 @@ int sws_tshwnd_CompareHWND(sws_tshwnd* p1, sws_tshwnd* p2)
 	return !(p1 && p2 && p1->hWnd == p2->hWnd);
 }
 
+BOOL sws_tshwnd_GetFlashState(sws_tshwnd* _this)
+{
+	return _this->bFlash;
+}
+
+void sws_tshwnd_SetFlashState(sws_tshwnd* _this, BOOL bFlash)
+{
+	_this->bFlash = bFlash;
+}
+
 sws_error_t sws_tshwnd_Initialize(sws_tshwnd* _this, HWND hWnd)
 {
 	sws_error_t rv = SWS_ERROR_SUCCESS;
@@ -32,6 +42,7 @@ sws_error_t sws_tshwnd_Initialize(sws_tshwnd* _this, HWND hWnd)
 	{
 		_this->hWnd = hWnd;
 		GetSystemTimeAsFileTime(&(_this->ft));
+		_this->bFlash = FALSE;
 	}
 
 	return rv;

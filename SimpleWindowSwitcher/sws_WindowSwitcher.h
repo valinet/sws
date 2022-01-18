@@ -75,6 +75,7 @@ typedef struct _sws_WindowSwitcher
     BOOL bIsInitialized;
     HWND hWndAccessible;
     IAccPropServices* pAccPropServices;
+    HBRUSH hFlashBrush;
 
     DWORD dwRowHeight;
     DWORD dwMaxWP;

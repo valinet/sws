@@ -702,10 +702,31 @@ void sws_WindowSwitcher_Paint(sws_WindowSwitcher* _this)
             StretchDIBits(hdcPaint, 0, 0, siz.cx, siz.cy, 0, 0, 1, 1, &bkcol, &bi, DIB_RGB_COLORS, SRCCOPY);
         }
 
+        // Draw flash rectangle
+        for (unsigned int i = 0; i < _this->layout.pWindowList.cbSize; ++i)
+        {
+            if (pWindowList && pWindowList[i].tshWnd && pWindowList[i].tshWnd->bFlash)
+            {
+                RECT rc = pWindowList[i].rcWindow;
+                rc.left += SWS_WINDOWSWITCHER_CONTOUR_SIZE;
+                rc.top += SWS_WINDOWSWITCHER_CONTOUR_SIZE;
+                rc.bottom -= SWS_WINDOWSWITCHER_CONTOUR_SIZE;
+                rc.right -= SWS_WINDOWSWITCHER_CONTOUR_SIZE;
+                _sws_WindowSwitcher_DrawContour(_this, hdcPaint, rc, SWS_CONTOUR_INNER, 0, sws_GetFlashRGB(_this->bIsDarkMode));
+            }
+        }
+
         // Draw highlight rectangle
         if (pWindowList)
         {
-            _sws_WindowSwitcher_DrawContour(_this, hdcPaint, pWindowList[_this->layout.iIndex].rcWindow, SWS_CONTOUR_INNER, SWS_WINDOWSWITCHER_CONTOUR_SIZE, bkcol);
+            _sws_WindowSwitcher_DrawContour(
+                _this, 
+                hdcPaint, 
+                pWindowList[_this->layout.iIndex].rcWindow, 
+                SWS_CONTOUR_INNER, 
+                SWS_WINDOWSWITCHER_CONTOUR_SIZE, 
+                (pWindowList[_this->layout.iIndex].tshWnd && pWindowList[_this->layout.iIndex].tshWnd->bFlash) ? sws_GetFlashRGB(_this->bIsDarkMode) : bkcol
+            );
         }
 
         // Draw hover rectangle
@@ -715,7 +736,14 @@ void sws_WindowSwitcher_Paint(sws_WindowSwitcher* _this)
             _this->cwMask & SWS_WINDOWFLAG_IS_ON_THUMBNAIL
             )
         {
-            _sws_WindowSwitcher_DrawContour(_this, hdcPaint, pWindowList[_this->cwIndex].rcThumbnail, SWS_CONTOUR_OUTER, SWS_WINDOWSWITCHER_HIGHLIGHT_SIZE, bkcol);
+            _sws_WindowSwitcher_DrawContour(
+                _this, 
+                hdcPaint, 
+                pWindowList[_this->cwIndex].rcThumbnail, 
+                SWS_CONTOUR_OUTER, 
+                SWS_WINDOWSWITCHER_HIGHLIGHT_SIZE, 
+                (pWindowList[_this->layout.iIndex].tshWnd && pWindowList[_this->layout.iIndex].tshWnd->bFlash) ? sws_GetFlashRGB(_this->bIsDarkMode) : bkcol
+            );
         }
 
         // Draw title
@@ -875,9 +903,16 @@ void sws_WindowSwitcher_Paint(sws_WindowSwitcher* _this)
                 INT h = pWindowList[i].rcIcon.bottom;
                 // I don't understand why this is necessary, but otherwise icons
                 // obtained from the file system have a black plate as background
-                RGBQUAD bkcol2 = bkcol;
+                RGBQUAD bkcol2 = (pWindowList[i].tshWnd && pWindowList[i].tshWnd->bFlash) ? sws_GetFlashRGB(_this->bIsDarkMode) : bkcol;
                 if (bkcol2.rgbReserved == 255) bkcol2.rgbReserved = 254;
-                sws_IconPainter_DrawIcon(pWindowList[i].hIcon, hdcPaint, _this->hBackgroundBrush, pGdipGraphics, x, y, w, h, bkcol2);
+                sws_IconPainter_DrawIcon(
+                    pWindowList[i].hIcon, 
+                    hdcPaint, 
+                    (pWindowList[i].tshWnd && pWindowList[i].tshWnd->bFlash) ? _this->hFlashBrush : _this->hBackgroundBrush,
+                    pGdipGraphics, 
+                    x, y, w, h, 
+                    bkcol2
+                );
             }
         }
         if (pGdipGraphics)
@@ -1070,6 +1105,21 @@ static void WINAPI _sws_WindowSwitcher_Show(sws_WindowSwitcher* _this)
         ShowWindow(_this->hWnd, SW_HIDE);
         return;
     }
+    sws_WindowSwitcherLayoutWindow* pWindowList = _this->layout.pWindowList.pList;
+    sws_tshwnd* tshwnd = malloc(sizeof(sws_tshwnd));
+    if (tshwnd)
+    {
+        for (int iCurrentWindow = _this->layout.pWindowList.cbSize - 1; iCurrentWindow >= 0; iCurrentWindow--)
+        {
+            sws_tshwnd_Initialize(tshwnd, pWindowList[iCurrentWindow].hWnd);
+            int rv = DPA_Search(_this->htshwnds, tshwnd, 0, sws_tshwnd_CompareHWND, 0, 0);
+            if (rv != -1)
+            {
+                pWindowList[iCurrentWindow].tshWnd = DPA_FastGetPtr(_this->htshwnds, rv);
+            }
+        }
+        free(tshwnd);
+    }
     _sws_WindowsSwitcher_DecideThumbnails(_this, _this->mode);
     if (!IsWindowVisible(_this->hWnd) && _this->dwShowDelay)
     {
@@ -1093,7 +1143,6 @@ static void WINAPI _sws_WindowSwitcher_Show(sws_WindowSwitcher* _this)
     {
         InvalidateRect(_this->hWnd, NULL, TRUE);
     }
-    sws_WindowSwitcherLayoutWindow* pWindowList = _this->layout.pWindowList.pList;
     for (int iCurrentWindow = _this->layout.pWindowList.cbSize - 1; iCurrentWindow >= 0; iCurrentWindow--)
     {
         if (pWindowList[iCurrentWindow].hIcon == sws_DefAppIcon)
@@ -1159,6 +1208,11 @@ static LRESULT _sws_WindowsSwitcher_WndProc(HWND hWnd, UINT uMsg, WPARAM wParam,
         _sws_WindowSwitcher_UpdateAccessibleText(_this);
         KillTimer(_this->hWnd, SWS_WINDOWSWITCHER_TIMER_UPDATEACCESSIBLETEXT);
     }
+    else if (uMsg == WM_TIMER && wParam == SWS_WINDOWSWITCHER_TIMER_NOTHEMEPAINT)
+    {
+        sws_WindowSwitcher_Paint(_this);
+        KillTimer(_this->hWnd, SWS_WINDOWSWITCHER_TIMER_NOTHEMEPAINT);
+    }
     else if (_this && uMsg == _this->msgShellHook && lParam)
     {
         if (wParam == HSHELL_WINDOWCREATED || wParam == HSHELL_WINDOWACTIVATED || wParam == HSHELL_RUDEAPPACTIVATED)
@@ -1181,6 +1235,7 @@ static LRESULT _sws_WindowsSwitcher_WndProc(HWND hWnd, UINT uMsg, WPARAM wParam,
                     {
                         free(tshwnd);
                         sws_tshwnd_UpdateTimestamp(DPA_FastGetPtr(_this->htshwnds, rv));
+                        sws_tshwnd_SetFlashState(DPA_FastGetPtr(_this->htshwnds, rv), FALSE);
                     }
                 }
             }
@@ -1198,6 +1253,7 @@ static LRESULT _sws_WindowsSwitcher_WndProc(HWND hWnd, UINT uMsg, WPARAM wParam,
                 {
                     free(tshwnd);
                     sws_tshwnd_UpdateTimestamp(DPA_FastGetPtr(_this->htshwnds, rv));
+                    sws_tshwnd_SetFlashState(DPA_FastGetPtr(_this->htshwnds, rv), FALSE);
                 }
             }
 
@@ -1214,6 +1270,18 @@ static LRESULT _sws_WindowsSwitcher_WndProc(HWND hWnd, UINT uMsg, WPARAM wParam,
                 int rv = DPA_Search(_this->htshwnds, tshwnd, 0, sws_tshwnd_CompareHWND, 0, 0);
                 if (rv != -1)
                 {
+                    sws_WindowSwitcherLayoutWindow* pWindowList = _this->layout.pWindowList.pList;
+                    if (pWindowList)
+                    {
+                        for (unsigned int i = 0; i < _this->layout.pWindowList.cbSize; ++i)
+                        {
+                            if (pWindowList[i].tshWnd == DPA_FastGetPtr(_this->htshwnds, rv))
+                            {
+                                pWindowList[i].tshWnd = NULL;
+                            }
+                        }
+                    }
+
                     free(DPA_FastGetPtr(_this->htshwnds, rv));
                     DPA_DeletePtr(_this->htshwnds, rv);
                 }
@@ -1240,6 +1308,70 @@ static LRESULT _sws_WindowsSwitcher_WndProc(HWND hWnd, UINT uMsg, WPARAM wParam,
 
 #if defined(DEBUG) | defined(_DEBUG)
             printf("[sws] tshwnd::remove: list count: %d\n", DPA_GetPtrCount(_this->htshwnds));
+#endif
+        }
+        else if (wParam == HSHELL_FLASH)
+        {
+            sws_tshwnd* tshwnd = malloc(sizeof(sws_tshwnd));
+            if (tshwnd)
+            {
+                sws_tshwnd_Initialize(tshwnd, lParam);
+                int rv = DPA_Search(_this->htshwnds, tshwnd, 0, sws_tshwnd_CompareHWND, 0, 0);
+                if (rv != -1)
+                {
+                    sws_tshwnd* found = DPA_FastGetPtr(_this->htshwnds, rv);
+                    if (!sws_tshwnd_GetFlashState(found))
+                    {
+                        sws_tshwnd_SetFlashState(found, TRUE);
+                        if (_this->dwTheme == SWS_WINDOWSWITCHER_THEME_NONE)
+                        {
+                            SetTimer(_this->hWnd, SWS_WINDOWSWITCHER_TIMER_NOTHEMEPAINT, SWS_WINDOWSWITCHER_TIMER_NOTHEMEPAINT_DELAY, NULL);
+                        }
+                        else
+                        {
+                            RedrawWindow(hWnd, NULL, NULL, RDW_INVALIDATE | RDW_INTERNALPAINT);
+                        }
+                    }
+                }
+                free(tshwnd);
+            }
+
+#if defined(DEBUG) | defined(_DEBUG)
+            WCHAR wn[200];
+            sws_InternalGetWindowText(lParam, wn, 200);
+            wprintf(L"[sws] Flash [[ %s ]]\n", wn);
+#endif
+        }
+        else if (wParam == HSHELL_REDRAW)
+        {
+            sws_tshwnd* tshwnd = malloc(sizeof(sws_tshwnd));
+            if (tshwnd)
+            {
+                sws_tshwnd_Initialize(tshwnd, lParam);
+                int rv = DPA_Search(_this->htshwnds, tshwnd, 0, sws_tshwnd_CompareHWND, 0, 0);
+                if (rv != -1)
+                {
+                    sws_tshwnd* found = DPA_FastGetPtr(_this->htshwnds, rv);
+                    if (sws_tshwnd_GetFlashState(found))
+                    {
+                        sws_tshwnd_SetFlashState(found, FALSE);
+                        if (_this->dwTheme == SWS_WINDOWSWITCHER_THEME_NONE)
+                        {
+                            SetTimer(_this->hWnd, SWS_WINDOWSWITCHER_TIMER_NOTHEMEPAINT, SWS_WINDOWSWITCHER_TIMER_NOTHEMEPAINT_DELAY, NULL);
+                        }
+                        else
+                        {
+                            RedrawWindow(hWnd, NULL, NULL, RDW_INVALIDATE | RDW_INTERNALPAINT);
+                        }
+                    }
+                }
+                free(tshwnd);
+            }
+
+#if defined(DEBUG) | defined(_DEBUG)
+            WCHAR wn[200];
+            sws_InternalGetWindowText(lParam, wn, 200);
+            wprintf(L"[sws] Don't flash [[ %s ]]\n", wn);
 #endif
         }
     }
@@ -1720,6 +1852,7 @@ __declspec(dllexport) void sws_WindowSwitcher_Clear(sws_WindowSwitcher* _this)
         BufferedPaintUnInit();
         UnregisterClassW(_T(SWS_WINDOWSWITCHER_CLASSNAME), GetModuleHandle(NULL));
         DeleteObject(_this->hBackgroundBrush);
+        DeleteObject(_this->hFlashBrush);
         DeleteObject(_this->hContourBrush);
         DeleteObject(_this->hCloseButtonBrush);
         CloseThemeData(_this->hTheme);
@@ -1837,6 +1970,7 @@ __declspec(dllexport) sws_error_t sws_WindowSwitcher_Initialize(sws_WindowSwitch
         sws_error_Report(sws_error_GetFromInternalError(sws_WindowHelpers_ShouldSystemUseDarkMode(&(_this->bIsDarkMode))), NULL);
         _this->hBackgroundBrush = (HBRUSH)CreateSolidBrush(RGB(0, 0, 0));
         _this->hContourBrush = (HBRUSH)CreateSolidBrush(_this->bIsDarkMode ? SWS_WINDOWSWITCHER_CONTOUR_COLOR : SWS_WINDOWSWITCHER_CONTOUR_COLOR_LIGHT);
+        _this->hFlashBrush = (HBRUSH)CreateSolidBrush(SWS_WINDOWSWITCHER_FLASH_COLOR);
         _this->hCloseButtonBrush = (HBRUSH)CreateSolidBrush(SWS_WINDOWSWITCHER_CLOSE_COLOR);
         _this->hTheme = OpenThemeData(NULL, _T(SWS_WINDOWSWITCHER_THEME_CLASS));
         _this->last_change = 0;

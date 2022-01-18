@@ -5,6 +5,7 @@
 #pragma comment(lib, "Dwmapi.lib")
 #include "sws_error.h"
 #include "sws_WindowHelpers.h"
+#include "sws_tshwnd.h"
 
 typedef struct _sws_WindowSwitcherLayoutWindow
 {
@@ -21,6 +22,7 @@ typedef struct _sws_WindowSwitcherLayoutWindow
     BOOL bIsUWP;
     BOOL bOwnProcess;
     WCHAR wszPath[MAX_PATH];
+    sws_tshwnd* tshWnd;
 } sws_WindowSwitcherLayoutWindow;
 
 void sws_WindowSwitcherLayoutWindow_Erase(sws_WindowSwitcherLayoutWindow* _this);

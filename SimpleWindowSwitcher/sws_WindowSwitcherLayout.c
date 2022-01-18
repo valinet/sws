@@ -596,6 +596,9 @@ sws_error_t sws_WindowSwitcherLayout_Initialize(
 			}
 			else
 			{
+				WCHAR wszRundll32Path[MAX_PATH];
+				GetSystemDirectoryW(wszRundll32Path, MAX_PATH);
+				wcscat_s(wszRundll32Path, MAX_PATH, L"\\rundll32.exe");
 				//HWND hWndForeground = GetForegroundWindow();
 				for (int i = pHWNDList->cbSize - 1; i >= 0; i--)
 				{
@@ -634,12 +637,12 @@ sws_error_t sws_WindowSwitcherLayout_Initialize(
 					{
 						continue;
 					}
-					if (!hWndTarget && settings[10] && !windowList[i].bIsApplicationFrameHost)
+					if (!hWndTarget && settings[10] && !windowList[i].bIsApplicationFrameHost && _wcsicmp(windowList[i].wszPath, wszRundll32Path))
 					{
 						BOOL bShouldContinue = FALSE;
 						for (int j = i - 1; j >= 0; j--)
 						{
-							if (windowList[i].dwProcessId == windowList[j].dwProcessId && !_wcsicmp(windowList[i].wszPath, windowList[j].wszPath))
+							if (windowList[i].dwProcessId == windowList[j].dwProcessId || !_wcsicmp(windowList[i].wszPath, windowList[j].wszPath))
 							{
 								bShouldContinue = TRUE;
 								break;

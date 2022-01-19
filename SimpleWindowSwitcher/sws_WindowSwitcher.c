@@ -1970,17 +1970,25 @@ static LRESULT _sws_WindowsSwitcher_WndProc(HWND hWnd, UINT uMsg, WPARAM wParam,
                                         {
                                             params->bUseApplicationIcon = TRUE;
                                         }
-                                        params->hWnd = _this->hWnd;
-                                        params->index = i;
-                                        if (!_this->layout.timestamp)
+                                        if (!params->bUseApplicationIcon)
                                         {
-                                            _this->layout.timestamp = sws_milliseconds_now();
+                                            params->hWnd = _this->hWnd;
+                                            params->index = i;
+                                            if (!_this->layout.timestamp)
+                                            {
+                                                _this->layout.timestamp = sws_milliseconds_now();
+                                            }
+                                            params->timestamp = _this->layout.timestamp;
+                                            params->bIsDesktop = (_this->layout.bIncludeWallpaper && pWindowList[i].hWnd == _this->hWndWallpaper);
+                                            if (!sws_IconPainter_ExtractAndDrawIconAsync(pWindowList[i].hWnd, params))
+                                            {
+                                                pWindowList[i].hIcon = sws_LegacyDefAppIcon;
+                                                free(params);
+                                                SendMessageW(_this->hWnd, SWS_WINDOWSWITCHER_PAINT_MSG, SWS_WINDOWSWITCHER_PAINTFLAGS_REDRAWENTIRE, 0);
+                                            }
                                         }
-                                        params->timestamp = _this->layout.timestamp;
-                                        params->bIsDesktop = (_this->layout.bIncludeWallpaper && pWindowList[i].hWnd == _this->hWndWallpaper);
-                                        if (!sws_IconPainter_ExtractAndDrawIconAsync(pWindowList[i].hWnd, params))
+                                        else
                                         {
-                                            pWindowList[i].hIcon = sws_LegacyDefAppIcon;
                                             free(params);
                                             SendMessageW(_this->hWnd, SWS_WINDOWSWITCHER_PAINT_MSG, SWS_WINDOWSWITCHER_PAINTFLAGS_REDRAWENTIRE, 0);
                                         }

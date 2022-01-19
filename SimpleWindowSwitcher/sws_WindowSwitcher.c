@@ -2131,36 +2131,43 @@ static LRESULT _sws_WindowsSwitcher_WndProc(HWND hWnd, UINT uMsg, WPARAM wParam,
                             }
                             _this->hLastClosedWnds = DPA_Create(SWS_VECTOR_CAPACITY);
 
-                            sws_WindowSwitcherLayout layout;
-                            sws_WindowSwitcherLayout_Initialize(
-                                &layout,
-                                _this->hMonitor,
-                                _this->hWnd,
-                                &(_this->dwRowHeight),
-                                &(_this->pHWNDList),
-                                pWindowList[i].hWnd,
-                                _this->hWndWallpaper
-                            );
-                            sws_WindowSwitcherLayoutWindow* pTestList = layout.pWindowList.pList;
-                            for (unsigned int j = 0; j < layout.pWindowList.cbSize; ++j)
+                            if (_this->bSwitcherIsPerApplication && _this->mode == SWS_WINDOWSWITCHER_LAYOUTMODE_FULL)
                             {
-                                DWORD jPID;
-                                GetWindowThreadProcessId(pTestList[j].hWnd, &jPID);
-                                BOOL bShouldInclude = FALSE;
-                                if (!_this->bSwitcherIsPerApplication)
+                                sws_WindowSwitcherLayout layout;
+                                sws_WindowSwitcherLayout_Initialize(
+                                    &layout,
+                                    _this->hMonitor,
+                                    _this->hWnd,
+                                    &(_this->dwRowHeight),
+                                    &(_this->pHWNDList),
+                                    pWindowList[i].hWnd,
+                                    _this->hWndWallpaper
+                                );
+                                sws_WindowSwitcherLayoutWindow* pTestList = layout.pWindowList.pList;
+                                for (unsigned int j = 0; j < layout.pWindowList.cbSize; ++j)
                                 {
-                                    bShouldInclude = (j == i);
+                                    DWORD jPID;
+                                    GetWindowThreadProcessId(pTestList[j].hWnd, &jPID);
+                                    BOOL bShouldInclude = FALSE;
+                                    if (!_this->bSwitcherIsPerApplication)
+                                    {
+                                        bShouldInclude = (j == i);
+                                    }
+                                    else
+                                    {
+                                        bShouldInclude = (iPID == jPID || !_wcsicmp(pWindowList[i].wszPath, pTestList[j].wszPath));
+                                    }
+                                    if (bShouldInclude)
+                                    {
+                                        DPA_AppendPtr(_this->hLastClosedWnds, pTestList[j].hWnd);
+                                    }
                                 }
-                                else
-                                {
-                                    bShouldInclude = (iPID == jPID || !_wcsicmp(pWindowList[i].wszPath, pTestList[j].wszPath));
-                                }
-                                if (bShouldInclude)
-                                {
-                                    DPA_AppendPtr(_this->hLastClosedWnds, pTestList[j].hWnd);
-                                }
+                                sws_WindowSwitcherLayout_Clear(&layout);
                             }
-                            sws_WindowSwitcherLayout_Clear(&layout);
+                            else
+                            {
+                                DPA_AppendPtr(_this->hLastClosedWnds, pWindowList[i].hWnd);
+                            }
                             for (unsigned j = 0; j < DPA_GetPtrCount(_this->hLastClosedWnds); ++j)
                             {
                                 HWND hWnd = DPA_FastGetPtr(_this->hLastClosedWnds, j);

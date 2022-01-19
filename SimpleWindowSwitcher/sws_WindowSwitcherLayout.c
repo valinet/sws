@@ -209,9 +209,53 @@ sws_error_t sws_WindowSwitcherLayout_ComputeLayout(sws_WindowSwitcherLayout* _th
 				//GetWindowTextW(pWindowList[iCurrentWindow].hWnd, name, 200);
 				//wprintf(L"%s %d %f %d\n", name, cbCurrentLeft, width, cbMaxWidth);
 
+				BOOL bPreventSingleItemOnLastRow = FALSE;
+				if (iCurrentWindow == 1)
+				{
+					HTHUMBNAIL hThumbnail = NULL;
+					DwmRegisterThumbnail(
+						_this->hWnd,
+						pWindowList[0].hWnd,
+						&hThumbnail
+					);
+					SIZE sz;
+					sz.cx = 0;
+					sz.cy = 0;
+					if (hThumbnail)
+					{
+						DwmQueryThumbnailSourceSize(hThumbnail, &sz);
+						DwmUnregisterThumbnail(hThumbnail);
+					}
+					unsigned int next_width = 0;
+					if (_this->bIncludeWallpaper && pWindowList[0].hWnd == _this->hWndWallpaper)
+					{
+						next_width = ((_this->mi.rcMonitor.right - _this->mi.rcMonitor.left) *
+							_this->cbThumbnailAvailableHeight) /
+							(_this->mi.rcMonitor.bottom - _this->mi.rcMonitor.top);
+					}
+					else
+					{
+						next_width = ((sz.cx) *
+							_this->cbThumbnailAvailableHeight) /
+							(sz.cy);
+					}
+					if (next_width > _this->cbMaxTileWidth || next_width > sz.cx)
+					{
+						if (next_width > _this->cbMaxTileWidth)
+						{
+							next_width = _this->cbMaxTileWidth;
+						}
+						if (next_width > sz.cx)
+						{
+							next_width = sz.cx;
+						}
+					}
+					bPreventSingleItemOnLastRow = (cbCurrentLeft + width + next_width + _sws_WindowSwitcherLayout_GetRightIncrement(_this) * 2 - _sws_WindowSwitcherLayout_GetInitialLeft(_this)) > (cbMaxWidth - _this->cbMasterRightPadding);
+				}
 
 				//if (cbCurrentLeft + width + _this->cbRightPadding + _this->cbPadding > cbMaxWidth) !!!!!
-				if (cbCurrentLeft + width + _sws_WindowSwitcherLayout_GetRightIncrement(_this) - _sws_WindowSwitcherLayout_GetInitialLeft(_this) > cbMaxWidth - _this->cbMasterRightPadding)
+				if (bPreventSingleItemOnLastRow ||
+					(cbCurrentLeft + width + _sws_WindowSwitcherLayout_GetRightIncrement(_this) - _sws_WindowSwitcherLayout_GetInitialLeft(_this) > cbMaxWidth - _this->cbMasterRightPadding))
 				{
 					if (!bFinishedLayout)
 					{

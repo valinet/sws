@@ -2,166 +2,148 @@
 
 static void _sws_WindowSwitcher_UpdateAccessibleText(sws_WindowSwitcher* _this)
 {
-    if (!_this->layout.pWindowList.cbSize)
+    sws_WindowSwitcherLayoutWindow* pWindowList = _this->layout.pWindowList.pList;
+    if (pWindowList)
     {
-        SetWindowTextW(_this->hWndAccessible, L"");
-    }
-    else
-    {
-        sws_WindowSwitcherLayoutWindow* pWindowList = _this->layout.pWindowList.pList;
-        WCHAR wszAccText[MAX_PATH * 2], wszTitle[MAX_PATH];
-        ZeroMemory(wszAccText, MAX_PATH * 2 * sizeof(WCHAR));
-        ZeroMemory(wszTitle, MAX_PATH * sizeof(WCHAR));
-        if (_this->layout.bIncludeWallpaper && pWindowList[_this->layout.iIndex].hWnd == _this->layout.hWndWallpaper)
+        if (!_this->layout.pWindowList.cbSize)
         {
-            sws_WindowHelpers_GetDesktopText(wszTitle);
+            SetWindowTextW(_this->hWndAccessible, L"");
         }
         else
         {
-            WCHAR wszRundll32Path[MAX_PATH];
-            GetSystemDirectoryW(wszRundll32Path, MAX_PATH);
-            wcscat_s(wszRundll32Path, MAX_PATH, L"\\rundll32.exe");
-            if (_this->bAlwaysUseWindowTitleAndIcon || _this->mode != SWS_WINDOWSWITCHER_LAYOUTMODE_FULL || !_this->bSwitcherIsPerApplication || pWindowList[_this->layout.iIndex].bIsUWP || !pWindowList[_this->layout.iIndex].wszPath || (pWindowList[_this->layout.iIndex].wszPath && !_wcsicmp(pWindowList[_this->layout.iIndex].wszPath, wszRundll32Path)))
+            WCHAR wszAccText[MAX_PATH * 2], wszTitle[MAX_PATH];
+            ZeroMemory(wszAccText, MAX_PATH * 2 * sizeof(WCHAR));
+            ZeroMemory(wszTitle, MAX_PATH * sizeof(WCHAR));
+            if (_this->layout.bIncludeWallpaper && pWindowList[_this->layout.iIndex].hWnd == _this->layout.hWndWallpaper)
             {
-                sws_WindowHelpers_GetWindowText(pWindowList[_this->layout.iIndex].hWnd, wszTitle, MAX_PATH);
+                sws_WindowHelpers_GetDesktopText(wszTitle);
             }
             else
             {
-                DWORD dwCount = 0;
-                DWORD iPID;
-                GetWindowThreadProcessId(pWindowList[_this->layout.iIndex].hWnd, &iPID);
-                sws_WindowSwitcherLayout layout;
-                sws_WindowSwitcherLayout_Initialize(
-                    &layout,
-                    _this->hMonitor,
-                    _this->hWnd,
-                    &(_this->dwRowHeight),
-                    &(_this->pHWNDList),
-                    pWindowList[_this->layout.iIndex].hWnd,
-                    _this->hWndWallpaper
-                );
-                sws_WindowSwitcherLayoutWindow* pTestList = layout.pWindowList.pList;
-                for (unsigned int j = 0; j < layout.pWindowList.cbSize; ++j)
+                WCHAR wszRundll32Path[MAX_PATH];
+                GetSystemDirectoryW(wszRundll32Path, MAX_PATH);
+                wcscat_s(wszRundll32Path, MAX_PATH, L"\\rundll32.exe");
+                if (_this->bAlwaysUseWindowTitleAndIcon || _this->mode != SWS_WINDOWSWITCHER_LAYOUTMODE_FULL || !_this->bSwitcherIsPerApplication || pWindowList[_this->layout.iIndex].bIsUWP || !pWindowList[_this->layout.iIndex].wszPath || (pWindowList[_this->layout.iIndex].wszPath && !_wcsicmp(pWindowList[_this->layout.iIndex].wszPath, wszRundll32Path)))
                 {
-                    DWORD jPID;
-                    GetWindowThreadProcessId(pTestList[j].hWnd, &jPID);
-                    dwCount += ((iPID == jPID || !_wcsicmp(pWindowList[_this->layout.iIndex].wszPath, pTestList[j].wszPath)) ? 1 : 0);
+                    sws_WindowHelpers_GetWindowText(pWindowList[_this->layout.iIndex].hWnd, wszTitle, MAX_PATH);
                 }
-                sws_WindowSwitcherLayout_Clear(&layout);
-                if (dwCount > 1)
+                else
                 {
-                    DWORD dwPrefixLen = 0;
-                    //swprintf_s(wszTitle, MAX_PATH, L"%d: ", dwCount);
-                    dwPrefixLen = 0;// wcslen(wszTitle);
-                    WCHAR wszExplorerPath[MAX_PATH];
-                    GetWindowsDirectoryW(wszExplorerPath, MAX_PATH);
-                    wcscat_s(wszExplorerPath, MAX_PATH, L"\\explorer.exe");
-                    if (pWindowList[_this->layout.iIndex].wszPath && !_wcsicmp(wszExplorerPath, pWindowList[_this->layout.iIndex].wszPath))
+                    if (pWindowList[_this->layout.iIndex].dwCount > 1)
                     {
-                        HANDLE hExplorer = GetModuleHandleW(NULL);
-                        if (hExplorer)
+                        DWORD dwPrefixLen = 0;
+                        //swprintf_s(wszTitle, MAX_PATH, L"%d: ", dwCount);
+                        dwPrefixLen = 0;// wcslen(wszTitle);
+                        WCHAR wszExplorerPath[MAX_PATH];
+                        GetWindowsDirectoryW(wszExplorerPath, MAX_PATH);
+                        wcscat_s(wszExplorerPath, MAX_PATH, L"\\explorer.exe");
+                        if (pWindowList[_this->layout.iIndex].wszPath && !_wcsicmp(wszExplorerPath, pWindowList[_this->layout.iIndex].wszPath))
                         {
-                            LoadStringW(hExplorer, 6020, wszTitle + dwPrefixLen, MAX_PATH - dwPrefixLen);
-                        }
-                        if (!hExplorer || !wszTitle)
-                        {
-                            wcscat_s(wszTitle + dwPrefixLen, MAX_PATH - dwPrefixLen, L"File Explorer");
-                        }
-                    }
-                    else
-                    {
-                        IShellItem2* pIShellItem2 = NULL;
-                        if (SUCCEEDED(SHCreateItemFromParsingName(pWindowList[_this->layout.iIndex].wszPath, NULL, &IID_IShellItem2, &pIShellItem2)))
-                        {
-                            LPWSTR wszOutText = NULL;
-                            if (SUCCEEDED(pIShellItem2->lpVtbl->GetString(pIShellItem2, &PKEY_FileDescription, &wszOutText)))
+                            HANDLE hExplorer = GetModuleHandleW(NULL);
+                            if (hExplorer)
                             {
-                                int len = wcslen(wszOutText);
-                                if (len >= 4 && wszOutText[len - 1] == L'e' && wszOutText[len - 2] == L'x' && wszOutText[len - 3] == L'e' && wszOutText[len - 4] == L'.')
+                                LoadStringW(hExplorer, 6020, wszTitle + dwPrefixLen, MAX_PATH - dwPrefixLen);
+                            }
+                            if (!hExplorer || !wszTitle)
+                            {
+                                wcscat_s(wszTitle + dwPrefixLen, MAX_PATH - dwPrefixLen, L"File Explorer");
+                            }
+                        }
+                        else
+                        {
+                            IShellItem2* pIShellItem2 = NULL;
+                            if (SUCCEEDED(SHCreateItemFromParsingName(pWindowList[_this->layout.iIndex].wszPath, NULL, &IID_IShellItem2, &pIShellItem2)))
+                            {
+                                LPWSTR wszOutText = NULL;
+                                if (SUCCEEDED(pIShellItem2->lpVtbl->GetString(pIShellItem2, &PKEY_FileDescription, &wszOutText)))
                                 {
-                                    CoTaskMemFree(wszOutText);
-                                    if (SUCCEEDED(pIShellItem2->lpVtbl->GetString(pIShellItem2, &PKEY_Software_ProductName, &wszOutText)))
+                                    int len = wcslen(wszOutText);
+                                    if (len >= 4 && wszOutText[len - 1] == L'e' && wszOutText[len - 2] == L'x' && wszOutText[len - 3] == L'e' && wszOutText[len - 4] == L'.')
+                                    {
+                                        CoTaskMemFree(wszOutText);
+                                        if (SUCCEEDED(pIShellItem2->lpVtbl->GetString(pIShellItem2, &PKEY_Software_ProductName, &wszOutText)))
+                                        {
+                                            wcscpy_s(wszTitle + dwPrefixLen, MAX_PATH - dwPrefixLen, wszOutText);
+                                            CoTaskMemFree(wszOutText);
+                                        }
+                                        else
+                                        {
+                                            sws_WindowHelpers_GetWindowText(pWindowList[_this->layout.iIndex].hWnd, wszTitle + dwPrefixLen, MAX_PATH - dwPrefixLen);
+                                        }
+                                    }
+                                    else
                                     {
                                         wcscpy_s(wszTitle + dwPrefixLen, MAX_PATH - dwPrefixLen, wszOutText);
                                         CoTaskMemFree(wszOutText);
                                     }
-                                    else
-                                    {
-                                        sws_WindowHelpers_GetWindowText(pWindowList[_this->layout.iIndex].hWnd, wszTitle + dwPrefixLen, MAX_PATH - dwPrefixLen);
-                                    }
                                 }
                                 else
                                 {
-                                    wcscpy_s(wszTitle + dwPrefixLen, MAX_PATH - dwPrefixLen, wszOutText);
-                                    CoTaskMemFree(wszOutText);
+                                    sws_WindowHelpers_GetWindowText(pWindowList[_this->layout.iIndex].hWnd, wszTitle + dwPrefixLen, MAX_PATH - dwPrefixLen);
                                 }
+                                pIShellItem2->lpVtbl->Release(pIShellItem2);
+                            }
+                        }
+                        WCHAR wszTitle2[MAX_PATH];
+                        wcscpy_s(wszTitle2, MAX_PATH, wszTitle);
+
+                        WCHAR wszFormat[MAX_PATH];
+                        HANDLE hExplorer = GetModuleHandleW(NULL);
+                        if (hExplorer)
+                        {
+                            if (pWindowList[_this->layout.iIndex].dwCount)
+                            {
+                                LoadStringW(hExplorer, 11115, wszFormat, MAX_PATH);
                             }
                             else
                             {
-                                sws_WindowHelpers_GetWindowText(pWindowList[_this->layout.iIndex].hWnd, wszTitle + dwPrefixLen, MAX_PATH - dwPrefixLen);
+                                LoadStringW(hExplorer, 11114, wszFormat, MAX_PATH);
                             }
-                            pIShellItem2->lpVtbl->Release(pIShellItem2);
                         }
-                    }
-                    WCHAR wszTitle2[MAX_PATH];
-                    wcscpy_s(wszTitle2, MAX_PATH, wszTitle);
+                        if (!hExplorer || !wszFormat)
+                        {
+                            if (pWindowList[_this->layout.iIndex].dwCount)
+                            {
+                                wcscat_s(wszFormat, MAX_PATH, L"%s - %d running windows");
+                            }
+                            else
+                            {
+                                wcscat_s(wszFormat, MAX_PATH, L"%s - 1 running window");
+                            }
 
-                    WCHAR wszFormat[MAX_PATH];
-                    HANDLE hExplorer = GetModuleHandleW(NULL);
-                    if (hExplorer)
-                    {
-                        if (dwCount)
+                        }
+                        if (pWindowList[_this->layout.iIndex].dwCount)
                         {
-                            LoadStringW(hExplorer, 11115, wszFormat, MAX_PATH);
+                            swprintf_s(wszTitle, MAX_PATH, wszFormat, wszTitle2, pWindowList[_this->layout.iIndex].dwCount);
                         }
                         else
                         {
-                            LoadStringW(hExplorer, 11114, wszFormat, MAX_PATH);
+                            swprintf_s(wszTitle, MAX_PATH, wszFormat, wszTitle2);
                         }
-                    }
-                    if (!hExplorer || !wszFormat)
-                    {
-                        if (dwCount)
-                        {
-                            wcscat_s(wszFormat, MAX_PATH, L"%s - %d running windows");
-                        }
-                        else
-                        {
-                            wcscat_s(wszFormat, MAX_PATH, L"%s - 1 running window");
-                        }
-                        
-                    }
-                    if (dwCount)
-                    {
-                        swprintf_s(wszTitle, MAX_PATH, wszFormat, wszTitle2, dwCount);
                     }
                     else
                     {
-                        swprintf_s(wszTitle, MAX_PATH, wszFormat, wszTitle2);
+                        sws_WindowHelpers_GetWindowText(pWindowList[_this->layout.iIndex].hWnd, wszTitle, MAX_PATH);
                     }
                 }
-                else
-                {
-                    sws_WindowHelpers_GetWindowText(pWindowList[_this->layout.iIndex].hWnd, wszTitle, MAX_PATH);
-                }
             }
+            swprintf_s(
+                wszAccText,
+                MAX_PATH * 2,
+                L"%s: %d out of %d",
+                wszTitle,
+                _this->layout.pWindowList.cbSize - _this->layout.iIndex,
+                _this->layout.pWindowList.cbSize
+            );
+            //wprintf(L"[sws] Accesible text: %s.\n", wszAccText);
+            SetWindowTextW(_this->hWndAccessible, wszAccText);
+            NotifyWinEvent(
+                EVENT_OBJECT_LIVEREGIONCHANGED,
+                _this->hWndAccessible,
+                OBJID_CLIENT,
+                CHILDID_SELF
+            );
         }
-        swprintf_s(
-            wszAccText,
-            MAX_PATH * 2,
-            L"%s: %d out of %d",
-            wszTitle,
-            _this->layout.pWindowList.cbSize - _this->layout.iIndex,
-            _this->layout.pWindowList.cbSize
-        );
-        //wprintf(L"[sws] Accesible text: %s.\n", wszAccText);
-        SetWindowTextW(_this->hWndAccessible, wszAccText);
-        NotifyWinEvent(
-            EVENT_OBJECT_LIVEREGIONCHANGED,
-            _this->hWndAccessible,
-            OBJID_CLIENT,
-            CHILDID_SELF
-        );
     }
 }
 
@@ -1040,31 +1022,10 @@ void sws_WindowSwitcher_Paint(sws_WindowSwitcher* _this, DWORD dwFlags)
                     }
                     else
                     {
-                        DWORD dwCount = 0;
-                        DWORD iPID;
-                        GetWindowThreadProcessId(pWindowList[i].hWnd, &iPID);
-                        sws_WindowSwitcherLayout layout;
-                        sws_WindowSwitcherLayout_Initialize(
-                            &layout,
-                            _this->hMonitor,
-                            _this->hWnd,
-                            &(_this->dwRowHeight),
-                            &(_this->pHWNDList),
-                            pWindowList[i].hWnd,
-                            _this->hWndWallpaper
-                        );
-                        sws_WindowSwitcherLayoutWindow* pTestList = layout.pWindowList.pList;
-                        for (unsigned int j = 0; j < layout.pWindowList.cbSize; ++j)
-                        {
-                            DWORD jPID;
-                            GetWindowThreadProcessId(pTestList[j].hWnd, &jPID);
-                            dwCount += ((iPID == jPID || !_wcsicmp(pWindowList[i].wszPath, pTestList[j].wszPath)) ? 1 : 0);
-                        }
-                        sws_WindowSwitcherLayout_Clear(&layout);
-                        if (dwCount > 1)
+                        if (pWindowList[i].dwCount > 1)
                         {
                             DWORD dwPrefixLen = 0;
-                            swprintf_s(wszTitle, MAX_PATH, L"(%d) ", dwCount);
+                            swprintf_s(wszTitle, MAX_PATH, L"(%d) ", pWindowList[i].dwCount);
                             dwPrefixLen = wcslen(wszTitle);
                             WCHAR wszExplorerPath[MAX_PATH];
                             GetWindowsDirectoryW(wszExplorerPath, MAX_PATH);
@@ -1554,6 +1515,27 @@ static void WINAPI _sws_WindowSwitcher_Show(sws_WindowSwitcher* _this)
     }
     for (int iCurrentWindow = _this->layout.pWindowList.cbSize - 1; iCurrentWindow >= 0; iCurrentWindow--)
     {
+        DWORD iPID;
+        GetWindowThreadProcessId(pWindowList[iCurrentWindow].hWnd, &iPID);
+        sws_WindowSwitcherLayout layout;
+        sws_WindowSwitcherLayout_Initialize(
+            &layout,
+            _this->hMonitor,
+            _this->hWnd,
+            &(_this->dwRowHeight),
+            &(_this->pHWNDList),
+            pWindowList[iCurrentWindow].hWnd,
+            _this->hWndWallpaper
+        );
+        sws_WindowSwitcherLayoutWindow* pTestList = layout.pWindowList.pList;
+        for (unsigned int j = 0; j < layout.pWindowList.cbSize; ++j)
+        {
+            DWORD jPID;
+            GetWindowThreadProcessId(pTestList[j].hWnd, &jPID);
+            pWindowList[iCurrentWindow].dwCount += ((iPID == jPID || !_wcsicmp(pWindowList[iCurrentWindow].wszPath, pTestList[j].wszPath)) ? 1 : 0);
+        }
+        sws_WindowSwitcherLayout_Clear(&layout);
+
         if (pWindowList[iCurrentWindow].hIcon == sws_DefAppIcon)
         {
             sws_IconPainter_CallbackParams* params = malloc(sizeof(sws_IconPainter_CallbackParams));
@@ -1562,7 +1544,16 @@ static void WINAPI _sws_WindowSwitcher_Show(sws_WindowSwitcher* _this)
                 WCHAR wszRundll32Path[MAX_PATH];
                 GetSystemDirectoryW(wszRundll32Path, MAX_PATH);
                 wcscat_s(wszRundll32Path, MAX_PATH, L"\\rundll32.exe");
-                params->bUseApplicationIcon = !(_this->bAlwaysUseWindowTitleAndIcon || _this->mode != SWS_WINDOWSWITCHER_LAYOUTMODE_FULL || !_this->bSwitcherIsPerApplication || pWindowList[iCurrentWindow].bIsUWP || !pWindowList[iCurrentWindow].wszPath || (pWindowList[iCurrentWindow].wszPath && !_wcsicmp(pWindowList[iCurrentWindow].wszPath, wszRundll32Path)));
+                params->bUseApplicationIcon = FALSE;
+                if (!_this->bAlwaysUseWindowTitleAndIcon &&
+                    !(pWindowList[iCurrentWindow].wszPath && !_wcsicmp(pWindowList[iCurrentWindow].wszPath, wszRundll32Path)) &&
+                    !pWindowList[iCurrentWindow].bIsUWP &&
+                    _this->bSwitcherIsPerApplication &&
+                    _this->mode == SWS_WINDOWSWITCHER_LAYOUTMODE_FULL &&
+                    pWindowList[iCurrentWindow].dwCount > 1)
+                {
+                    params->bUseApplicationIcon = TRUE;
+                }
                 params->hWnd = _this->hWnd;
                 params->index = iCurrentWindow;
                 if (!_this->layout.timestamp)
@@ -1969,7 +1960,16 @@ static LRESULT _sws_WindowsSwitcher_WndProc(HWND hWnd, UINT uMsg, WPARAM wParam,
                                         WCHAR wszRundll32Path[MAX_PATH];
                                         GetSystemDirectoryW(wszRundll32Path, MAX_PATH);
                                         wcscat_s(wszRundll32Path, MAX_PATH, L"\\rundll32.exe");
-                                        params->bUseApplicationIcon = !(_this->bAlwaysUseWindowTitleAndIcon || _this->mode != SWS_WINDOWSWITCHER_LAYOUTMODE_FULL || !_this->bSwitcherIsPerApplication || pWindowList[i].bIsUWP || !pWindowList[i].wszPath || (pWindowList[i].wszPath && !_wcsicmp(pWindowList[i].wszPath, wszRundll32Path)));
+                                        params->bUseApplicationIcon = FALSE;
+                                        if (!_this->bAlwaysUseWindowTitleAndIcon &&
+                                            !(pWindowList[i].wszPath && !_wcsicmp(pWindowList[i].wszPath, wszRundll32Path)) &&
+                                            !pWindowList[i].bIsUWP && 
+                                            _this->bSwitcherIsPerApplication && 
+                                            _this->mode == SWS_WINDOWSWITCHER_LAYOUTMODE_FULL && 
+                                            pWindowList[i].dwCount > 1)
+                                        {
+                                            params->bUseApplicationIcon = TRUE;
+                                        }
                                         params->hWnd = _this->hWnd;
                                         params->index = i;
                                         if (!_this->layout.timestamp)

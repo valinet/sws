@@ -686,7 +686,7 @@ sws_error_t sws_WindowSwitcherLayout_Initialize(
 						BOOL bShouldContinue = FALSE;
 						for (int j = i - 1; j >= 0; j--)
 						{
-							if (windowList[i].dwProcessId == windowList[j].dwProcessId || !_wcsicmp(windowList[i].wszPath, windowList[j].wszPath))
+							if (sws_WindowHelpers_IsAltTabWindow(windowList[j].hWnd) && (windowList[i].dwProcessId == windowList[j].dwProcessId || !_wcsicmp(windowList[i].wszPath, windowList[j].wszPath)))
 							{
 								bShouldContinue = TRUE;
 								break;

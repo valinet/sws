@@ -17,12 +17,15 @@ HMODULE _sws_hShlwapi = 0;
 HMODULE _sws_hWin32u = 0;
 HINSTANCE _sws_hUser32 = 0;
 HINSTANCE _sws_hUxtheme = 0;
+HINSTANCE _sws_hShcore = 0;
 pHungWindowFromGhostWindow _sws_HungWindowFromGhostWindow;
 pGhostWindowFromHungWindow _sws_GhostWindowFromHungWindow;
 pInternalGetWindowIcon _sws_InternalGetWindowIcon;
 pIsCoreWindow _sws_IsCoreWindow;
 FARPROC sws_SHRegGetValueFromHKCUHKLM;
 FARPROC sws_LoadIconWithScaleDown;
+BOOL (*sws_SHWindowsPolicy)(REFGUID riid);
+DEFINE_GUID(POLID_TurnOffSPIAnimations, 0xD7AF00A, 0xB468, 0x4A39, 0xB0, 0x16, 0x33, 0x3E, 0x22, 0x77, 0xAB, 0xED);
 
 sws_error_t sws_WindowHelpers_PermitDarkMode(HWND hWnd)
 {
@@ -561,12 +564,12 @@ BOOL CALLBACK sws_WindowHelpers_AddAltTabWindowsToTimeStampedHWNDList(HWND hWnd,
 	}
 	if (sws_WindowHelpers_IsAltTabWindow(hWnd, NULL))
 	{
-		sws_tshwnd* tshwnd = malloc(sizeof(sws_tshwnd));
-		if (tshwnd)
+		sws_tshwnd* tshWnd = malloc(sizeof(sws_tshwnd));
+		if (tshWnd)
 		{
-			sws_tshwnd_Initialize(tshwnd, hWnd);
-			sws_tshwnd_ModifyTimestamp(tshwnd, sws_WindowHelpers_GetStartTime());
-			DPA_AppendPtr(hdpa, tshwnd);
+			sws_tshwnd_Initialize(tshWnd, hWnd);
+			sws_tshwnd_ModifyTimestamp(tshWnd, sws_WindowHelpers_GetStartTime());
+			DPA_AppendPtr(hdpa, tshWnd);
 		}
 	}
 	return TRUE;
@@ -636,6 +639,31 @@ HBITMAP sws_WindowHelpers_CreateAlphaTextBitmap(LPCWSTR inText, HFONT inFont, DW
 	return hMyDIB;
 }
 
+BOOL sws_WindowHelpers_AreAnimationsAllowed()
+{
+	if (sws_SHWindowsPolicy(&POLID_TurnOffSPIAnimations))
+	{
+		return FALSE;
+	}
+
+	BOOL bAnimationsEnabled = FALSE;
+	SystemParametersInfoW(SPI_GETCLIENTAREAANIMATION, 0, &bAnimationsEnabled, 0);
+	return bAnimationsEnabled;
+}
+
+void sws_WindowHelpers_GetWindowText(HWND hWnd, LPCWSTR lpWStr, DWORD dwLength)
+{
+	HWND hWndGhost = _sws_GhostWindowFromHungWindow(hWnd);
+	if (hWndGhost)
+	{
+		sws_InternalGetWindowText(hWndGhost, lpWStr, dwLength);
+	}
+	else
+	{
+		sws_InternalGetWindowText(hWnd, lpWStr, dwLength);
+	}
+}
+
 void sws_WindowHelpers_Clear()
 {
 	GdiplusShutdown(_sws_gdiplus_token);
@@ -663,6 +691,10 @@ void sws_WindowHelpers_Clear()
 	if (_sws_hComctl32)
 	{
 		FreeLibrary(_sws_hComctl32);
+	}
+	if (_sws_hShcore)
+	{
+		FreeLibrary(_sws_hShcore);
 	}
 }
 
@@ -700,7 +732,14 @@ sws_error_t sws_WindowHelpers_Initialize()
 			(int)128,
 			(HICON*)(&(sws_DefAppIcon))
 		);
-		sws_LegacyDefAppIcon = LoadIconW(NULL, MAKEINTRESOURCEW(IDI_APPLICATION));
+		sws_LoadIconWithScaleDown(
+			(HINSTANCE)NULL,
+			(PCWSTR)MAKEINTRESOURCEW(IDI_APPLICATION),
+			(int)128,
+			(int)128,
+			(HICON*)(&(sws_LegacyDefAppIcon))
+		);
+		//sws_LegacyDefAppIcon = LoadIconW(NULL, MAKEINTRESOURCEW(IDI_APPLICATION));
 	}
 	if (!rv)
 	{
@@ -952,6 +991,28 @@ sws_error_t sws_WindowHelpers_Initialize()
 		{
 			_sws_RefreshImmersiveColorPolicyState = GetProcAddress(_sws_hUxtheme, (LPCSTR)104);
 			if (!_sws_RefreshImmersiveColorPolicyState)
+			{
+				rv = sws_error_Report(sws_error_GetFromInternalError(SWS_ERROR_FUNCTION_NOT_FOUND), NULL);
+			}
+		}
+	}
+	if (!rv)
+	{
+		if (!_sws_hShcore)
+		{
+			_sws_hShcore = LoadLibraryW(L"shcore.dll");
+			if (!_sws_hShcore)
+			{
+				rv = sws_error_Report(sws_error_GetFromInternalError(SWS_ERROR_LOADLIBRARY_FAILED), NULL);
+			}
+		}
+	}
+	if (!rv)
+	{
+		if (!sws_SHWindowsPolicy)
+		{
+			sws_SHWindowsPolicy = GetProcAddress(_sws_hShcore, (LPCSTR)190);
+			if (!sws_SHWindowsPolicy)
 			{
 				rv = sws_error_Report(sws_error_GetFromInternalError(SWS_ERROR_FUNCTION_NOT_FOUND), NULL);
 			}

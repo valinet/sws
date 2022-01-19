@@ -76,6 +76,16 @@ typedef struct _sws_WindowSwitcher
     HWND hWndAccessible;
     IAccPropServices* pAccPropServices;
     HBRUSH hFlashBrush;
+    DWORD dwPaintFlags;
+    HANDLE hFlashAnimationThread;
+    HANDLE hFlashAnimationSignal;
+    HDC hdcWindow;
+    HDC hdcPaint;
+    HPAINTBUFFER hBufferedPaint;
+    INT cwOldIndex;
+    DWORD cwOldMask;
+    HDPA hLastClosedWnds;
+    long long lastUpdateTime;
 
     DWORD dwRowHeight;
     DWORD dwMaxWP;
@@ -90,6 +100,13 @@ typedef struct _sws_WindowSwitcher
     DWORD bSwitcherIsPerApplication;
     DWORD bAlwaysUseWindowTitleAndIcon;
 } sws_WindowSwitcher;
+
+typedef struct _sws_WindowSwitcher_EndTaskThreadParams
+{
+    HWND hWnd;
+    sws_WindowSwitcher* sws;
+    HDESK hDesktop;
+} sws_WindowSwitcher_EndTaskThreadParams;
 
 static void _sws_WindowSwitcher_UpdateAccessibleText(sws_WindowSwitcher* _this);
 
@@ -119,7 +136,7 @@ __declspec(dllexport) void sws_WindowSwitcher_Clear(sws_WindowSwitcher* _this);
 
 __declspec(dllexport) sws_error_t sws_WindowSwitcher_Initialize(sws_WindowSwitcher** __this, BOOL bWithRegMon);
 
-void sws_WindowSwitcher_Paint(sws_WindowSwitcher* _this);
+void sws_WindowSwitcher_Paint(sws_WindowSwitcher* _this, DWORD dwFlags);
 
 void sws_WindowSwitcher_InitializeDefaultSettings(sws_WindowSwitcher* _this);
 

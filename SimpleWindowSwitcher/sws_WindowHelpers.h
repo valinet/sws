@@ -219,4 +219,8 @@ inline BOOL sws_WindowHelpers_IsWindowUWP(HWND hWnd)
 }
 
 BOOL CALLBACK sws_WindowHelpers_AddAltTabWindowsToTimeStampedHWNDList(HWND hWnd, HDPA hdpa);
+
+BOOL sws_WindowHelpers_AreAnimationsAllowed();
+
+void sws_WindowHelpers_GetWindowText(HWND hWnd, LPCWSTR lpWStr, DWORD dwLength);
 #endif

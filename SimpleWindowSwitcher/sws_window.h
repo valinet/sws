@@ -5,12 +5,15 @@
 #include <Shlwapi.h>
 #include "sws_WindowHelpers.h"
 #include "sws_error.h"
+#include "sws_tshwnd.h"
+
 typedef struct _sws_window
 {
 	HWND hWnd;
 	DWORD dwProcessId;
 	wchar_t wszPath[MAX_PATH];
 	BOOL bIsApplicationFrameHost;
+	sws_tshwnd* tshWnd;
 } sws_window;
 
 void sws_window_Clear(sws_window* _this);

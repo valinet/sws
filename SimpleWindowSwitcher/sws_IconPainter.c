@@ -338,6 +338,11 @@ static void _sws_IconPainter_Callback(
         }
         else
         {
+            if (pWindowList[params->index].hIcon && sws_DefAppIcon && pWindowList[params->index].hIcon != sws_DefAppIcon && sws_LegacyDefAppIcon && pWindowList[params->index].hIcon != sws_LegacyDefAppIcon)
+            {
+                DestroyIcon(pWindowList[params->index].hIcon);
+                pWindowList[params->index].hIcon = NULL;
+            }
             if (dwProcessId == GetCurrentProcessId() && pWindowList[params->index].dwIconSource <= 1)
             {
                 pWindowList[params->index].hIcon = CopyIcon(hIcon);
@@ -351,7 +356,7 @@ static void _sws_IconPainter_Callback(
         BOOL bShouldPaint = TRUE;
         for (unsigned int i = 0; i < _this->layout.pWindowList.cbSize; ++i)
         {
-            if (pWindowList[i].hIcon == sws_DefAppIcon)
+            if (pWindowList[i].hIcon == sws_DefAppIcon && !IsHungAppWindow(pWindowList[i].hWnd))
             {
                 bShouldPaint = FALSE;
                 break;
@@ -359,15 +364,9 @@ static void _sws_IconPainter_Callback(
         }
         if (bShouldPaint)
         {
-            printf("[sws] Asynchronously obtained application icons in %lld ms.\n", sws_milliseconds_now() - _this->layout.timestamp);
-            if (_this->dwTheme == SWS_WINDOWSWITCHER_THEME_NONE)
-            {
-                sws_WindowSwitcher_Paint(_this);
-            }
-            else
-            {
-                InvalidateRect(_this->hWnd, NULL, TRUE);
-            }
+            //printf("[sws] Asynchronously obtained application icons in %lld ms.\n", sws_milliseconds_now() - _this->layout.timestamp);
+            KillTimer(_this->hWnd, SWS_WINDOWSWITCHER_TIMER_PAINT);
+            SendMessageW(_this->hWnd, SWS_WINDOWSWITCHER_PAINT_MSG, SWS_WINDOWSWITCHER_PAINTFLAGS_REDRAWENTIRE, 0);
         }
 	}
 
@@ -376,5 +375,10 @@ static void _sws_IconPainter_Callback(
 
 BOOL sws_IconPainter_ExtractAndDrawIconAsync(HWND hWnd, sws_IconPainter_CallbackParams* params)
 {
+    if (IsHungAppWindow(hWnd))
+    {
+        return FALSE;
+    }
+    SetTimer(params->hWnd, SWS_WINDOWSWITCHER_TIMER_PAINT, SWS_WINDOWSWITCHER_TIMER_PAINT_GETICONASYNC_DELAY, NULL);
 	return SendMessageCallbackW(hWnd, WM_GETICON, ICON_BIG, 0, _sws_IconPainter_Callback, params);
 }

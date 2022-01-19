@@ -9,6 +9,8 @@ typedef struct _sws_tshwnd
 	HWND hWnd;
 	FILETIME ft;
 	BOOL bFlash;
+	double cbFlashAnimationState;
+	DWORD dwFlashAnimationState;
 } sws_tshwnd;
 
 void sws_tshwnd_ModifyTimestamp(sws_tshwnd* _this, FILETIME ft);

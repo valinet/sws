@@ -64,6 +64,7 @@ sws_error_t sws_window_Initialize(sws_window* _this, HWND hWnd)
 		*/
 		_this->bIsApplicationFrameHost = sws_IsShellFrameWindow(hWnd);
 		//_this->bIsApplicationFrameHost = sws_WindowHelpers_IsWindowUWP(hWnd);
+		_this->tshWnd = NULL;
 	}
 
 	return rv;

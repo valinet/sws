@@ -43,6 +43,8 @@ sws_error_t sws_tshwnd_Initialize(sws_tshwnd* _this, HWND hWnd)
 		_this->hWnd = hWnd;
 		GetSystemTimeAsFileTime(&(_this->ft));
 		_this->bFlash = FALSE;
+		_this->cbFlashAnimationState = 0;
+		_this->dwFlashAnimationState = 0;
 	}
 
 	return rv;

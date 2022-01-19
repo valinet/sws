@@ -23,6 +23,7 @@ typedef struct _sws_WindowSwitcherLayoutWindow
     BOOL bOwnProcess;
     WCHAR wszPath[MAX_PATH];
     sws_tshwnd* tshWnd;
+    sws_tshwnd* last_flashing_tshwnd;
 } sws_WindowSwitcherLayoutWindow;
 
 void sws_WindowSwitcherLayoutWindow_Erase(sws_WindowSwitcherLayoutWindow* _this);

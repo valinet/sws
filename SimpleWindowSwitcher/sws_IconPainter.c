@@ -69,7 +69,7 @@ void sws_IconPainter_DrawIcon(HICON hIcon, HDC hDC, HBRUSH hBrush, void* pGdipGr
                             (INT)w,
                             (INT)h
                         );
-                        GdipDeleteEffect((void*)pGdipBitmap2);
+                        GdipDisposeImage((void*)pGdipBitmap2);
                         // We proceed to check if this worked by verifying if the
                         // written bitmap is all transparent; if it is, then it
                         // means nothing was drawn, so we fallback to creating the
@@ -131,7 +131,7 @@ void sws_IconPainter_DrawIcon(HICON hIcon, HDC hDC, HBRUSH hBrush, void* pGdipGr
                                                             (INT)w,
                                                             (INT)h
                                                         );
-                                                        GdipDeleteEffect((void*)pGdipBitmap3);
+                                                        GdipDisposeImage((void*)pGdipBitmap3);
                                                     }
                                                 }
                                             }
@@ -150,7 +150,7 @@ void sws_IconPainter_DrawIcon(HICON hIcon, HDC hDC, HBRUSH hBrush, void* pGdipGr
                         (void*)&LockedBitmapData
                     );
                 }
-                GdipDeleteEffect((void*)pGdipBitmap);
+                GdipDisposeImage((void*)pGdipBitmap);
             }
             DeleteObject(ii.hbmColor);
             DeleteObject(ii.hbmMask);

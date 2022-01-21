@@ -1361,12 +1361,13 @@ static void WINAPI _sws_WindowSwitcher_Show(sws_WindowSwitcher* _this)
         LONG_PTR atom = 0;
         RECT rc;
         SetRect(&rc, 0, 0, 0, 0);
-        if (IsWindow(_this->hWndWallpaper))
+        BOOL bIsWindowWallpaperWindow = IsWindow(_this->hWndWallpaper);
+        if (bIsWindowWallpaperWindow)
         {
             GetWindowRect(_this->hWndWallpaper, &rc);
             atom = GetClassWord(_this->hWndWallpaper, GCW_ATOM);
         }
-        if (rc.right - rc.left == 0 || rc.bottom - rc.top == 0 || atom != RegisterWindowMessageW(L"WorkerW"))
+        if (!bIsWindowWallpaperWindow || rc.right - rc.left == 0 || rc.bottom - rc.top == 0 || atom != RegisterWindowMessageW(L"WorkerW"))
         {
             //printf("[sws] Invalid wallpaper window detected, reobtaining correct window.\n");
             _this->hWndWallpaper = NULL;

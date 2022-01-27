@@ -469,6 +469,11 @@ BOOL sws_WindowHelpers_IsTaskbarWindow(HWND hWnd, HWND hWndWallpaper)
 	return FALSE;
 }
 
+BOOL sws_WindowHelpers_IsWindowShellManagedByExplorerPatcher(HWND hWnd)
+{
+	return GetPropW(hWnd, L"valinet.ExplorerPatcher.ShellManagedWindow") != 0;
+}
+
 BOOL sws_WindowHelpers_ShouldTreatShellManagedWindowAsNotShellManaged(HWND hWnd)
 {
 	return GetPropW(hWnd, L"Microsoft.Windows.ShellManagedWindowAsNormalWindow") != 0;
@@ -488,6 +493,11 @@ BOOL sws_WindowHelpers_IsAltTabWindow(HWND hWnd)
 	// Windows shell might present the user with, like: Start menu, Search (Win+Q),
 	// notifications, taskbars etc
 	if (_sws_IsShellManagedWindow(hWnd) && !sws_WindowHelpers_ShouldTreatShellManagedWindowAsNotShellManaged(hWnd))
+	{
+		return FALSE;
+	}
+	// Also, exclude some windows created by ExplorerPatcher
+	if (sws_WindowHelpers_IsWindowShellManagedByExplorerPatcher(hWnd))
 	{
 		return FALSE;
 	}

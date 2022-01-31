@@ -2006,6 +2006,45 @@ static LRESULT _sws_WindowsSwitcher_WndProc(HWND hWnd, UINT uMsg, WPARAM wParam,
             wprintf(L"[sws] Don't flash [[ %s ]]\n", wn);
 #endif
         }
+
+        if (wParam == HSHELL_WINDOWCREATED || wParam == HSHELL_WINDOWACTIVATED || wParam == HSHELL_RUDEAPPACTIVATED)
+        {
+            if (IsWindowVisible(_this->hWnd) && lParam != _this->hWnd && sws_WindowHelpers_IsAltTabWindow(lParam))
+            {
+                HDPA hdpa = DPA_Create(SWS_VECTOR_CAPACITY);
+                EnumWindows(sws_WindowHelpers_AddAltTabWindowsToTimeStampedHWNDList, hdpa);
+                sws_WindowSwitcherLayoutWindow* pWindowList = _this->layout.pWindowList.pList;
+                if (pWindowList)
+                {
+                    for (unsigned int i = 0; i < _this->layout.pWindowList.cbSize; ++i)
+                    {
+                        for (unsigned int j = 0; j < DPA_GetPtrCount(hdpa); ++j)
+                        {
+                            sws_tshwnd* tshWnd = DPA_FastGetPtr(hdpa, j);
+                            if (tshWnd->hWnd == pWindowList[i].hWnd)
+                            {
+                                tshWnd->hWnd = NULL;
+                            }
+                        }
+                    }
+                    BOOL bShouldShow = FALSE;
+                    for (unsigned j = 0; j < DPA_GetPtrCount(hdpa); ++j)
+                    {
+                        sws_tshwnd* tshWnd = DPA_FastGetPtr(hdpa, j);
+                        if (tshWnd->hWnd)
+                        {
+                            bShouldShow = TRUE;
+                        }
+                        free(tshWnd);
+                    }
+                    if (bShouldShow)
+                    {
+                        _sws_WindowSwitcher_Show(_this);
+                    }
+                    DPA_Destroy(hdpa);
+                }
+            }
+        }
     }
     else if (uMsg == WM_SETTINGCHANGE)
     {

@@ -130,7 +130,7 @@ static void _sws_WindowSwitcher_UpdateAccessibleText(sws_WindowSwitcher* _this)
             swprintf_s(
                 wszAccText,
                 MAX_PATH * 2,
-                L"%s: %d out of %d",
+                L"%s: %d of %d",
                 wszTitle,
                 _this->layout.pWindowList.cbSize - _this->layout.iIndex,
                 _this->layout.pWindowList.cbSize

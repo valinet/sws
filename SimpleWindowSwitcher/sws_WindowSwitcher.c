@@ -1242,6 +1242,11 @@ void sws_WindowSwitcher_Paint(sws_WindowSwitcher* _this, DWORD dwFlags)
                     }
                     SelectObject(hdcPaint, hOldFont2);
                 }
+                if (!sws_WindowHelpers_IsWindows11())
+                {
+                    rcText.top += MulDiv(1, _this->layout.cbDpiY, DEFAULT_DPI_Y);
+                    rcText.bottom += MulDiv(1, _this->layout.cbDpiY, DEFAULT_DPI_Y);
+                }
                 DttOpts.crText = (_this->bIsDarkMode || (!_this->bIsDarkMode && (_this->cwMask & SWS_WINDOWFLAG_IS_ON_CLOSE))) ? SWS_WINDOWSWITCHER_TEXT_COLOR : SWS_WINDOWSWITCHER_TEXT_COLOR_LIGHT;
                 if (_this->hTheme && IsThemeActive())
                 {

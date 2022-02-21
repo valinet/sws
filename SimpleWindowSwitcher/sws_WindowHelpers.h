@@ -299,8 +299,7 @@ inline DWORD32 sws_WindowHelpers_GetOSVersionAndUBR(PRTL_OSVERSIONINFOW lpRovi)
 inline BOOL sws_WindowHelpers_IsWindows11()
 {
 	RTL_OSVERSIONINFOW rovi;
-	DWORD32 ubr = sws_WindowHelpers_GetOSVersionAndUBR(&rovi);
-	if (rovi.dwBuildNumber >= 21996)
+	if (sws_WindowHelpers_GetOSVersion(&rovi) && rovi.dwBuildNumber >= 21996)
 	{
 		return TRUE;
 	}

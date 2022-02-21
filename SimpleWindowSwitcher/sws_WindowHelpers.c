@@ -59,6 +59,12 @@ sws_error_t sws_WindowHelpers_RefreshImmersiveColorPolicyState()
 
 sws_error_t sws_WindowHelpers_ShouldSystemUseDarkMode(DWORD* dwRes)
 {
+	RTL_OSVERSIONINFOW rovi;
+	if (sws_WindowHelpers_GetOSVersion(&rovi) && rovi.dwBuildNumber < 18985)
+	{
+		*dwRes = TRUE;
+		return SWS_ERROR_SUCCESS;
+	}
 	if (_sws_ShouldSystemUseDarkMode)
 	{
 		if (dwRes)

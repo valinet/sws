@@ -466,7 +466,14 @@ void sws_WindowSwitcher_RefreshTheme(sws_WindowSwitcher* _this)
     DwmExtendFrameIntoClientArea(_this->hWnd, &marGlassInset);
     BOOL bMica = FALSE;
     DwmSetWindowAttribute(_this->hWnd, DWMWA_MICA_EFFFECT, &bMica, sizeof(BOOL));
-    DwmSetWindowAttribute(_this->hWnd, DWMWA_USE_IMMERSIVE_DARK_MODE, &_this->bIsDarkMode, sizeof(BOOL));
+    RTL_OSVERSIONINFOW rovi;
+    DWORD32 ubr = sws_WindowHelpers_GetOSVersionAndUBR(&rovi);
+    int s = 0;
+    if (rovi.dwBuildNumber < 18985)
+    {
+        s = -1;
+    }
+    DwmSetWindowAttribute(_this->hWnd, DWMWA_USE_IMMERSIVE_DARK_MODE + s, &_this->bIsDarkMode, sizeof(BOOL));
     sws_WindowHelpers_SetWindowBlur(
         _this->hWnd,
         0,

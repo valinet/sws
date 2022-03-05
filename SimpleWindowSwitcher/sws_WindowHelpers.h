@@ -21,6 +21,8 @@
 #include "sws_tshwnd.h"
 
 extern ULONG_PTR _sws_gdiplus_token;
+extern RTL_OSVERSIONINFOW sws_global_rovi;
+extern DWORD32 sws_global_ubr;
 
 // References:
 // RealEnumWindows: https://stackoverflow.com/questions/38205375/enumwindows-function-in-win10-enumerates-only-desktop-apps
@@ -298,8 +300,7 @@ inline DWORD32 sws_WindowHelpers_GetOSVersionAndUBR(PRTL_OSVERSIONINFOW lpRovi)
 
 inline BOOL sws_WindowHelpers_IsWindows11()
 {
-	RTL_OSVERSIONINFOW rovi;
-	if (sws_WindowHelpers_GetOSVersion(&rovi) && rovi.dwBuildNumber >= 21996)
+	if (sws_global_rovi.dwBuildNumber >= 21996)
 	{
 		return TRUE;
 	}

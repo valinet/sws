@@ -1,6 +1,8 @@
 #include "sws_WindowHelpers.h"
 
 ULONG_PTR _sws_gdiplus_token;
+RTL_OSVERSIONINFOW sws_global_rovi;
+DWORD32 sws_global_ubr;
 NtUserBuildHwndList _sws_pNtUserBuildHwndList;
 pCreateWindowInBand _sws_CreateWindowInBand;
 pSetWindowCompositionAttribute _sws_SetWindowCompositionAttribute;
@@ -721,6 +723,11 @@ sws_error_t sws_WindowHelpers_Initialize()
 	if (_sws_gdiplus_token)
 	{
 		return rv;
+	}
+	sws_global_ubr = sws_WindowHelpers_GetOSVersionAndUBR(&sws_global_rovi);
+	if (sws_global_rovi.dwMajorVersion == 0)
+	{
+		return SWS_ERROR_GENERIC_ERROR;
 	}
 	GetSystemTimeAsFileTime(&sws_start_ft);
 	if (!rv)

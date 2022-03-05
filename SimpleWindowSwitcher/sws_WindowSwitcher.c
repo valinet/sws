@@ -414,8 +414,6 @@ void sws_WindowSwitcher_RefreshTheme(sws_WindowSwitcher* _this)
     MARGINS marGlassInset = { 0, 0, 0, 0 };
     DwmExtendFrameIntoClientArea(_this->hWnd, &marGlassInset);
     sws_WindowHelpers_SetMicaMaterialForThisWindow(_this->hWnd, FALSE);
-    RTL_OSVERSIONINFOW rovi;
-    DWORD32 ubr = sws_WindowHelpers_GetOSVersionAndUBR(&rovi);
     int s = 0;
     if (sws_global_rovi.dwBuildNumber < 18985)
     {

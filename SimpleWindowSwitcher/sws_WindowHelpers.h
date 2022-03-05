@@ -306,4 +306,12 @@ inline BOOL sws_WindowHelpers_IsWindows11()
 	}
 	return FALSE;
 }
+
+inline HRESULT sws_WindowHelpers_SetMicaMaterialForThisWindow(HWND hWnd, BOOL bApply)
+{
+	if (!sws_WindowHelpers_IsWindows11()) return S_FALSE;
+	DWORD dwAttribute = (sws_global_rovi.dwBuildNumber >= 22523) ? 38 : DWMWA_MICA_EFFFECT;
+	DWORD dwProp = (bApply ? ((sws_global_rovi.dwBuildNumber >= 22523) ? 2 : 1) : 0);
+	return DwmSetWindowAttribute(hWnd, dwAttribute, &dwProp, sizeof(DWORD));
+}
 #endif

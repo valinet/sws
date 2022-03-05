@@ -116,11 +116,7 @@ void sws_WindowSwitcher_UnregisterHotkeys(sws_WindowSwitcher* _this);
 
 void sws_WindowSwitcher_RefreshTheme(sws_WindowSwitcher* _this);
 
-void sws_WindowSwitcher_SetTransparencyFromRegistry(sws_WindowSwitcher* _this, HKEY hOrigin);
-
 void _sws_WindowSwitcher_SwitchToSelectedItemAndDismiss(sws_WindowSwitcher* _this);
-
-static void CALLBACK _sws_WindowSwitcher_NotifyTransparencyChange(sws_WindowSwitcher* _this, BOOL bIsInHKLM, DWORD* value, size_t size);
 
 static DWORD WINAPI _sws_WindowSwitcher_Calculate(sws_WindowSwitcher* _this);
 

@@ -275,57 +275,6 @@ void _sws_WindowSwitcher_Wineventproc(
     }
 }
 
-void sws_WindowSwitcher_SetTransparencyFromRegistry(sws_WindowSwitcher * _this, HKEY hOrigin)
-{
-    HKEY hKey = NULL;
-    DWORD dwSize = 0;
-    DWORD dwOpacity = 0;
-
-    RegCreateKeyExW(
-        hOrigin,
-        L"SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Explorer\\MultitaskingView\\AltTabViewHost",
-        0,
-        NULL,
-        REG_OPTION_NON_VOLATILE,
-        KEY_READ,
-        NULL,
-        &hKey,
-        NULL
-    );
-    if (hKey == NULL || hKey == INVALID_HANDLE_VALUE)
-    {
-        hKey = NULL;
-    }
-    if (hKey)
-    {
-        dwSize = sizeof(DWORD);
-        RegQueryValueExW(
-            hKey,
-            TEXT("Grid_backgroundPercent"),
-            0,
-            NULL,
-            &dwOpacity,
-            &dwSize
-        );
-        _sws_WindowSwitcher_NotifyTransparencyChange(_this, FALSE, &dwOpacity, dwSize);
-        RegCloseKey(hKey);
-    }
-}
-
-static void CALLBACK _sws_WindowSwitcher_NotifyTransparencyChange(sws_WindowSwitcher* _this, BOOL bIsInHKLM, DWORD* value, size_t size)
-{
-    DWORD blur = (*value / 100.0) * 255;
-    if (_this->hTheme)
-    {
-        sws_WindowHelpers_SetWindowBlur(
-            _this->hWnd,
-            4,
-            _this->bIsDarkMode ? SWS_WINDOWSWITCHER_BACKGROUND_COLOR : SWS_WINDOWSWITCHER_BACKGROUND_COLOR_LIGHT,
-            blur
-        );
-    }
-}
-
 static DWORD WINAPI _sws_WindowSwitcher_Calculate(sws_WindowSwitcher* _this)
 {
     long long start = sws_milliseconds_now();
@@ -464,8 +413,7 @@ void sws_WindowSwitcher_RefreshTheme(sws_WindowSwitcher* _this)
     DwmSetWindowAttribute(_this->hWnd, DWMWA_WINDOW_CORNER_PREFERENCE, &preference, sizeof(preference));
     MARGINS marGlassInset = { 0, 0, 0, 0 };
     DwmExtendFrameIntoClientArea(_this->hWnd, &marGlassInset);
-    BOOL bMica = FALSE;
-    DwmSetWindowAttribute(_this->hWnd, DWMWA_MICA_EFFFECT, &bMica, sizeof(BOOL));
+    sws_WindowHelpers_SetMicaMaterialForThisWindow(_this->hWnd, FALSE);
     RTL_OSVERSIONINFOW rovi;
     DWORD32 ubr = sws_WindowHelpers_GetOSVersionAndUBR(&rovi);
     int s = 0;
@@ -505,15 +453,15 @@ void sws_WindowSwitcher_RefreshTheme(sws_WindowSwitcher* _this)
 
     if (_this->dwTheme == SWS_WINDOWSWITCHER_THEME_BACKDROP)
     {
-        sws_WindowSwitcher_SetTransparencyFromRegistry(_this, HKEY_CURRENT_USER);
+        DWORD blur = (dwOpacity / 100.0) * 255;
+        if (_this->hTheme) sws_WindowHelpers_SetWindowBlur(_this->hWnd, 4, _this->bIsDarkMode ? SWS_WINDOWSWITCHER_BACKGROUND_COLOR : SWS_WINDOWSWITCHER_BACKGROUND_COLOR_LIGHT, blur);
     }
     else if (_this->dwTheme == SWS_WINDOWSWITCHER_THEME_MICA)
     {
         sws_WindowHelpers_PermitDarkMode(_this->hWnd);
         MARGINS marGlassInset = { -1, -1, -1, -1 };
         DwmExtendFrameIntoClientArea(_this->hWnd, &marGlassInset);
-        bMica = TRUE;
-        DwmSetWindowAttribute(_this->hWnd, DWMWA_MICA_EFFFECT, &bMica, sizeof(BOOL));
+        sws_WindowHelpers_SetMicaMaterialForThisWindow(_this->hWnd, TRUE);
     }
     if (_this->hBackgroundBrush)
     {
@@ -2909,7 +2857,8 @@ __declspec(dllexport) sws_error_t sws_WindowSwitcher_Initialize(sws_WindowSwitch
                 sws_WindowSwitcher_RefreshTheme,
                 _this
             );
-            _sws_WindowSwitcher_NotifyTransparencyChange(_this, FALSE, &dwInitial, dwSize);
+            DWORD blur = (dwInitial / 100.0) * 255;
+            if (_this->hTheme) sws_WindowHelpers_SetWindowBlur(_this->hWnd, 4, _this->bIsDarkMode ? SWS_WINDOWSWITCHER_BACKGROUND_COLOR : SWS_WINDOWSWITCHER_BACKGROUND_COLOR_LIGHT, blur);
         }
         if (_this->bIsDynamic)
         {

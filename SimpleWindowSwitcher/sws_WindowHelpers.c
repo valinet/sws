@@ -724,11 +724,6 @@ sws_error_t sws_WindowHelpers_Initialize()
 	{
 		return rv;
 	}
-	sws_global_ubr = sws_WindowHelpers_GetOSVersionAndUBR(&sws_global_rovi);
-	if (sws_global_rovi.dwMajorVersion == 0)
-	{
-		return SWS_ERROR_GENERIC_ERROR;
-	}
 	GetSystemTimeAsFileTime(&sws_start_ft);
 	if (!rv)
 	{

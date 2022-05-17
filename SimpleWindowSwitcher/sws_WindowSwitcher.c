@@ -269,7 +269,10 @@ void _sws_WindowSwitcher_Wineventproc(
     {
         PostMessageW(FindWindowW(_T(SWS_WINDOWSWITCHER_CLASSNAME), NULL), RegisterWindowMessageW(L"SHELLHOOK"), HSHELL_WINDOWDESTROYED, hwnd);
     }
-    else if ((event == EVENT_SYSTEM_FOREGROUND) && hwnd && idObject == OBJID_WINDOW)
+    // Notify only when the foreground window changed, as only these "foreground" changes
+    // are of interest for the switcher
+    // https://github.com/valinet/ExplorerPatcher/issues/1084
+    else if ((event == EVENT_SYSTEM_FOREGROUND) && hwnd && idObject == OBJID_WINDOW && (hwnd == GetForegroundWindow()))
     {
         PostMessageW(FindWindowW(_T(SWS_WINDOWSWITCHER_CLASSNAME), NULL), RegisterWindowMessageW(L"SHELLHOOK"), HSHELL_RUDEAPPACTIVATED, hwnd);
     }
@@ -1691,6 +1694,13 @@ static LRESULT _sws_WindowsSwitcher_WndProc(HWND hWnd, UINT uMsg, WPARAM wParam,
                     int rv = DPA_Search(_this->htshwnds, tshWnd, 0, sws_tshwnd_CompareHWND, 0, 0);
                     if (rv == -1)
                     {
+                        // If this window is not in the window list and is not the foreground window, 
+                        // make sure it will be last in the window list when the switcher will be presented
+                        // https://github.com/valinet/ExplorerPatcher/issues/1084
+                        if (hWnd != GetForegroundWindow())
+                        {
+                            sws_tshwnd_ModifyTimestamp(tshWnd, sws_WindowHelpers_GetStartTime());
+                        }
                         DPA_InsertPtr(_this->htshwnds, 0, tshWnd);
                         sws_WindowSwitcherLayoutWindow* pWindowList = _this->layout.pWindowList.pList;
                         if (pWindowList)
@@ -1718,7 +1728,12 @@ static LRESULT _sws_WindowsSwitcher_WndProc(HWND hWnd, UINT uMsg, WPARAM wParam,
                     else
                     {
                         free(tshWnd);
-                        if (wParam == HSHELL_WINDOWCREATED || wParam == HSHELL_WINDOWACTIVATED || wParam == HSHELL_RUDEAPPACTIVATED)
+                        // Update flash status and have the window pop at the front of the list only
+                        // when the window is the foreground window; otherwise, the OS (probably) denied
+                        // the foreground request from the app and the window might still be flashing
+                        // and not actually in the foreground
+                        // https://github.com/valinet/ExplorerPatcher/issues/1084
+                        if ((wParam == HSHELL_WINDOWCREATED || wParam == HSHELL_WINDOWACTIVATED || wParam == HSHELL_RUDEAPPACTIVATED) && (hWnd == GetForegroundWindow()))
                         {
                             sws_tshwnd* found = DPA_FastGetPtr(_this->htshwnds, rv);
                             sws_tshwnd_UpdateTimestamp(found);

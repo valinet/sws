@@ -492,7 +492,9 @@ BOOL sws_WindowHelpers_IsAltTabWindow(HWND hWnd)
 	// This identifies whether a window is a shell frame and includes those
 	// A shell frame corresponds to, as far as I can tell, the frame of a UWP app
 	// and we want those in the Alt-Tab list
-	if (sws_IsShellFrameWindow(hWnd))
+	// Bugfix: Exclude hung shell frame (immersive) UWP windows, as we already include
+	// ghost app windows in their place already
+	if (sws_IsShellFrameWindow(hWnd) && !_sws_GhostWindowFromHungWindow(hWnd))
 	{
 		return TRUE;
 	}

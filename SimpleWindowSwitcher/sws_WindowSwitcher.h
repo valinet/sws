@@ -86,6 +86,7 @@ typedef struct _sws_WindowSwitcher
     DWORD cwOldMask;
     HDPA hLastClosedWnds;
     long long lastUpdateTime;
+    BOOL bShouldStartFlashTimerWhenShowing;
 
     DWORD dwRowHeight;
     DWORD dwMaxWP;

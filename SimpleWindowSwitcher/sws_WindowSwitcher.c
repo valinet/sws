@@ -1463,6 +1463,11 @@ static void WINAPI _sws_WindowSwitcher_Show(sws_WindowSwitcher* _this)
         BOOL bCloak = FALSE;
         DwmSetWindowAttribute(_this->hWnd, DWMWA_CLOAK, &bCloak, sizeof(BOOL));
     }
+    if (_this->bShouldStartFlashTimerWhenShowing)
+    {
+        _this->bShouldStartFlashTimerWhenShowing = FALSE;
+        SetEvent(_this->hFlashAnimationSignal);
+    }
     SetWindowPos(_this->hWnd, 0, _this->layout.iX, _this->layout.iY, _this->layout.iWidth, _this->layout.iHeight, SWP_NOZORDER);
     ShowWindow(_this->hWnd, SW_SHOW);
     SetForegroundWindow(_this->hWnd);
@@ -1823,7 +1828,14 @@ static LRESULT _sws_WindowsSwitcher_WndProc(HWND hWnd, UINT uMsg, WPARAM wParam,
                     if (!sws_tshwnd_GetFlashState(found))
                     {
                         sws_tshwnd_SetFlashState(found, TRUE);
-                        SetEvent(_this->hFlashAnimationSignal);
+                        if (IsWindowVisible(_this->hWnd))
+                        {
+                            SetEvent(_this->hFlashAnimationSignal);
+                        }
+                        else
+                        {
+                            _this->bShouldStartFlashTimerWhenShowing = TRUE;
+                        }
                     }
                 }
                 free(tshWnd);
@@ -1909,7 +1921,14 @@ static LRESULT _sws_WindowsSwitcher_WndProc(HWND hWnd, UINT uMsg, WPARAM wParam,
                         if (sws_tshwnd_GetFlashState(found))
                         {
                             sws_tshwnd_SetFlashState(found, FALSE);
-                            SetEvent(_this->hFlashAnimationSignal);
+                            if (IsWindowVisible(_this->hWnd))
+                            {
+                                SetEvent(_this->hFlashAnimationSignal);
+                            }
+                            else
+                            {
+                                _this->bShouldStartFlashTimerWhenShowing = TRUE;
+                            }
                             found->dwFlashAnimationState = 0;
                             found->cbFlashAnimationState = 1.0;
                         }

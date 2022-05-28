@@ -935,6 +935,42 @@ void sws_WindowSwitcher_Paint(sws_WindowSwitcher* _this, DWORD dwFlags)
                 );
             }
 
+            // Draw fake window contents when window is empty
+            if (pWindowList &&
+                bIsWindowVisible &&
+                ((dwFlags & SWS_WINDOWSWITCHER_PAINTFLAGS_REDRAWENTIRE) ||
+                    ((dwFlags & SWS_WINDOWSWITCHER_PAINTFLAGS_ISFLASHANIMATION) && bShouldDrawFlashRectangle) ||
+                    ((dwFlags & SWS_WINDOWSWITCHER_PAINTFLAGS_ACTIVEMASKORINDEXCHANGED) && (i == _this->cwIndex || i == _this->cwOldIndex))
+                    ) &&
+                pWindowList[i].iRowMax &&
+                (pWindowList[i].dwWindowFlags & SWS_WINDOWSWITCHERLAYOUT_WINDOWFLAGS_ISEMPTY)
+                )
+            {
+                COLORREF colorUp = SWS_WINDOWSWITCHERLAYOUT_EMPTYWINDOW_GRADIENT_UP;
+                COLORREF colorDown = SWS_WINDOWSWITCHERLAYOUT_EMPTYWINDOW_GRADIENT_DOWN;
+                int thPad = MulDiv(SWS_WINDOWSWITCHERLAYOUT_EMPTYWINDOW_THUMBNAILPADDING_LEFT, _this->layout.cbDpiY, DEFAULT_DPI_Y);
+                for (unsigned int curr_line = SWS_WINDOWSWITCHERLAYOUT_EMPTYWINDOW_THUMBNAILPADDING_TOP; curr_line <= (pWindowList[i].rcThumbnail.bottom - pWindowList[i].rcThumbnail.top) - thPad; ++curr_line)
+                {
+                    double p = (curr_line * 1.0) / (pWindowList[i].rcThumbnail.bottom - pWindowList[i].rcThumbnail.top);
+                    double r = GetRValue(colorUp) + p * (GetRValue(colorDown) - GetRValue(colorUp));
+                    double g = GetGValue(colorUp) + p * (GetGValue(colorDown) - GetGValue(colorUp));
+                    double b = GetBValue(colorUp) + p * (GetBValue(colorDown) - GetBValue(colorUp));
+
+                    BITMAPINFO bi;
+                    ZeroMemory(&bi, sizeof(BITMAPINFO));
+                    bi.bmiHeader.biSize = sizeof(BITMAPINFOHEADER);
+                    bi.bmiHeader.biWidth = 1;
+                    bi.bmiHeader.biHeight = 1;
+                    bi.bmiHeader.biPlanes = 1;
+                    bi.bmiHeader.biBitCount = 32;
+                    bi.bmiHeader.biCompression = BI_RGB;
+                    RGBQUAD desiredColor = { b, g, r, 0xFF };
+                    StretchDIBits(hdcPaint, pWindowList[i].rcThumbnail.left + thPad, pWindowList[i].rcThumbnail.top + curr_line, pWindowList[i].rcThumbnail.right - pWindowList[i].rcThumbnail.left - (2 * thPad), 1,
+                        0, 0, 1, 1, &desiredColor, &bi,
+                        DIB_RGB_COLORS, SRCCOPY);
+                }
+            }
+
             // Draw title
             if (pWindowList && 
                 bIsWindowVisible &&
@@ -946,12 +982,12 @@ void sws_WindowSwitcher_Paint(sws_WindowSwitcher* _this, DWORD dwFlags)
                 )
             {
                 rc = pWindowList[i].rcWindow;
-                DTTOPTS DttOpts;
+                DTTOPTS DttOpts, DttOpts2;
                 DttOpts.dwSize = sizeof(DTTOPTS);
                 DttOpts.dwFlags = DTT_COMPOSITED | DTT_TEXTCOLOR;
                 DttOpts.crText = _this->bIsDarkMode ? SWS_WINDOWSWITCHER_TEXT_COLOR : SWS_WINDOWSWITCHER_TEXT_COLOR_LIGHT;
                 DWORD dwTextFlags = DT_SINGLELINE | DT_VCENTER | DT_END_ELLIPSIS | DT_HIDEPREFIX;
-                RECT rcText;
+                RECT rcText, rcText2;
                 rcText.left = rc.left + _this->layout.cbLeftPadding + pWindowList[i].szIcon + _this->layout.cbRightPadding;
                 rcText.top = rc.top + _this->layout.cbTopPadding;
                 rcText.right = rc.right - _this->layout.cbRowTitleHeight - _this->layout.cbRightPadding;
@@ -1038,6 +1074,25 @@ void sws_WindowSwitcher_Paint(sws_WindowSwitcher* _this, DWORD dwFlags)
                 }
                 if ((rcText.right - rcText.left) > (_this->layout.cbDpiX / DEFAULT_DPI_X) * 10)
                 {
+                    if (pWindowList[i].dwWindowFlags & SWS_WINDOWSWITCHERLAYOUT_WINDOWFLAGS_ISEMPTY)
+                    {
+                        DWORD dwTitleHeight = _this->layout.cbRowTitleHeight;
+                        BOOL bIsCompositionEnabled = FALSE;
+                        DwmIsCompositionEnabled(&bIsCompositionEnabled);
+                        if (bIsCompositionEnabled)
+                        {
+                            RECT rcTitle;
+                            DwmGetWindowAttribute(pWindowList[i].hWnd, DWMWA_CAPTION_BUTTON_BOUNDS, &rcTitle, sizeof(RECT));
+                            dwTitleHeight = rcTitle.bottom - rcTitle.top;
+                        }
+                        int thPad = MulDiv(SWS_WINDOWSWITCHERLAYOUT_EMPTYWINDOW_THUMBNAILPADDING_LEFT, _this->layout.cbDpiY, DEFAULT_DPI_Y);
+                        rcText2.left = pWindowList[i].rcThumbnail.left + 2 * thPad;
+                        rcText2.top = pWindowList[i].rcThumbnail.top + SWS_WINDOWSWITCHERLAYOUT_EMPTYWINDOW_THUMBNAILPADDING_TOP;
+                        rcText2.right = pWindowList[i].rcThumbnail.right - thPad;
+                        rcText2.bottom = pWindowList[i].rcThumbnail.top + dwTitleHeight;
+                        DttOpts2 = DttOpts;
+                        DttOpts2.crText = SWS_WINDOWSWITCHERLAYOUT_EMPTYWINDOW_TITLECOLOR;
+                    }
                     if ((_this->hTheme && IsThemeActive()))
                     {
                         DrawThemeTextEx(
@@ -1051,6 +1106,20 @@ void sws_WindowSwitcher_Paint(sws_WindowSwitcher* _this, DWORD dwFlags)
                             &rcText,
                             &DttOpts
                         );
+                        if (pWindowList[i].dwWindowFlags & SWS_WINDOWSWITCHERLAYOUT_WINDOWFLAGS_ISEMPTY)
+                        {
+                            DrawThemeTextEx(
+                                _this->hTheme,
+                                hdcPaint,
+                                0,
+                                0,
+                                wszTitle,
+                                -1,
+                                dwTextFlags,
+                                &rcText2,
+                                &DttOpts2
+                            );
+                        }
                     }
                     else
                     {
@@ -1085,6 +1154,40 @@ void sws_WindowSwitcher_Paint(sws_WindowSwitcher* _this, DWORD dwFlags)
                                 DeleteDC(hTempDC);
                             }
                         }
+                        if (pWindowList[i].dwWindowFlags & SWS_WINDOWSWITCHERLAYOUT_WINDOWFLAGS_ISEMPTY)
+                        {
+                            SIZE size;
+                            size.cx = rcText2.right - rcText2.left;
+                            size.cy = rcText2.bottom - rcText2.top;
+                            HBITMAP hBitmap = sws_WindowHelpers_CreateAlphaTextBitmap(
+                                wszTitle,
+                                _this->layout.hFontRegular,
+                                dwTextFlags,
+                                size,
+                                DttOpts2.crText
+                            );
+                            if (hBitmap)
+                            {
+                                HDC hTempDC = CreateCompatibleDC(hdcPaint);
+                                HBITMAP hOldBMP = (HBITMAP)SelectObject(hTempDC, hBitmap);
+                                if (hOldBMP)
+                                {
+                                    BITMAP BMInf;
+                                    GetObjectW(hBitmap, sizeof(BITMAP), &BMInf);
+
+                                    BLENDFUNCTION bf;
+                                    bf.BlendOp = AC_SRC_OVER;
+                                    bf.BlendFlags = 0;
+                                    bf.SourceConstantAlpha = 0xFF;
+                                    bf.AlphaFormat = AC_SRC_ALPHA;
+                                    GdiAlphaBlend(hdcPaint, rcText2.left, rcText2.top, BMInf.bmWidth, BMInf.bmHeight, hTempDC, 0, 0, BMInf.bmWidth, BMInf.bmHeight, bf);
+
+                                    SelectObject(hTempDC, hOldBMP);
+                                    DeleteObject(hBitmap);
+                                    DeleteDC(hTempDC);
+                                }
+                            }
+                        }
                     }
                 }
             }
@@ -1115,8 +1218,37 @@ void sws_WindowSwitcher_Paint(sws_WindowSwitcher* _this, DWORD dwFlags)
                     (pWindowList[i].tshWnd && pWindowList[i].tshWnd->bFlash) ? _this->hFlashBrush : _this->hBackgroundBrush,
                     pGdipGraphics,
                     x, y, w, h,
-                    bkcol2
+                    bkcol2,
+                    TRUE
                 );
+                if (pWindowList[i].dwWindowFlags & SWS_WINDOWSWITCHERLAYOUT_WINDOWFLAGS_ISEMPTY)
+                {
+                    ICONINFO ii;
+                    GetIconInfo(pWindowList[i].hIcon, &ii);
+                    if (ii.hbmColor)
+                    {
+                        BITMAP bm;
+                        GetObjectW(ii.hbmColor, sizeof(BITMAP), &bm);
+                        if (bm.bmWidth && bm.bmHeight)
+                        {
+                            w = bm.bmWidth;
+                            h = bm.bmHeight;
+                        }
+                        DeleteBitmap(ii.hbmColor);
+                    }
+                    if (ii.hbmMask) DeleteBitmap(ii.hbmMask);
+                    sws_IconPainter_DrawIcon(
+                        pWindowList[i].hIcon,
+                        hdcPaint,
+                        NULL,
+                        pGdipGraphics,
+                        pWindowList[i].rcThumbnail.left + (pWindowList[i].rcThumbnail.right - pWindowList[i].rcThumbnail.left) / 2 - (w / 2),
+                        pWindowList[i].rcThumbnail.top + (pWindowList[i].rcThumbnail.bottom - pWindowList[i].rcThumbnail.top) / 2,
+                        w, h,
+                        bkcol2,
+                        FALSE
+                    );
+                }
             }
 
             // Draw close button

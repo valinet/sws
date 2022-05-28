@@ -160,9 +160,10 @@ sws_error_t sws_WindowSwitcherLayout_ComputeLayout(sws_WindowSwitcherLayout* _th
 				if ((pWindowList[iCurrentWindow].sizWindow.cy == 0) ||
 					(pWindowList[iCurrentWindow].sizWindow.cx == 0))
 				{
-					DwmUnregisterThumbnail(pWindowList[iCurrentWindow].hThumbnail);
-					pWindowList[iCurrentWindow].hThumbnail = 0;
-					continue;
+					// Fix for windows with no height or width not being displayed.
+					pWindowList[iCurrentWindow].dwWindowFlags |= SWS_WINDOWSWITCHERLAYOUT_WINDOWFLAGS_ISEMPTY;
+					pWindowList[iCurrentWindow].sizWindow.cy = SWS_WINDOWSWITCHERLAYOUT_EMPTYWINDOW_THUMBNAIL_HEIGHT * (_this->cbDpiY / DEFAULT_DPI_Y);
+					pWindowList[iCurrentWindow].sizWindow.cx = SWS_WINDOWSWITCHERLAYOUT_EMPTYWINDOW_THUMBNAIL_WIDTH * (_this->cbDpiX / DEFAULT_DPI_X);
 				}
 				if (bFinishedLayout)
 				{
@@ -225,6 +226,11 @@ sws_error_t sws_WindowSwitcherLayout_ComputeLayout(sws_WindowSwitcherLayout* _th
 					{
 						DwmQueryThumbnailSourceSize(hThumbnail, &sz);
 						DwmUnregisterThumbnail(hThumbnail);
+					}
+					if ((sz.cy == 0) || (sz.cx == 0))
+					{
+						sz.cy = SWS_WINDOWSWITCHERLAYOUT_EMPTYWINDOW_THUMBNAIL_HEIGHT * (_this->cbDpiY / DEFAULT_DPI_Y);
+						sz.cx = SWS_WINDOWSWITCHERLAYOUT_EMPTYWINDOW_THUMBNAIL_WIDTH * (_this->cbDpiX / DEFAULT_DPI_X);
 					}
 					unsigned int next_width = 0;
 					if (_this->bIncludeWallpaper && pWindowList[0].hWnd == _this->hWndWallpaper)

@@ -1,7 +1,7 @@
 #include "sws_IconPainter.h"
 #include "sws_WindowSwitcher.h"
 
-void sws_IconPainter_DrawIcon(HICON hIcon, HDC hDC, HBRUSH hBrush, void* pGdipGraphics, INT x, INT y, INT w, INT h, RGBQUAD bkcol)
+void sws_IconPainter_DrawIcon(HICON hIcon, HDC hDC, HBRUSH hBrush, void* pGdipGraphics, INT x, INT y, INT w, INT h, RGBQUAD bkcol, BOOL bShouldFillBackground)
 {
     if (hIcon == NULL || hDC == NULL || w == 0 || h == 0)
     {
@@ -16,7 +16,10 @@ void sws_IconPainter_DrawIcon(HICON hIcon, HDC hDC, HBRUSH hBrush, void* pGdipGr
     bi.bmiHeader.biPlanes = 1;
     bi.bmiHeader.biBitCount = 32;
     bi.bmiHeader.biCompression = BI_RGB;
-    StretchDIBits(hDC, x, y, w, h, 0, 0, 1, 1, &bkcol, &bi, DIB_RGB_COLORS, SRCCOPY);
+    if (bShouldFillBackground)
+    {
+        StretchDIBits(hDC, x, y, w, h, 0, 0, 1, 1, &bkcol, &bi, DIB_RGB_COLORS, SRCCOPY);
+    }
 
     // Not using GdipCreateBitmapFromHICON directly because some bug in GDI+
     // renders weird black lines in some transparent areas; this is the only
@@ -115,7 +118,10 @@ void sws_IconPainter_DrawIcon(HICON hIcon, HDC hDC, HBRUSH hBrush, void* pGdipGr
                                                 }
                                                 if (!bUsed)
                                                 {
-                                                    StretchDIBits(hDC, x, y, w, h, 0, 0, 1, 1, &bkcol, &bi, DIB_RGB_COLORS, SRCCOPY);
+                                                    if (bShouldFillBackground)
+                                                    {
+                                                        StretchDIBits(hDC, x, y, w, h, 0, 0, 1, 1, &bkcol, &bi, DIB_RGB_COLORS, SRCCOPY);
+                                                    }
                                                     void* pGdipBitmap3 = NULL;
                                                     GdipCreateBitmapFromHICON(
                                                         (HICON)hIcon,
@@ -159,7 +165,14 @@ void sws_IconPainter_DrawIcon(HICON hIcon, HDC hDC, HBRUSH hBrush, void* pGdipGr
     else
     {
         // Fallback to crappier drawing using GDI if GDI+ is unavailable
-        DrawIconEx(hDC, x, y, hIcon, w, h, 0, NULL, hBrush, DI_NORMAL);
+        if (bShouldFillBackground)
+        {
+            DrawIconEx(hDC, x, y, hIcon, w, h, 0, NULL, hBrush, DI_NORMAL);
+        }
+        else
+        {
+            DrawIcon(hDC, x, y, hIcon);
+        }
     }
 }
 

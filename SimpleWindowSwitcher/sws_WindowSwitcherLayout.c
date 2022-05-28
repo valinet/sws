@@ -165,6 +165,16 @@ sws_error_t sws_WindowSwitcherLayout_ComputeLayout(sws_WindowSwitcherLayout* _th
 					pWindowList[iCurrentWindow].sizWindow.cy = SWS_WINDOWSWITCHERLAYOUT_EMPTYWINDOW_THUMBNAIL_HEIGHT * (_this->cbDpiY / DEFAULT_DPI_Y);
 					pWindowList[iCurrentWindow].sizWindow.cx = SWS_WINDOWSWITCHERLAYOUT_EMPTYWINDOW_THUMBNAIL_WIDTH * (_this->cbDpiX / DEFAULT_DPI_X);
 				}
+				if (pWindowList[iCurrentWindow].sizWindow.cy < SWS_WINDOWSWITCHERLAYOUT_THUMBNAIL_MINHEIGHT * (_this->cbDpiY / DEFAULT_DPI_Y))
+				{
+					pWindowList[iCurrentWindow].dwWindowFlags |= SWS_WINDOWSWITCHERLAYOUT_WINDOWFLAGS_ISTOOSMALLVERTICAL;
+					pWindowList[iCurrentWindow].sizWindow.cy = SWS_WINDOWSWITCHERLAYOUT_THUMBNAIL_MINHEIGHT * (_this->cbDpiY / DEFAULT_DPI_Y);
+				}
+				if (pWindowList[iCurrentWindow].sizWindow.cx < SWS_WINDOWSWITCHERLAYOUT_THUMBNAIL_MINWIDTH * (_this->cbDpiX / DEFAULT_DPI_X))
+				{
+					pWindowList[iCurrentWindow].dwWindowFlags |= SWS_WINDOWSWITCHERLAYOUT_WINDOWFLAGS_ISTOOSMALLHORIZONTAL;
+					pWindowList[iCurrentWindow].sizWindow.cx = SWS_WINDOWSWITCHERLAYOUT_THUMBNAIL_MINWIDTH * (_this->cbDpiX / DEFAULT_DPI_X);
+				}
 				if (bFinishedLayout)
 				{
 					DwmUnregisterThumbnail(pWindowList[iCurrentWindow].hThumbnail);
@@ -231,6 +241,14 @@ sws_error_t sws_WindowSwitcherLayout_ComputeLayout(sws_WindowSwitcherLayout* _th
 					{
 						sz.cy = SWS_WINDOWSWITCHERLAYOUT_EMPTYWINDOW_THUMBNAIL_HEIGHT * (_this->cbDpiY / DEFAULT_DPI_Y);
 						sz.cx = SWS_WINDOWSWITCHERLAYOUT_EMPTYWINDOW_THUMBNAIL_WIDTH * (_this->cbDpiX / DEFAULT_DPI_X);
+					}
+					if (sz.cy < SWS_WINDOWSWITCHERLAYOUT_THUMBNAIL_MINHEIGHT * (_this->cbDpiY / DEFAULT_DPI_Y))
+					{
+						sz.cy = SWS_WINDOWSWITCHERLAYOUT_THUMBNAIL_MINHEIGHT * (_this->cbDpiY / DEFAULT_DPI_Y);
+					}
+					if (sz.cx < SWS_WINDOWSWITCHERLAYOUT_THUMBNAIL_MINWIDTH * (_this->cbDpiX / DEFAULT_DPI_X))
+					{
+						sz.cx = SWS_WINDOWSWITCHERLAYOUT_THUMBNAIL_MINWIDTH * (_this->cbDpiX / DEFAULT_DPI_X);
 					}
 					unsigned int next_width = 0;
 					if (_this->bIncludeWallpaper && pWindowList[0].hWnd == _this->hWndWallpaper)
@@ -336,12 +354,24 @@ sws_error_t sws_WindowSwitcherLayout_ComputeLayout(sws_WindowSwitcherLayout* _th
 					pWindowList[iCurrentWindow].rcThumbnail.left = cbCurrentLeft;
 					pWindowList[iCurrentWindow].rcThumbnail.top = cbCurrentTop;
 					pWindowList[iCurrentWindow].rcThumbnail.right = cbCurrentLeft + width;
+					if (pWindowList[iCurrentWindow].dwWindowFlags & SWS_WINDOWSWITCHERLAYOUT_WINDOWFLAGS_ISTOOSMALLHORIZONTAL)
+					{
+						SIZE szTemp;
+						DwmQueryThumbnailSourceSize(pWindowList[iCurrentWindow].hThumbnail, &szTemp);
+						pWindowList[iCurrentWindow].rcThumbnail.right = cbCurrentLeft + szTemp.cx;
+					}
 					pWindowList[iCurrentWindow].rcThumbnail.bottom = cbCurrentTop + _this->cbThumbnailAvailableHeight;
 					if (original_width)
 					{
 						hdiff = pWindowList[iCurrentWindow].rcThumbnail.bottom;
 						pWindowList[iCurrentWindow].rcThumbnail.bottom = cbCurrentTop + (width * _this->cbThumbnailAvailableHeight) / (original_width * 1.0);
 						hdiff -= pWindowList[iCurrentWindow].rcThumbnail.bottom;
+					}
+					if (pWindowList[iCurrentWindow].dwWindowFlags & SWS_WINDOWSWITCHERLAYOUT_WINDOWFLAGS_ISTOOSMALLVERTICAL)
+					{
+						SIZE szTemp;
+						DwmQueryThumbnailSourceSize(pWindowList[iCurrentWindow].hThumbnail, &szTemp);
+						pWindowList[iCurrentWindow].rcThumbnail.right = cbCurrentLeft + szTemp.cy;
 					}
 
 					pWindowList[iCurrentWindow].rcWindow.left = cbCurrentLeft - _sws_WindowSwitcherLayout_GetInitialLeft(_this) + _this->cbElementLeftPadding;

@@ -295,7 +295,7 @@ static void _sws_IconPainter_Callback(
                                             DeleteObject(hBitmap);
                                             imageFactory->lpVtbl->Release(imageFactory);
 
-                                            pWindowList[params->index].bIsUWP = TRUE;
+                                            pWindowList[params->index].dwWindowFlags |= SWS_WINDOWSWITCHERLAYOUT_WINDOWFLAGS_ISUWP;
                                             szIcon = pWindowList[params->index].rcIcon.right;
                                             szIcon = szIcon * factor;
                                             szIcon = pWindowList[params->index].rcIcon.right - szIcon;

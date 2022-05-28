@@ -19,12 +19,11 @@ typedef struct _sws_WindowSwitcherLayoutWindow
     UINT dwIconSource;
     UINT szIcon;
     RECT rcIcon;
-    BOOL bIsUWP;
-    BOOL bOwnProcess;
     WCHAR wszPath[MAX_PATH];
     sws_tshwnd* tshWnd;
     sws_tshwnd* last_flashing_tshwnd;
     DWORD dwCount;
+    DWORD dwWindowFlags;
 } sws_WindowSwitcherLayoutWindow;
 
 void sws_WindowSwitcherLayoutWindow_Erase(sws_WindowSwitcherLayoutWindow* _this);

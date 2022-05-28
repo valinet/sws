@@ -23,7 +23,7 @@ static void _sws_WindowSwitcher_UpdateAccessibleText(sws_WindowSwitcher* _this)
                 WCHAR wszRundll32Path[MAX_PATH];
                 GetSystemDirectoryW(wszRundll32Path, MAX_PATH);
                 wcscat_s(wszRundll32Path, MAX_PATH, L"\\rundll32.exe");
-                if (_this->bAlwaysUseWindowTitleAndIcon || _this->mode != SWS_WINDOWSWITCHER_LAYOUTMODE_FULL || !_this->bSwitcherIsPerApplication || pWindowList[_this->layout.iIndex].bIsUWP || !pWindowList[_this->layout.iIndex].wszPath || (pWindowList[_this->layout.iIndex].wszPath && !_wcsicmp(pWindowList[_this->layout.iIndex].wszPath, wszRundll32Path)))
+                if (_this->bAlwaysUseWindowTitleAndIcon || _this->mode != SWS_WINDOWSWITCHER_LAYOUTMODE_FULL || !_this->bSwitcherIsPerApplication || (pWindowList[_this->layout.iIndex].dwWindowFlags & SWS_WINDOWSWITCHERLAYOUT_WINDOWFLAGS_ISUWP) || !pWindowList[_this->layout.iIndex].wszPath || (pWindowList[_this->layout.iIndex].wszPath && !_wcsicmp(pWindowList[_this->layout.iIndex].wszPath, wszRundll32Path)))
                 {
                     sws_WindowHelpers_GetWindowText(pWindowList[_this->layout.iIndex].hWnd, wszTitle, MAX_PATH);
                 }
@@ -972,7 +972,7 @@ void sws_WindowSwitcher_Paint(sws_WindowSwitcher* _this, DWORD dwFlags)
                     WCHAR wszRundll32Path[MAX_PATH];
                     GetSystemDirectoryW(wszRundll32Path, MAX_PATH);
                     wcscat_s(wszRundll32Path, MAX_PATH, L"\\rundll32.exe");
-                    if (_this->bAlwaysUseWindowTitleAndIcon || _this->mode != SWS_WINDOWSWITCHER_LAYOUTMODE_FULL || !_this->bSwitcherIsPerApplication || pWindowList[i].bIsUWP || !pWindowList[i].wszPath || (pWindowList[i].wszPath && !_wcsicmp(pWindowList[i].wszPath, wszRundll32Path)))
+                    if (_this->bAlwaysUseWindowTitleAndIcon || _this->mode != SWS_WINDOWSWITCHER_LAYOUTMODE_FULL || !_this->bSwitcherIsPerApplication || (pWindowList[i].dwWindowFlags & SWS_WINDOWSWITCHERLAYOUT_WINDOWFLAGS_ISUWP) || !pWindowList[i].wszPath || (pWindowList[i].wszPath && !_wcsicmp(pWindowList[i].wszPath, wszRundll32Path)))
                     {
                         sws_WindowHelpers_GetWindowText(pWindowList[i].hWnd, wszTitle, MAX_PATH);
                     }
@@ -1514,7 +1514,7 @@ static void WINAPI _sws_WindowSwitcher_Show(sws_WindowSwitcher* _this)
                 params->bUseApplicationIcon = FALSE;
                 if (!_this->bAlwaysUseWindowTitleAndIcon &&
                     !(pWindowList[iCurrentWindow].wszPath && !_wcsicmp(pWindowList[iCurrentWindow].wszPath, wszRundll32Path)) &&
-                    !pWindowList[iCurrentWindow].bIsUWP &&
+                    !(pWindowList[iCurrentWindow].dwWindowFlags & SWS_WINDOWSWITCHERLAYOUT_WINDOWFLAGS_ISUWP) &&
                     _this->bSwitcherIsPerApplication &&
                     _this->mode == SWS_WINDOWSWITCHER_LAYOUTMODE_FULL &&
                     pWindowList[iCurrentWindow].dwCount > 1)
@@ -1956,7 +1956,7 @@ static LRESULT _sws_WindowsSwitcher_WndProc(HWND hWnd, UINT uMsg, WPARAM wParam,
                                         params->bUseApplicationIcon = FALSE;
                                         if (!_this->bAlwaysUseWindowTitleAndIcon &&
                                             !(pWindowList[i].wszPath && !_wcsicmp(pWindowList[i].wszPath, wszRundll32Path)) &&
-                                            !pWindowList[i].bIsUWP && 
+                                            !(pWindowList[i].dwWindowFlags & SWS_WINDOWSWITCHERLAYOUT_WINDOWFLAGS_ISUWP) &&
                                             _this->bSwitcherIsPerApplication && 
                                             _this->mode == SWS_WINDOWSWITCHER_LAYOUTMODE_FULL && 
                                             pWindowList[i].dwCount > 1)

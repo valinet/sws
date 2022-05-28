@@ -300,8 +300,7 @@ static DWORD WINAPI _sws_WindowSwitcher_Calculate(sws_WindowSwitcher* _this)
     wchar_t wszClassName[100];
     ZeroMemory(wszClassName, 100);
     GetClassNameW(hFw, wszClassName, 100);
-    BOOL bIsWallpaperInForeground = !wcscmp(wszClassName, L"WorkerW") && (GetParent(hFw) == FindWindowW(L"Progman", NULL));
-    if (_this->mode == SWS_WINDOWSWITCHER_LAYOUTMODE_FULL && _this->layout.bIncludeWallpaper && _this->layout.bWallpaperAlwaysLast && bIsWallpaperInForeground)
+    if (_this->mode == SWS_WINDOWSWITCHER_LAYOUTMODE_FULL && _this->layout.bIncludeWallpaper && _this->layout.bWallpaperAlwaysLast && _sws_WindowHelpers_IsDesktopRaised())
     {
         sws_WindowSwitcherLayout_ComputeLayout(&(_this->layout), SWS_WINDOWSWITCHERLAYOUT_COMPUTE_DIRECTION_INITIAL, _this->layout.hWndWallpaper);
     }
@@ -313,7 +312,7 @@ static DWORD WINAPI _sws_WindowSwitcher_Calculate(sws_WindowSwitcher* _this)
     printf("[sws] CalculateHelper %d [[ %lld + %lld = %lld ]].\n", _this->mode, init - start, fin - init, fin - start);
 
     _this->layout.iIndex = _this->layout.pWindowList.cbSize == 1 ? 0 : _this->layout.iIndex - 1 - _this->layout.numTopMost;
-    if (_this->mode == SWS_WINDOWSWITCHER_LAYOUTMODE_FULL && _this->layout.bIncludeWallpaper && !wcscmp(wszClassName, L"WorkerW"))
+    if (_this->mode == SWS_WINDOWSWITCHER_LAYOUTMODE_FULL && _this->layout.bIncludeWallpaper && _sws_WindowHelpers_IsDesktopRaised())
     {
         if (_this->layout.bWallpaperAlwaysLast)
         {

@@ -207,9 +207,16 @@ void sws_WindowHelpers_Clear();
 
 sws_error_t sws_WindowHelpers_Initialize();
 
+extern BOOL g_bIsDesktopRaised;
+inline BOOL _sws_WindowHelpers_IsDesktopRaised()
+{
+	return g_bIsDesktopRaised;
+}
+
 inline void _sws_WindowHelpers_ToggleDesktop()
 {
-	PostMessageW(FindWindowExW(NULL, NULL, L"Shell_TrayWnd", NULL), WM_HOTKEY, 513, 0);
+	PostMessageW(FindWindowExW(NULL, NULL, L"Shell_TrayWnd", NULL), 0x579, 3 - _sws_WindowHelpers_IsDesktopRaised(), 0);
+	//PostMessageW(FindWindowExW(NULL, NULL, L"Shell_TrayWnd", NULL), WM_HOTKEY, 513, 0);
 	//PostMessageW(FindWindowExW(NULL, NULL, L"Shell_TrayWnd", NULL), 0x579, 3 - 1, 0); // 1 to restore
 	//PostMessageW(FindWindowExW(NULL, NULL, L"Shell_TrayWnd", NULL), 0x579, 3 - 0, 0); // 0 to show
 }

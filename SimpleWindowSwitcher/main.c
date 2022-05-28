@@ -10,6 +10,8 @@
 #include "sws_error.h"
 #include "sws_WindowSwitcher.h"
 
+BOOL g_bIsDesktopRaised = FALSE;
+
 __declspec(dllexport) sws_error_t main(DWORD unused)
 {
 	sws_error_t rv = SWS_ERROR_SUCCESS;

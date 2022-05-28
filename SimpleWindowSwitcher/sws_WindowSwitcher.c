@@ -269,10 +269,7 @@ void _sws_WindowSwitcher_Wineventproc(
     {
         PostMessageW(FindWindowW(_T(SWS_WINDOWSWITCHER_CLASSNAME), NULL), RegisterWindowMessageW(L"SHELLHOOK"), HSHELL_WINDOWDESTROYED, hwnd);
     }
-    // Notify only when the foreground window changed, as only these "foreground" changes
-    // are of interest for the switcher
-    // https://github.com/valinet/ExplorerPatcher/issues/1084
-    else if ((event == EVENT_SYSTEM_FOREGROUND) && hwnd && idObject == OBJID_WINDOW && (hwnd == GetForegroundWindow()))
+    else if ((event == EVENT_SYSTEM_FOREGROUND) && hwnd && (idObject == OBJID_WINDOW) && _sws_IsTopLevelWindow(hwnd))
     {
         PostMessageW(FindWindowW(_T(SWS_WINDOWSWITCHER_CLASSNAME), NULL), RegisterWindowMessageW(L"SHELLHOOK"), HSHELL_RUDEAPPACTIVATED, hwnd);
     }
@@ -1737,7 +1734,7 @@ static LRESULT _sws_WindowsSwitcher_WndProc(HWND hWnd, UINT uMsg, WPARAM wParam,
                         // the foreground request from the app and the window might still be flashing
                         // and not actually in the foreground
                         // https://github.com/valinet/ExplorerPatcher/issues/1084
-                        if ((wParam == HSHELL_WINDOWCREATED || wParam == HSHELL_WINDOWACTIVATED || wParam == HSHELL_RUDEAPPACTIVATED) && (hWnd == GetForegroundWindow()))
+                        if ((wParam == HSHELL_WINDOWCREATED || wParam == HSHELL_WINDOWACTIVATED || wParam == HSHELL_RUDEAPPACTIVATED) && (hWnd == GetForegroundWindow() || GetLastActivePopup(hWnd) == GetForegroundWindow()))
                         {
                             sws_tshwnd* found = DPA_FastGetPtr(_this->htshwnds, rv);
                             sws_tshwnd_UpdateTimestamp(found);

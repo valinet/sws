@@ -951,7 +951,7 @@ void sws_WindowSwitcher_Paint(sws_WindowSwitcher* _this, DWORD dwFlags)
                 int thPad = MulDiv(SWS_WINDOWSWITCHERLAYOUT_EMPTYWINDOW_THUMBNAILPADDING_LEFT, _this->layout.cbDpiY, DEFAULT_DPI_Y);
                 for (unsigned int curr_line = SWS_WINDOWSWITCHERLAYOUT_EMPTYWINDOW_THUMBNAILPADDING_TOP; curr_line <= (pWindowList[i].rcThumbnail.bottom - pWindowList[i].rcThumbnail.top) - thPad; ++curr_line)
                 {
-                    double p = (curr_line * 1.0) / (pWindowList[i].rcThumbnail.bottom - pWindowList[i].rcThumbnail.top);
+                    double p = ((curr_line - SWS_WINDOWSWITCHERLAYOUT_EMPTYWINDOW_THUMBNAILPADDING_TOP) * 1.0) / (pWindowList[i].rcThumbnail.bottom - pWindowList[i].rcThumbnail.top - thPad - SWS_WINDOWSWITCHERLAYOUT_EMPTYWINDOW_THUMBNAILPADDING_TOP);
                     double r = GetRValue(colorUp) + p * (GetRValue(colorDown) - GetRValue(colorUp));
                     double g = GetGValue(colorUp) + p * (GetGValue(colorDown) - GetGValue(colorUp));
                     double b = GetBValue(colorUp) + p * (GetBValue(colorDown) - GetBValue(colorUp));

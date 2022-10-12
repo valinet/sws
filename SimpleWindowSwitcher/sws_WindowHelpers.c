@@ -29,6 +29,17 @@ FARPROC sws_LoadIconWithScaleDown;
 BOOL (*sws_SHWindowsPolicy)(REFGUID riid);
 DEFINE_GUID(POLID_TurnOffSPIAnimations, 0xD7AF00A, 0xB468, 0x4A39, 0xB0, 0x16, 0x33, 0x3E, 0x22, 0x77, 0xAB, 0xED);
 
+BOOL sws_WindowHelpers_IsValidMonitor(HMONITOR hMonitor, HDC unnamedParam2, LPRECT unnamedParam3, HMONITOR* pMonitor)
+{
+	if (!pMonitor || !*pMonitor) return FALSE;
+	if (hMonitor == *pMonitor)
+	{
+		*pMonitor = NULL;
+		return FALSE;
+	}
+	return TRUE;
+}
+
 sws_error_t sws_WindowHelpers_PermitDarkMode(HWND hWnd)
 {
 	if (_sws_SetPreferredAppMode && _sws_AllowDarkModeForWindow)

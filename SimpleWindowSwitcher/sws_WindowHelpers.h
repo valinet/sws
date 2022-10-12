@@ -185,6 +185,9 @@ sws_error_t sws_WindowHelpers_RealEnumWindows(
 	WNDENUMPROC in_Proc,
 	LPARAM in_Param
 );
+
+BOOL sws_WindowHelpers_IsValidMonitor(HMONITOR hMonitor, HDC unnamedParam2, LPRECT unnamedParam3, HMONITOR* pMonitor);
+
 sws_error_t sws_WindowHelpers_PermitDarkMode(HWND hWnd);
 
 sws_error_t sws_WindowHelpers_ShouldSystemUseDarkMode(DWORD* dwRes);

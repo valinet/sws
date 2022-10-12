@@ -1485,7 +1485,14 @@ static void WINAPI _sws_WindowSwitcher_Show(sws_WindowSwitcher* _this)
     {
         GetCursorPos(&pt);
     }
-    _this->hMonitor = MonitorFromPoint(pt, MONITOR_DEFAULTTOPRIMARY);
+    BOOL bIsMonitorValid = FALSE;
+    if (_this->hMonitor && IsWindowVisible(_this->hWnd))
+    {
+        HMONITOR hSeekedMonitor = _this->hMonitor;
+        EnumDisplayMonitors(NULL, NULL, sws_WindowHelpers_IsValidMonitor, &hSeekedMonitor);
+        if (!hSeekedMonitor) bIsMonitorValid = TRUE;
+    }
+    if (!_this->hMonitor || !bIsMonitorValid) _this->hMonitor = MonitorFromPoint(pt, MONITOR_DEFAULTTOPRIMARY);
     sws_WindowSwitcherLayout_Clear(&(_this->layout));
     sws_vector_Clear(&(_this->pHWNDList));
     sws_vector_Initialize(&(_this->pHWNDList), sizeof(sws_window));

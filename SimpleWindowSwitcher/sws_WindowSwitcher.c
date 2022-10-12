@@ -2198,17 +2198,26 @@ static LRESULT _sws_WindowsSwitcher_WndProc(HWND hWnd, UINT uMsg, WPARAM wParam,
             KillTimer(hWnd, SWS_WINDOWSWITCHER_TIMER_ASYNCKEYCHECK);
             _this->lastMiniModehWnd = NULL;
             //sws_WindowSwitcherLayout_Clear(&(_this->layout));
-            if (_this->dwOriginalMouseRouting != -1) SystemParametersInfoW(SPI_SETMOUSEWHEELROUTING, 0, _this->dwOriginalMouseRouting, 0);
+            if (_this->dwOriginalScrollWheelBehavior == SWS_SCROLLWHEELBEHAVIOR_EVERYWHERE)
+            {
+                if (_this->dwOriginalMouseRouting != -1) SystemParametersInfoW(SPI_SETMOUSEWHEELROUTING, 0, _this->dwOriginalMouseRouting, 0);
+            }
             _this->dwOriginalMouseRouting = -1;
+            _this->dwOriginalScrollWheelBehavior = SWS_SCROLLWHEELBEHAVIOR_DISABLED;
         }
         else
         {
             //SetWindowPos(_this->hWnd, 0, _this->layout.iX, _this->layout.iY, _this->layout.iWidth, _this->layout.iHeight, SWP_NOZORDER);
-            DWORD dwOriginalMouseRouting = -1;
-            if (SystemParametersInfoW(SPI_GETMOUSEWHEELROUTING, 0, &dwOriginalMouseRouting, 0)) _this->dwOriginalMouseRouting = dwOriginalMouseRouting;
-            if (dwOriginalMouseRouting != -1 && dwOriginalMouseRouting != MOUSEWHEEL_ROUTING_FOCUS)
+            _this->dwOriginalScrollWheelBehavior = _this->dwScrollWheelBehavior;
+            if (_this->dwOriginalScrollWheelBehavior == SWS_SCROLLWHEELBEHAVIOR_EVERYWHERE)
             {
-                if (!SystemParametersInfoW(SPI_SETMOUSEWHEELROUTING, 0, MOUSEWHEEL_ROUTING_FOCUS, 0)) _this->dwOriginalMouseRouting = -1;
+                DWORD dwOriginalMouseRouting = -1;
+                if (SystemParametersInfoW(SPI_GETMOUSEWHEELROUTING, 0, &dwOriginalMouseRouting, 0)) _this->dwOriginalMouseRouting = dwOriginalMouseRouting;
+                if (dwOriginalMouseRouting != -1 && dwOriginalMouseRouting != MOUSEWHEEL_ROUTING_FOCUS)
+                {
+                    if (!SystemParametersInfoW(SPI_SETMOUSEWHEELROUTING, 0, MOUSEWHEEL_ROUTING_FOCUS, 0)) _this->dwOriginalMouseRouting = -1;
+                }
+                else _this->dwOriginalMouseRouting = -1;
             }
             else _this->dwOriginalMouseRouting = -1;
         }
@@ -2402,7 +2411,7 @@ static LRESULT _sws_WindowsSwitcher_WndProc(HWND hWnd, UINT uMsg, WPARAM wParam,
         _sws_WindowSwitcher_SwitchToSelectedItemAndDismiss(_this);
         return 0;
     }
-    else if (uMsg == WM_HOTKEY || uMsg == WM_KEYDOWN || uMsg == WM_SYSKEYDOWN || uMsg == WM_MOUSEWHEEL)
+    else if (uMsg == WM_HOTKEY || uMsg == WM_KEYDOWN || uMsg == WM_SYSKEYDOWN || (uMsg == WM_MOUSEWHEEL && _this && _this->dwOriginalScrollWheelBehavior != SWS_SCROLLWHEELBEHAVIOR_DISABLED))
     {
         /*if (uMsg == WM_HOTKEY && (int)wParam == 0)
         {

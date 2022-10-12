@@ -88,6 +88,7 @@ typedef struct _sws_WindowSwitcher
     long long lastUpdateTime;
     BOOL bShouldStartFlashTimerWhenShowing;
     DWORD dwOriginalMouseRouting;
+    DWORD dwOriginalScrollWheelBehavior;
 
     DWORD dwRowHeight;
     DWORD dwMaxWP;
@@ -101,6 +102,7 @@ typedef struct _sws_WindowSwitcher
     DWORD dwWallpaperSupport;
     DWORD bSwitcherIsPerApplication;
     DWORD bAlwaysUseWindowTitleAndIcon;
+    DWORD dwScrollWheelBehavior;
 } sws_WindowSwitcher;
 
 typedef struct _sws_WindowSwitcher_EndTaskThreadParams

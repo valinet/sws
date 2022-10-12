@@ -2478,7 +2478,7 @@ static LRESULT _sws_WindowsSwitcher_WndProc(HWND hWnd, UINT uMsg, WPARAM wParam,
                     (uMsg == WM_HOTKEY && (LOWORD(lParam) & MOD_SHIFT)) ||
                     ((uMsg == WM_KEYDOWN || uMsg == WM_SYSKEYDOWN) && wParam == VK_LEFT) ||
                     ((uMsg == WM_KEYDOWN || uMsg == WM_SYSKEYDOWN) && wParam == VK_UP) ||
-                    (uMsg == WM_MOUSEWHEEL && GET_WHEEL_DELTA_WPARAM(wParam) < 0)
+                    (uMsg == WM_MOUSEWHEEL && GET_WHEEL_DELTA_WPARAM(wParam) > 0)
                     )
                 {
                     direction = SWS_WINDOWSWITCHERLAYOUT_COMPUTE_DIRECTION_BACKWARD;

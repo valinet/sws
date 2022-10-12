@@ -2716,7 +2716,6 @@ void sws_WindowSwitcher_InitializeDefaultSettings(sws_WindowSwitcher* _this)
     _this->dwMaxAbsoluteWP = 0;
     _this->dwMaxAbsoluteHP = 0;
     _this->bNoPerApplicationList = FALSE;
-    _this->bNoPerApplicationListPrevious = FALSE;
     _this->dwMasterPadding = SWS_WINDOWSWITCHERLAYOUT_MASTER_PADDING_TOP;
     _this->dwWallpaperSupport = SWS_WALLPAPERSUPPORT_NONE;
     _this->bSwitcherIsPerApplication = FALSE;

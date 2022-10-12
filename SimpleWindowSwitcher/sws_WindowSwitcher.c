@@ -2721,6 +2721,7 @@ void sws_WindowSwitcher_InitializeDefaultSettings(sws_WindowSwitcher* _this)
     _this->dwWallpaperSupport = SWS_WALLPAPERSUPPORT_NONE;
     _this->bSwitcherIsPerApplication = FALSE;
     _this->bAlwaysUseWindowTitleAndIcon = FALSE;
+    _this->dwScrollWheelBehavior = SWS_SCROLLWHEELBEHAVIOR_DISABLED;
 }
 
 __declspec(dllexport) void sws_WindowSwitcher_Clear(sws_WindowSwitcher* _this)

@@ -2503,7 +2503,7 @@ static LRESULT _sws_WindowsSwitcher_WndProc(HWND hWnd, UINT uMsg, WPARAM wParam,
                     (uMsg == WM_HOTKEY && (LOWORD(lParam) & MOD_SHIFT)) ||
                     ((uMsg == WM_KEYDOWN || uMsg == WM_SYSKEYDOWN) && wParam == VK_LEFT) ||
                     ((uMsg == WM_KEYDOWN || uMsg == WM_SYSKEYDOWN) && wParam == VK_UP) ||
-                    (uMsg == WM_MOUSEWHEEL && GET_WHEEL_DELTA_WPARAM(wParam) > 0)
+                    (uMsg == WM_MOUSEWHEEL && (_this->bScrollWheelInvert ? GET_WHEEL_DELTA_WPARAM(wParam) < 0 : GET_WHEEL_DELTA_WPARAM(wParam) > 0))
                     )
                 {
                     direction = SWS_WINDOWSWITCHERLAYOUT_COMPUTE_DIRECTION_BACKWARD;
@@ -2721,6 +2721,7 @@ void sws_WindowSwitcher_InitializeDefaultSettings(sws_WindowSwitcher* _this)
     _this->bSwitcherIsPerApplication = FALSE;
     _this->bAlwaysUseWindowTitleAndIcon = FALSE;
     _this->dwScrollWheelBehavior = SWS_SCROLLWHEELBEHAVIOR_DISABLED;
+    _this->bScrollWheelInvert = FALSE;
 }
 
 __declspec(dllexport) void sws_WindowSwitcher_Clear(sws_WindowSwitcher* _this)

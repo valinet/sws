@@ -103,6 +103,7 @@ typedef struct _sws_WindowSwitcher
     DWORD bSwitcherIsPerApplication;
     DWORD bAlwaysUseWindowTitleAndIcon;
     DWORD dwScrollWheelBehavior;
+    DWORD bScrollWheelInvert;
 } sws_WindowSwitcher;
 
 typedef struct _sws_WindowSwitcher_EndTaskThreadParams

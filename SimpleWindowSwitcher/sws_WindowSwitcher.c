@@ -2198,10 +2198,19 @@ static LRESULT _sws_WindowsSwitcher_WndProc(HWND hWnd, UINT uMsg, WPARAM wParam,
             KillTimer(hWnd, SWS_WINDOWSWITCHER_TIMER_ASYNCKEYCHECK);
             _this->lastMiniModehWnd = NULL;
             //sws_WindowSwitcherLayout_Clear(&(_this->layout));
+            if (_this->dwOriginalMouseRouting != -1) SystemParametersInfoW(SPI_SETMOUSEWHEELROUTING, 0, _this->dwOriginalMouseRouting, 0);
+            _this->dwOriginalMouseRouting = -1;
         }
         else
         {
             //SetWindowPos(_this->hWnd, 0, _this->layout.iX, _this->layout.iY, _this->layout.iWidth, _this->layout.iHeight, SWP_NOZORDER);
+            DWORD dwOriginalMouseRouting = -1;
+            if (SystemParametersInfoW(SPI_GETMOUSEWHEELROUTING, 0, &dwOriginalMouseRouting, 0)) _this->dwOriginalMouseRouting = dwOriginalMouseRouting;
+            if (dwOriginalMouseRouting != -1 && dwOriginalMouseRouting != MOUSEWHEEL_ROUTING_FOCUS)
+            {
+                if (!SystemParametersInfoW(SPI_SETMOUSEWHEELROUTING, 0, MOUSEWHEEL_ROUTING_FOCUS, 0)) _this->dwOriginalMouseRouting = -1;
+            }
+            else _this->dwOriginalMouseRouting = -1;
         }
         return 0;
     }
@@ -2887,6 +2896,7 @@ __declspec(dllexport) sws_error_t sws_WindowSwitcher_Initialize(sws_WindowSwitch
         _this->bWallpaperAlwaysLast = SWS_WINDOWSWITCHERLAYOUT_WALLPAPER_ALWAYS_LAST;
         _this->mode = SWS_WINDOWSWITCHER_LAYOUTMODE_FULL;
         _this->lastMiniModehWnd = NULL;
+        _this->dwOriginalMouseRouting = -1;
     }
     if (!rv)
     {

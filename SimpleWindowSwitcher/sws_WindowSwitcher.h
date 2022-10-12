@@ -87,6 +87,7 @@ typedef struct _sws_WindowSwitcher
     HDPA hLastClosedWnds;
     long long lastUpdateTime;
     BOOL bShouldStartFlashTimerWhenShowing;
+    DWORD dwOriginalMouseRouting;
 
     DWORD dwRowHeight;
     DWORD dwMaxWP;

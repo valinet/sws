@@ -1703,9 +1703,13 @@ static DWORD _sws_WindowSwitcher_EndTaskThreadProc(sws_WindowSwitcher_EndTaskThr
     free(params);
 }
 
-void _sws_WindowSwitcher_CloseWindowById(sws_WindowSwitcher* _this, INT closeIndex)
+BOOL _sws_WindowSwitcher_CloseWindowById(sws_WindowSwitcher* _this, INT closeIndex)
 {
 	sws_WindowSwitcherLayoutWindow* pWindowList = _this->layout.pWindowList.pList;
+    if (_this->layout.bIncludeWallpaper && pWindowList[closeIndex].hWnd == _this->layout.hWndWallpaper)
+    {
+        return FALSE; // window failed to close
+    }
 	DWORD closePID;
 	GetWindowThreadProcessId(pWindowList[closeIndex].hWnd, &closePID);
 	if (_this->hLastClosedWnds)
@@ -1779,6 +1783,7 @@ void _sws_WindowSwitcher_CloseWindowById(sws_WindowSwitcher* _this, INT closeInd
 	SetTimer(_this->hWnd, SWS_WINDOWSWITCHER_TIMER_CLOSEHWND, SWS_WINDOWSWITCHER_TIMER_CLOSEHWND_DELAY, NULL);
 	//EndTask(pWindowList[i].hWnd, FALSE, FALSE);
 	//PostMessageW(pWindowList[i].hWnd, WM_CLOSE, 0, 0);
+    return TRUE;
 }
 
 static LRESULT _sws_WindowsSwitcher_WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
@@ -2389,13 +2394,14 @@ static LRESULT _sws_WindowsSwitcher_WndProc(HWND hWnd, UINT uMsg, WPARAM wParam,
                     {
                         if (_this->cwIndex != -1 &&
                             _this->cwIndex < _this->layout.pWindowList.cbSize &&
-                            (uMsg == WM_MBUTTONUP ? 1 : (_this->cwMask & SWS_WINDOWFLAG_IS_ON_CLOSE)) &&
-                            !(_this->layout.bIncludeWallpaper && pWindowList[i].hWnd == _this->layout.hWndWallpaper)
+                            (uMsg == WM_MBUTTONUP ? 1 : (_this->cwMask & SWS_WINDOWFLAG_IS_ON_CLOSE))
                             )
                         {
-                            //_this->cwIndex == i here unless i'm misunderstanding -shai
-                            _sws_WindowSwitcher_CloseWindowById(_this, i);
-							break;
+                            //(_this->cwIndex == i) here unless i'm misunderstanding -shai
+                            if (_sws_WindowSwitcher_CloseWindowById(_this, i))
+                            {
+                                break;
+                            }
                         }
                         if (uMsg == WM_MBUTTONUP)
                         {
@@ -2433,6 +2439,13 @@ static LRESULT _sws_WindowsSwitcher_WndProc(HWND hWnd, UINT uMsg, WPARAM wParam,
             ShowWindow(_this->hWnd, SW_HIDE);
             return 0;
         }*/
+
+        //No particular reason this has to be Q but it seemed like a nice choice - Shai
+        if ((uMsg == WM_KEYDOWN || uMsg == WM_SYSKEYDOWN) && wParam == 0x51)
+        {
+            _sws_WindowSwitcher_CloseWindowById(_this, _this->layout.iIndex);
+            return 0;
+        }
         if (uMsg == WM_HOTKEY && (LOWORD(lParam) & MOD_CONTROL))
         {
             _this->bWasControl = TRUE;

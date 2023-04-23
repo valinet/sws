@@ -16,6 +16,12 @@ void sws_window_Clear(sws_window* _this)
 		_this->dwProcessId = 0;
 		ZeroMemory(_this->wszPath, MAX_PATH);
 		_this->bIsApplicationFrameHost = FALSE;
+		_this->pNextWindow = NULL;
+	}
+	if (_this->wszAUMID)
+	{
+		CoTaskMemFree(_this->wszAUMID);
+		_this->wszAUMID = NULL;
 	}
 }
 
@@ -65,7 +71,11 @@ sws_error_t sws_window_Initialize(sws_window* _this, HWND hWnd)
 		_this->bIsApplicationFrameHost = sws_IsShellFrameWindow(hWnd);
 		//_this->bIsApplicationFrameHost = sws_WindowHelpers_IsWindowUWP(hWnd);
 		_this->tshWnd = NULL;
+		_this->pNextWindow = NULL;
 	}
-
+	if (!rv)
+	{
+		_this->wszAUMID = sws_WindowHelpers_GetAUMIDForHWND(_this->hWnd);
+	}
 	return rv;
 }

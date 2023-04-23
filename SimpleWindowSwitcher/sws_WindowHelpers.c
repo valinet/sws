@@ -343,7 +343,7 @@ BOOL _sws_WindowHelpers_IsValidTabWindowForTray(HWND hWnd)
 		pKey.pid = 5;
 		PROPVARIANT prop;
 		ZeroMemory(&prop, sizeof(PROPVARIANT));
-		propStore->lpVtbl->GetValue(propStore, &pKey, &prop);
+		if (SUCCEEDED(propStore->lpVtbl->GetValue(propStore, &pKey, &prop))) PropVariantClear(&prop);
 		propStore->lpVtbl->Release(propStore);
 		IShellItem2* item;
 		HRESULT hr = SHCreateItemInKnownFolder(
@@ -474,6 +474,13 @@ __int64 __fastcall _sws_IsTaskWindow(HWND a2)
 	}
 
 	return v6;
+}
+
+wchar_t* sws_WindowHelpers_GetAUMIDForHWND(HWND hWnd)
+{
+	WCHAR* pszAppId;
+	if (SUCCEEDED(sws_AppResolver->lpVtbl->GetAppIDForWindow(sws_AppResolver, hWnd, &pszAppId, NULL, NULL, NULL)) && pszAppId) return pszAppId;
+	return NULL;
 }
 
 BOOL sws_WindowHelpers_IsTaskbarWindow(HWND hWnd, HWND hWndWallpaper)
@@ -702,30 +709,42 @@ void sws_WindowHelpers_Clear()
 	if (sws_DefAppIcon)
 	{
 		DestroyIcon(sws_DefAppIcon);
+		sws_DefAppIcon = NULL;
 	}
 	if (_sws_hWin32u)
 	{
 		FreeLibrary(_sws_hWin32u);
+		_sws_hWin32u = NULL;
 	}
 	if (_sws_hUser32)
 	{
 		FreeLibrary(_sws_hUser32);
+		_sws_hUser32 = NULL;
 	}
 	if (_sws_hUxtheme)
 	{
 		FreeLibrary(_sws_hUxtheme);
+		_sws_hUxtheme = NULL;
 	}
 	if (_sws_hShlwapi)
 	{
 		FreeLibrary(_sws_hShlwapi);
+		_sws_hShlwapi = NULL;
 	}
 	if (_sws_hComctl32)
 	{
 		FreeLibrary(_sws_hComctl32);
+		_sws_hComctl32 = NULL;
 	}
 	if (_sws_hShcore)
 	{
 		FreeLibrary(_sws_hShcore);
+		_sws_hShcore = NULL;
+	}
+	if (sws_AppResolver)
+	{
+		sws_AppResolver->lpVtbl->Release(sws_AppResolver);
+		sws_AppResolver = NULL;
 	}
 }
 
@@ -1052,6 +1071,17 @@ sws_error_t sws_WindowHelpers_Initialize()
 			if (!sws_SHWindowsPolicy)
 			{
 				rv = sws_error_Report(sws_error_GetFromInternalError(SWS_ERROR_FUNCTION_NOT_FOUND), NULL);
+			}
+		}
+	}
+	if (!rv)
+	{
+		if (!sws_AppResolver)
+		{
+			CoCreateInstance(&CLSID_StartMenuCacheAndAppResolver, NULL, CLSCTX_INPROC_SERVER | CLSCTX_INPROC_HANDLER, &IID_IAppResolver_8, (void**)&sws_AppResolver);
+			if (!sws_AppResolver)
+			{
+				rv = sws_error_Report(sws_error_GetFromInternalError(SWS_ERROR_APPRESOLVER_NOT_AVAILABLE), NULL);
 			}
 		}
 	}

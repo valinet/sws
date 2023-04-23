@@ -24,7 +24,11 @@ typedef struct _sws_WindowSwitcherLayoutWindow
     sws_tshwnd* last_flashing_tshwnd;
     DWORD dwCount;
     DWORD dwWindowFlags;
+    WCHAR* wszAUMID;
+    HDPA dpaGroupedWnds;
 } sws_WindowSwitcherLayoutWindow;
+
+int sws_WindowSwitcherLayoutWindow_AddGroupedWnd(sws_WindowSwitcherLayoutWindow* _this, HWND hWnd);
 
 void sws_WindowSwitcherLayoutWindow_Erase(sws_WindowSwitcherLayoutWindow* _this);
 

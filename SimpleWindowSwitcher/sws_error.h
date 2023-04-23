@@ -33,6 +33,9 @@ typedef HRESULT sws_error_t;
 #define SWS_ERROR_SHELL_NOT_FOUND_TEXT		                "A compatible shell application is not available"
 #define SWS_ERROR_NOERROR_JUST_PRINT_STACKTRACE				0xA0010009
 #define SWS_ERROR_NOERROR_JUST_PRINT_STACKTRACE_TEXT	    "THIS IS NOT A BUG, A DELIBERATE STACK TRACE REQUEST HAS BEEN MADE"
+#define SWS_ERROR_APPRESOLVER_NOT_AVAILABLE					0xA001000A
+#define SWS_ERROR_APPRESOLVER_NOT_AVAILABLE_TEXT            "Unable to initialize an instance of IAppResolver8"
+
 
 #ifdef __cplusplus
 extern "C"

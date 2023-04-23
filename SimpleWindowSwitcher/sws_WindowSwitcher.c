@@ -23,7 +23,7 @@ static void _sws_WindowSwitcher_UpdateAccessibleText(sws_WindowSwitcher* _this)
                 WCHAR wszRundll32Path[MAX_PATH];
                 GetSystemDirectoryW(wszRundll32Path, MAX_PATH);
                 wcscat_s(wszRundll32Path, MAX_PATH, L"\\rundll32.exe");
-                if (_this->bAlwaysUseWindowTitleAndIcon || _this->mode != SWS_WINDOWSWITCHER_LAYOUTMODE_FULL || !_this->bSwitcherIsPerApplication || (pWindowList[_this->layout.iIndex].dwWindowFlags & SWS_WINDOWSWITCHERLAYOUT_WINDOWFLAGS_ISUWP) || !pWindowList[_this->layout.iIndex].wszPath || (pWindowList[_this->layout.iIndex].wszPath && !_wcsicmp(pWindowList[_this->layout.iIndex].wszPath, wszRundll32Path)))
+                if (_this->bAlwaysUseWindowTitleAndIcon || _this->mode != SWS_WINDOWSWITCHER_LAYOUTMODE_FULL || !_this->bSwitcherIsPerApplication || !pWindowList[_this->layout.iIndex].wszPath || (pWindowList[_this->layout.iIndex].wszPath && !_wcsicmp(pWindowList[_this->layout.iIndex].wszPath, wszRundll32Path)))
                 {
                     sws_WindowHelpers_GetWindowText(pWindowList[_this->layout.iIndex].hWnd, wszTitle, MAX_PATH);
                 }
@@ -34,22 +34,23 @@ static void _sws_WindowSwitcher_UpdateAccessibleText(sws_WindowSwitcher* _this)
                         DWORD dwPrefixLen = 0;
                         //swprintf_s(wszTitle, MAX_PATH, L"%d: ", dwCount);
                         dwPrefixLen = 0;// wcslen(wszTitle);
-                        WCHAR wszExplorerPath[MAX_PATH];
-                        GetWindowsDirectoryW(wszExplorerPath, MAX_PATH);
-                        wcscat_s(wszExplorerPath, MAX_PATH, L"\\explorer.exe");
-                        if (pWindowList[_this->layout.iIndex].wszPath && !_wcsicmp(wszExplorerPath, pWindowList[_this->layout.iIndex].wszPath))
+                        BOOL bAUMIDOk = FALSE;
+                        if (pWindowList[_this->layout.iIndex].wszAUMID)
                         {
-                            HANDLE hExplorer = GetModuleHandleW(NULL);
-                            if (hExplorer)
+                            IShellItem2* pItem = NULL;
+                            if (SUCCEEDED(SHCreateItemInKnownFolder(&FOLDERID_AppsFolder, KF_FLAG_DONT_VERIFY, pWindowList[_this->layout.iIndex].wszAUMID, &IID_IShellItem2, &pItem)) && pItem)
                             {
-                                LoadStringW(hExplorer, 6020, wszTitle + dwPrefixLen, MAX_PATH - dwPrefixLen);
-                            }
-                            if (!hExplorer || !wszTitle)
-                            {
-                                wcscat_s(wszTitle + dwPrefixLen, MAX_PATH - dwPrefixLen, L"File Explorer");
+                                LPWSTR pDisplayName = NULL;
+                                if (SUCCEEDED(pItem->lpVtbl->GetDisplayName(pItem, SIGDN_NORMALDISPLAY, &pDisplayName)) && pDisplayName)
+                                {
+                                    bAUMIDOk = TRUE;
+                                    wcscpy_s(wszTitle + dwPrefixLen, MAX_PATH - dwPrefixLen, pDisplayName);
+                                    CoTaskMemFree(pDisplayName);
+                                }
+                                pItem->lpVtbl->Release(pItem);
                             }
                         }
-                        else
+                        if (!bAUMIDOk)
                         {
                             IShellItem2* pIShellItem2 = NULL;
                             if (SUCCEEDED(SHCreateItemFromParsingName(pWindowList[_this->layout.iIndex].wszPath, NULL, &IID_IShellItem2, &pIShellItem2)))
@@ -794,16 +795,13 @@ void sws_WindowSwitcher_Paint(sws_WindowSwitcher* _this, DWORD dwFlags)
                     }
                     if (pHWNDList && k >= 0)
                     {
-                        for (unsigned int j = 0; j < _this->pHWNDList.cbSize; ++j)
+                        for (sws_window* pcw = pHWNDList + k; pcw != NULL; pcw = pcw->pNextWindow)
                         {
-                            if (pHWNDList[k].dwProcessId == pHWNDList[j].dwProcessId || !_wcsicmp(pHWNDList[k].wszPath, pHWNDList[j].wszPath))
+                            if (pcw->tshWnd && sws_tshwnd_GetFlashState(pcw->tshWnd))
                             {
-                                if (pHWNDList[j].tshWnd && sws_tshwnd_GetFlashState(pHWNDList[j].tshWnd))
-                                {
-                                    tshWnd = pHWNDList[j].tshWnd;
-                                    pWindowList[i].last_flashing_tshwnd = tshWnd;
-                                    break;
-                                }
+                                tshWnd = pcw->tshWnd;
+                                pWindowList[i].last_flashing_tshwnd = tshWnd;
+                                break;
                             }
                         }
                     }
@@ -1047,7 +1045,7 @@ void sws_WindowSwitcher_Paint(sws_WindowSwitcher* _this, DWORD dwFlags)
                     WCHAR wszRundll32Path[MAX_PATH];
                     GetSystemDirectoryW(wszRundll32Path, MAX_PATH);
                     wcscat_s(wszRundll32Path, MAX_PATH, L"\\rundll32.exe");
-                    if (_this->bAlwaysUseWindowTitleAndIcon || _this->mode != SWS_WINDOWSWITCHER_LAYOUTMODE_FULL || !_this->bSwitcherIsPerApplication || (pWindowList[i].dwWindowFlags & SWS_WINDOWSWITCHERLAYOUT_WINDOWFLAGS_ISUWP) || !pWindowList[i].wszPath || (pWindowList[i].wszPath && !_wcsicmp(pWindowList[i].wszPath, wszRundll32Path)))
+                    if (_this->bAlwaysUseWindowTitleAndIcon || _this->mode != SWS_WINDOWSWITCHER_LAYOUTMODE_FULL || !_this->bSwitcherIsPerApplication || !pWindowList[i].wszPath || (pWindowList[i].wszPath && !_wcsicmp(pWindowList[i].wszPath, wszRundll32Path)))
                     {
                         sws_WindowHelpers_GetWindowText(pWindowList[i].hWnd, wszTitle, MAX_PATH);
                     }
@@ -1058,22 +1056,23 @@ void sws_WindowSwitcher_Paint(sws_WindowSwitcher* _this, DWORD dwFlags)
                             DWORD dwPrefixLen = 0;
                             swprintf_s(wszTitle, MAX_PATH, L"(%d) ", pWindowList[i].dwCount);
                             dwPrefixLen = wcslen(wszTitle);
-                            WCHAR wszExplorerPath[MAX_PATH];
-                            GetWindowsDirectoryW(wszExplorerPath, MAX_PATH);
-                            wcscat_s(wszExplorerPath, MAX_PATH, L"\\explorer.exe");
-                            if (pWindowList[i].wszPath && !_wcsicmp(wszExplorerPath, pWindowList[i].wszPath))
+                            BOOL bAUMIDOk = FALSE;
+                            if (pWindowList[i].wszAUMID)
                             {
-                                HANDLE hExplorer = GetModuleHandleW(NULL);
-                                if (hExplorer)
+                                IShellItem2* pItem = NULL;
+                                if (SUCCEEDED(SHCreateItemInKnownFolder(&FOLDERID_AppsFolder, KF_FLAG_DONT_VERIFY, pWindowList[i].wszAUMID, &IID_IShellItem2, &pItem)) && pItem)
                                 {
-                                    LoadStringW(hExplorer, 6020, wszTitle + dwPrefixLen, MAX_PATH - dwPrefixLen);
-                                }
-                                if (!hExplorer || !wszTitle)
-                                {
-                                    wcscat_s(wszTitle + dwPrefixLen, MAX_PATH - dwPrefixLen, L"File Explorer");
+                                    LPWSTR pDisplayName = NULL;
+                                    if (SUCCEEDED(pItem->lpVtbl->GetDisplayName(pItem, SIGDN_NORMALDISPLAY, &pDisplayName)) && pDisplayName)
+                                    {
+                                        bAUMIDOk = TRUE;
+                                        wcscpy_s(wszTitle + dwPrefixLen, MAX_PATH - dwPrefixLen, pDisplayName);
+                                        CoTaskMemFree(pDisplayName);
+                                    }
+                                    pItem->lpVtbl->Release(pItem);
                                 }
                             }
-                            else
+                            if (!bAUMIDOk)
                             {
                                 IShellItem2* pIShellItem2 = NULL;
                                 if (SUCCEEDED(SHCreateItemFromParsingName(pWindowList[i].wszPath, NULL, &IID_IShellItem2, &pIShellItem2)))
@@ -1662,27 +1661,6 @@ static void WINAPI _sws_WindowSwitcher_Show(sws_WindowSwitcher* _this)
     }
     for (int iCurrentWindow = _this->layout.pWindowList.cbSize - 1; iCurrentWindow >= 0; iCurrentWindow--)
     {
-        DWORD iPID;
-        GetWindowThreadProcessId(pWindowList[iCurrentWindow].hWnd, &iPID);
-        sws_WindowSwitcherLayout layout;
-        sws_WindowSwitcherLayout_Initialize(
-            &layout,
-            _this->hMonitor,
-            _this->hWnd,
-            &(_this->dwRowHeight),
-            &(_this->pHWNDList),
-            pWindowList[iCurrentWindow].hWnd,
-            _this->hWndWallpaper
-        );
-        sws_WindowSwitcherLayoutWindow* pTestList = layout.pWindowList.pList;
-        for (unsigned int j = 0; j < layout.pWindowList.cbSize; ++j)
-        {
-            DWORD jPID;
-            GetWindowThreadProcessId(pTestList[j].hWnd, &jPID);
-            pWindowList[iCurrentWindow].dwCount += ((iPID == jPID || !_wcsicmp(pWindowList[iCurrentWindow].wszPath, pTestList[j].wszPath)) ? 1 : 0);
-        }
-        sws_WindowSwitcherLayout_Clear(&layout);
-
         if (pWindowList[iCurrentWindow].hIcon == sws_DefAppIcon)
         {
             sws_IconPainter_CallbackParams* params = malloc(sizeof(sws_IconPainter_CallbackParams));
@@ -2370,52 +2348,13 @@ static LRESULT _sws_WindowsSwitcher_WndProc(HWND hWnd, UINT uMsg, WPARAM wParam,
                 _sws_WindowSwitcher_SwitchToSelectedItemAndDismiss(_this);
                 return 0;
             }
-            DWORD iPID;
-            GetWindowThreadProcessId(pWindowList[i].hWnd, &iPID);
             if (_this->hLastClosedWnds)
             {
                 DPA_Destroy(_this->hLastClosedWnds);
                 _this->hLastClosedWnds = NULL;
             }
             _this->hLastClosedWnds = DPA_Create(SWS_VECTOR_CAPACITY);
-
-            if (_this->bSwitcherIsPerApplication && _this->mode == SWS_WINDOWSWITCHER_LAYOUTMODE_FULL)
-            {
-                sws_WindowSwitcherLayout layout;
-                sws_WindowSwitcherLayout_Initialize(
-                    &layout,
-                    _this->hMonitor,
-                    _this->hWnd,
-                    &(_this->dwRowHeight),
-                    &(_this->pHWNDList),
-                    pWindowList[i].hWnd,
-                    _this->hWndWallpaper
-                );
-                sws_WindowSwitcherLayoutWindow* pTestList = layout.pWindowList.pList;
-                for (unsigned int j = 0; j < layout.pWindowList.cbSize; ++j)
-                {
-                    DWORD jPID;
-                    GetWindowThreadProcessId(pTestList[j].hWnd, &jPID);
-                    BOOL bShouldInclude = FALSE;
-                    if (!_this->bSwitcherIsPerApplication)
-                    {
-                        bShouldInclude = (j == i);
-                    }
-                    else
-                    {
-                        bShouldInclude = (iPID == jPID || !_wcsicmp(pWindowList[i].wszPath, pTestList[j].wszPath));
-                    }
-                    if (bShouldInclude)
-                    {
-                        DPA_AppendPtr(_this->hLastClosedWnds, pTestList[j].hWnd);
-                    }
-                }
-                sws_WindowSwitcherLayout_Clear(&layout);
-            }
-            else
-            {
-                DPA_AppendPtr(_this->hLastClosedWnds, pWindowList[i].hWnd);
-            }
+            DPA_Clone(pWindowList[i].dpaGroupedWnds, _this->hLastClosedWnds);
             for (unsigned j = 0; j < DPA_GetPtrCount(_this->hLastClosedWnds); ++j)
             {
                 HWND hWnd = DPA_FastGetPtr(_this->hLastClosedWnds, j);

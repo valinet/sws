@@ -655,6 +655,7 @@ sws_error_t sws_WindowSwitcherLayout_Initialize(
 		wcscat_s(wszSearchHostPath, MAX_PATH, L"\\SystemApps\\MicrosoftWindows.Client.CBS_cw5n1h2txyewy\\SearchHost.exe");*/
 		if (pHWNDList)
 		{
+			wchar_t* targetAUMID = sws_WindowHelpers_GetAUMIDForHWND(hWndTarget);
 			sws_window* windowList = pHWNDList->pList;
 			sws_window* window = NULL;
 			if (hWndTarget)
@@ -668,13 +669,13 @@ sws_error_t sws_WindowSwitcherLayout_Initialize(
 					}
 				}
 			}
-			if (hWndTarget && window && window->bIsApplicationFrameHost)
-			{
-				sws_WindowSwitcherLayoutWindow swsLayoutWindow;
-				sws_WindowSwitcherLayoutWindow_Initialize(&swsLayoutWindow, window->hWnd, window->wszPath);
-				sws_vector_PushBack(&_this->pWindowList, &swsLayoutWindow);
-			}
-			else
+			//if (hWndTarget && window && window->bIsApplicationFrameHost)
+			//{
+			//	sws_WindowSwitcherLayoutWindow swsLayoutWindow;
+			//	sws_WindowSwitcherLayoutWindow_Initialize(&swsLayoutWindow, window->hWnd, window->wszPath);
+			//	sws_vector_PushBack(&_this->pWindowList, &swsLayoutWindow);
+			//}
+			//else
 			{
 				WCHAR wszRundll32Path[MAX_PATH];
 				GetSystemDirectoryW(wszRundll32Path, MAX_PATH);
@@ -704,25 +705,39 @@ sws_error_t sws_WindowSwitcherLayout_Initialize(
 					}
 					if (hWndTarget && hWndTarget != windowList[i].hWnd)
 					{
-						if (!window)
+						if (targetAUMID)
 						{
-							continue;
+							if (!(windowList[i].wszAUMID && !wcscmp(targetAUMID, windowList[i].wszAUMID))) continue;
 						}
-						else if (window->dwProcessId != windowList[i].dwProcessId && _wcsicmp(window->wszPath, windowList[i].wszPath))
+						else
 						{
-							continue;
+							if (!window)
+							{
+								continue;
+							}
+							else if (window->dwProcessId != windowList[i].dwProcessId && _wcsicmp(window->wszPath, windowList[i].wszPath))
+							{
+								continue;
+							}
 						}
 					}
-					if (settings[4] && hMonitor != MonitorFromWindow(windowList[i].hWnd, MONITOR_DEFAULTTOPRIMARY))
-					{
-						continue;
-					}
-					if (!hWndTarget && settings[10] && !windowList[i].bIsApplicationFrameHost && _wcsicmp(windowList[i].wszPath, wszRundll32Path))
+					if (!hWndTarget && settings[10] && _wcsicmp(windowList[i].wszPath, wszRundll32Path))
 					{
 						BOOL bShouldContinue = FALSE;
 						for (int j = i - 1; j >= 0; j--)
 						{
-							if (sws_WindowHelpers_IsAltTabWindow(windowList[j].hWnd) && (windowList[i].dwProcessId == windowList[j].dwProcessId || !_wcsicmp(windowList[i].wszPath, windowList[j].wszPath)))
+							if (sws_WindowHelpers_IsAltTabWindow(windowList[j].hWnd) && windowList[i].wszAUMID && windowList[j].wszAUMID)
+							{
+								if (!wcscmp(windowList[i].wszAUMID, windowList[j].wszAUMID) && (settings[4] ? MonitorFromWindow(windowList[i].hWnd, MONITOR_DEFAULTTONULL) == MonitorFromWindow(windowList[j].hWnd, MONITOR_DEFAULTTONULL) : TRUE))
+								{
+									windowList[j].pNextWindow = windowList + i;
+									bShouldContinue = TRUE;
+									break;
+								}
+							}
+							else if (sws_WindowHelpers_IsAltTabWindow(windowList[j].hWnd) &&
+								(windowList[i].dwProcessId == windowList[j].dwProcessId || !_wcsicmp(windowList[i].wszPath, windowList[j].wszPath)) &&
+								(settings[4] ? MonitorFromWindow(windowList[i].hWnd, MONITOR_DEFAULTTONULL) == MonitorFromWindow(windowList[j].hWnd, MONITOR_DEFAULTTONULL) : TRUE))
 							{
 								bShouldContinue = TRUE;
 								break;
@@ -733,11 +748,17 @@ sws_error_t sws_WindowSwitcherLayout_Initialize(
 							continue;
 						}
 					}
+					if (settings[4] && hMonitor != MonitorFromWindow(windowList[i].hWnd, MONITOR_DEFAULTTONULL))
+					{
+						continue;
+					}
 					sws_WindowSwitcherLayoutWindow swsLayoutWindow;
 					sws_WindowSwitcherLayoutWindow_Initialize(&swsLayoutWindow, windowList[i].hWnd, windowList[i].wszPath);
+					for (sws_window* pcw = windowList + i; pcw != NULL; pcw = pcw->pNextWindow) sws_WindowSwitcherLayoutWindow_AddGroupedWnd(&swsLayoutWindow, pcw->hWnd);
 					sws_vector_PushBack(&_this->pWindowList, &swsLayoutWindow);
 				}
 			}
+			if (targetAUMID) CoTaskMemFree(targetAUMID);
 		}
 	}
 	////if (!rv)

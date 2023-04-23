@@ -54,6 +54,48 @@ DEFINE_GUID(__uuidof_AppUserModelIdProperty,
 	0xE1, 0xD4, 0x2D, 0xE1, 0xD5, 0xF3
 );
 
+// https://gist.github.com/m417z/451dfc2dad88d7ba88ed1814779a26b4
+
+// {c8900b66-a973-584b-8cae-355b7f55341b}
+DEFINE_GUID(CLSID_StartMenuCacheAndAppResolver, 0x660b90c8, 0x73a9, 0x4b58, 0x8c, 0xae, 0x35, 0x5b, 0x7f, 0x55, 0x34, 0x1b);
+
+// {46a6eeff-908e-4dc6-92a6-64be9177b41c}
+DEFINE_GUID(IID_IAppResolver_7, 0x46a6eeff, 0x908e, 0x4dc6, 0x92, 0xa6, 0x64, 0xbe, 0x91, 0x77, 0xb4, 0x1c);
+
+// {de25675a-72de-44b4-9373-05170450c140}
+DEFINE_GUID(IID_IAppResolver_8, 0xde25675a, 0x72de, 0x44b4, 0x93, 0x73, 0x05, 0x17, 0x04, 0x50, 0xc1, 0x40);
+
+typedef interface IAppResolver_8 IAppResolver_8;
+
+typedef struct IAppResolver_8Vtbl
+{
+	BEGIN_INTERFACE
+
+	HRESULT(STDMETHODCALLTYPE* QueryInterface)(
+		sws_IInputSwitchControl* This,
+		/* [in] */ REFIID riid,
+		/* [annotation][iid_is][out] */
+		_COM_Outptr_  void** ppvObject);
+
+	ULONG(STDMETHODCALLTYPE* AddRef)(
+		sws_IInputSwitchControl* This);
+
+	ULONG(STDMETHODCALLTYPE* Release)(
+		sws_IInputSwitchControl* This);
+
+	HRESULT (STDMETHODCALLTYPE* GetAppIDForShortcut)();
+	HRESULT (STDMETHODCALLTYPE* GetAppIDForShortcutObject)();
+	HRESULT (STDMETHODCALLTYPE* GetAppIDForWindow)(HWND hWnd, WCHAR** pszAppId, void* pUnknown1, void* pUnknown2, void* pUnknown3);
+	HRESULT (STDMETHODCALLTYPE* GetAppIDForProcess)(DWORD dwProcessId, WCHAR** pszAppId, void* pUnknown1, void* pUnknown2, void* pUnknown3);
+
+	END_INTERFACE
+} IAppResolver_8Vtbl;
+
+interface IAppResolver_8
+{
+	CONST_VTBL struct IAppResolver_8Vtbl* lpVtbl;
+};
+
 #define STATUS_BUFFER_TOO_SMALL 0xC0000023
 typedef NTSTATUS(WINAPI* NtUserBuildHwndList)
 (
@@ -138,6 +180,8 @@ FILETIME sws_ancient_ft;
 HICON sws_DefAppIcon;
 HICON sws_LegacyDefAppIcon;
 
+IAppResolver_8* sws_AppResolver;
+
 inline FILETIME sws_WindowHelpers_GetStartTime()
 {
 	return sws_start_ft;
@@ -197,6 +241,8 @@ sws_error_t sws_WindowHelpers_RealEnumWindows(
 	WNDENUMPROC in_Proc,
 	LPARAM in_Param
 );
+
+wchar_t* sws_WindowHelpers_GetAUMIDForHWND(HWND hWnd);
 
 BOOL sws_WindowHelpers_IsValidMonitor(HMONITOR hMonitor, HDC unnamedParam2, LPRECT unnamedParam3, HMONITOR* pMonitor);
 

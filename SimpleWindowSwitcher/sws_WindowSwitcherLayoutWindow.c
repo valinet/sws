@@ -1,5 +1,12 @@
 #include "sws_WindowSwitcherLayoutWindow.h"
 
+int sws_WindowSwitcherLayoutWindow_AddGroupedWnd(sws_WindowSwitcherLayoutWindow* _this, HWND hWnd)
+{
+    int rv = DPA_AppendPtr(_this->dpaGroupedWnds, hWnd);
+    if (rv != -1) _this->dwCount++;
+    return rv;
+}
+
 void sws_WindowSwitcherLayoutWindow_Erase(sws_WindowSwitcherLayoutWindow* _this)
 {
     if (_this->hThumbnail)
@@ -19,7 +26,6 @@ void sws_WindowSwitcherLayoutWindow_Erase(sws_WindowSwitcherLayoutWindow* _this)
     _this->rcThumbnail = rc;
     _this->rcWindow = rc;
     _this->iRowMax = 0;
-    ZeroMemory(_this->wszPath, MAX_PATH);
 }
 
 void sws_WindowSwitcherLayoutWindow_Clear(sws_WindowSwitcherLayoutWindow* _this)
@@ -34,7 +40,15 @@ void sws_WindowSwitcherLayoutWindow_Clear(sws_WindowSwitcherLayoutWindow* _this)
     {
         DestroyIcon(_this->hIcon);
     }
-    sws_WindowSwitcherLayoutWindow_Initialize(_this, 0, NULL);
+    if (_this->dpaGroupedWnds)
+    {
+        DPA_Destroy(_this->dpaGroupedWnds);
+    }
+    if (_this->wszAUMID)
+    {
+        CoTaskMemFree(_this->wszAUMID);
+    }
+    memset(_this, 0, sizeof(sws_WindowSwitcherLayoutWindow));
 }
 
 sws_error_t sws_WindowSwitcherLayoutWindow_Initialize(sws_WindowSwitcherLayoutWindow* _this, HWND hWnd, WCHAR* wszPath)
@@ -55,10 +69,23 @@ sws_error_t sws_WindowSwitcherLayoutWindow_Initialize(sws_WindowSwitcherLayoutWi
     if (!rv)
     {
         _this->hWnd = hWnd;
+        _this->dwCount = 0;
     }
     if (!rv && wszPath)
     {
         wcscpy_s(_this->wszPath, MAX_PATH, wszPath);
+    }
+    if (!rv)
+    {
+        _this->wszAUMID = sws_WindowHelpers_GetAUMIDForHWND(_this->hWnd);
+    }
+    if (!rv)
+    {
+        _this->dpaGroupedWnds = DPA_Create(SWS_VECTOR_CAPACITY);
+        if (!_this->dpaGroupedWnds)
+        {
+            rv = sws_error_Report(sws_error_GetFromInternalError(SWS_ERROR_NO_MEMORY), NULL);
+        }
     }
 
     return rv;

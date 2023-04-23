@@ -920,7 +920,7 @@ void sws_WindowSwitcher_Paint(sws_WindowSwitcher* _this, DWORD dwFlags)
                     ((dwFlags & SWS_WINDOWSWITCHER_PAINTFLAGS_ISFLASHANIMATION) && bShouldDrawFlashRectangle) ||
                     ((dwFlags & SWS_WINDOWSWITCHER_PAINTFLAGS_ACTIVEMASKORINDEXCHANGED))
                     ) &&
-                _this->cwIndex != -1 &&
+                _this->cwIndex >= 0 &&
                 _this->cwIndex < _this->layout.pWindowList.cbSize &&
                 _this->cwMask & SWS_WINDOWFLAG_IS_ON_THUMBNAIL
                 )
@@ -1259,7 +1259,7 @@ void sws_WindowSwitcher_Paint(sws_WindowSwitcher* _this, DWORD dwFlags)
                     ((dwFlags & SWS_WINDOWSWITCHER_PAINTFLAGS_ISFLASHANIMATION) && bShouldDrawFlashRectangle) ||
                     ((dwFlags & SWS_WINDOWSWITCHER_PAINTFLAGS_ACTIVEMASKORINDEXCHANGED))
                     ) &&
-                _this->cwIndex != -1 &&
+                _this->cwIndex >= 0 &&
                 _this->cwIndex < _this->layout.pWindowList.cbSize &&
                 (_this->cwMask & SWS_WINDOWFLAG_IS_ON_CLOSE || _this->cwMask & SWS_WINDOWFLAG_IS_ON_WINDOW) &&
                 !(_this->layout.bIncludeWallpaper && pWindowList[_this->cwIndex].hWnd == _this->layout.hWndWallpaper)

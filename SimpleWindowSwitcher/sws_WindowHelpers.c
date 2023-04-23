@@ -742,6 +742,7 @@ sws_error_t sws_WindowHelpers_Initialize()
 	{
 		return SWS_ERROR_GENERIC_ERROR;
 	}
+	GetSystemTimeAsFileTime(&sws_ancient_ft);
 	GetSystemTimeAsFileTime(&sws_start_ft);
 	if (!rv)
 	{

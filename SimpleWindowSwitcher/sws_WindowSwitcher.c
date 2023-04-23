@@ -1839,7 +1839,7 @@ static LRESULT _sws_WindowsSwitcher_WndProc(HWND hWnd, UINT uMsg, WPARAM wParam,
                         // https://github.com/valinet/ExplorerPatcher/issues/1084
                         if (hWnd != GetForegroundWindow())
                         {
-                            sws_tshwnd_ModifyTimestamp(tshWnd, sws_WindowHelpers_GetStartTime());
+                            sws_tshwnd_ModifyTimestamp(tshWnd, sws_WindowHelpers_GetAncientTime());
                         }
                         DPA_InsertPtr(_this->htshwnds, 0, tshWnd);
                         sws_WindowSwitcherLayoutWindow* pWindowList = _this->layout.pWindowList.pList;

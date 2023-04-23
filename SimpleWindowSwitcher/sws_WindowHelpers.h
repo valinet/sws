@@ -133,6 +133,7 @@ HWND(*_sws_GetProgmanWindow)();
 int(*sws_InternalGetWindowText)(HWND, LPWSTR, int);
 
 FILETIME sws_start_ft;
+FILETIME sws_ancient_ft;
 
 HICON sws_DefAppIcon;
 HICON sws_LegacyDefAppIcon;
@@ -140,6 +141,17 @@ HICON sws_LegacyDefAppIcon;
 inline FILETIME sws_WindowHelpers_GetStartTime()
 {
 	return sws_start_ft;
+}
+
+inline FILETIME sws_WindowHelpers_GetAncientTime()
+{
+	ULARGE_INTEGER uli;
+	uli.LowPart = sws_ancient_ft.dwLowDateTime;
+	uli.HighPart = sws_ancient_ft.dwHighDateTime;
+	uli.QuadPart--;
+	sws_ancient_ft.dwHighDateTime = uli.HighPart;
+	sws_ancient_ft.dwLowDateTime = uli.LowPart;
+	return sws_ancient_ft;
 }
 
 enum ZBID

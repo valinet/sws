@@ -2291,116 +2291,113 @@ static LRESULT _sws_WindowsSwitcher_WndProc(HWND hWnd, UINT uMsg, WPARAM wParam,
         _this->bIsMouseClicking = TRUE;
         return 0;
     }
-    else if (uMsg == WM_LBUTTONUP || uMsg == WM_MBUTTONUP)
+    else if (uMsg == WM_LBUTTONUP || uMsg == WM_MBUTTONUP || ((uMsg == WM_KEYDOWN || uMsg == WM_SYSKEYDOWN) && wParam == VK_DELETE))
     {
-        if (_this->bIsMouseClicking)
+        if (uMsg == WM_LBUTTONUP || uMsg == WM_MBUTTONUP) 
         {
-            WCHAR wszRundll32Path[MAX_PATH];
-            GetSystemDirectoryW(wszRundll32Path, MAX_PATH);
-            wcscat_s(wszRundll32Path, MAX_PATH, L"\\rundll32.exe");
-
-            int x = GET_X_LPARAM(lParam);
-            int y = GET_Y_LPARAM(lParam);
-            sws_WindowSwitcherLayoutWindow* pWindowList = _this->layout.pWindowList.pList;
-            if (pWindowList)
+            if (!_this->bIsMouseClicking) return 0;
+            else _this->bIsMouseClicking = FALSE;
+        }        
+        sws_WindowSwitcherLayoutWindow* pWindowList = _this->layout.pWindowList.pList;
+        if (!pWindowList) return 0;
+        unsigned int i = 0;
+        BOOL bShouldClose = FALSE;
+        if ((uMsg == WM_LBUTTONUP || uMsg == WM_MBUTTONUP) ? 
+            (
+                i = _this->cwIndex,
+                bShouldClose = (uMsg == WM_MBUTTONUP ? 1 : (_this->cwMask & SWS_WINDOWFLAG_IS_ON_CLOSE)),
+                i >= 0 && i < _this->layout.pWindowList.cbSize &&
+                GET_X_LPARAM(lParam) > pWindowList[i].rcWindow.left &&
+                GET_X_LPARAM(lParam) < pWindowList[i].rcWindow.right &&
+                GET_Y_LPARAM(lParam) > pWindowList[i].rcWindow.top &&
+                GET_Y_LPARAM(lParam) < pWindowList[i].rcWindow.bottom
+            ) : (
+                i = _this->layout.iIndex,
+                bShouldClose = TRUE,
+                i >= 0 && i < _this->layout.pWindowList.cbSize
+            ) &&
+            (bShouldClose ? !(_this->layout.bIncludeWallpaper && pWindowList[i].hWnd == _this->layout.hWndWallpaper) : TRUE)
+            )
+        {
+            if (!bShouldClose)
             {
-                for (unsigned int i = 0; i < _this->layout.pWindowList.cbSize; ++i)
-                {
-                    RECT rc = pWindowList[i].rcWindow;
-                    if (x > rc.left && x < rc.right && y > rc.top && y < rc.bottom)
-                    {
-                        if (_this->cwIndex != -1 &&
-                            _this->cwIndex < _this->layout.pWindowList.cbSize &&
-                            (uMsg == WM_MBUTTONUP ? 1 : (_this->cwMask & SWS_WINDOWFLAG_IS_ON_CLOSE)) &&
-                            !(_this->layout.bIncludeWallpaper && pWindowList[i].hWnd == _this->layout.hWndWallpaper)
-                            )
-                        {
-                            DWORD iPID;
-                            GetWindowThreadProcessId(pWindowList[i].hWnd, &iPID);
-                            if (_this->hLastClosedWnds)
-                            {
-                                DPA_Destroy(_this->hLastClosedWnds);
-                                _this->hLastClosedWnds = NULL;
-                            }
-                            _this->hLastClosedWnds = DPA_Create(SWS_VECTOR_CAPACITY);
+                _this->layout.iIndex = i;
+                _sws_WindowSwitcher_SwitchToSelectedItemAndDismiss(_this);
+                return 0;
+            }
+            DWORD iPID;
+            GetWindowThreadProcessId(pWindowList[i].hWnd, &iPID);
+            if (_this->hLastClosedWnds)
+            {
+                DPA_Destroy(_this->hLastClosedWnds);
+                _this->hLastClosedWnds = NULL;
+            }
+            _this->hLastClosedWnds = DPA_Create(SWS_VECTOR_CAPACITY);
 
-                            if (_this->bSwitcherIsPerApplication && _this->mode == SWS_WINDOWSWITCHER_LAYOUTMODE_FULL)
-                            {
-                                sws_WindowSwitcherLayout layout;
-                                sws_WindowSwitcherLayout_Initialize(
-                                    &layout,
-                                    _this->hMonitor,
-                                    _this->hWnd,
-                                    &(_this->dwRowHeight),
-                                    &(_this->pHWNDList),
-                                    pWindowList[i].hWnd,
-                                    _this->hWndWallpaper
-                                );
-                                sws_WindowSwitcherLayoutWindow* pTestList = layout.pWindowList.pList;
-                                for (unsigned int j = 0; j < layout.pWindowList.cbSize; ++j)
-                                {
-                                    DWORD jPID;
-                                    GetWindowThreadProcessId(pTestList[j].hWnd, &jPID);
-                                    BOOL bShouldInclude = FALSE;
-                                    if (!_this->bSwitcherIsPerApplication)
-                                    {
-                                        bShouldInclude = (j == i);
-                                    }
-                                    else
-                                    {
-                                        bShouldInclude = (iPID == jPID || !_wcsicmp(pWindowList[i].wszPath, pTestList[j].wszPath));
-                                    }
-                                    if (bShouldInclude)
-                                    {
-                                        DPA_AppendPtr(_this->hLastClosedWnds, pTestList[j].hWnd);
-                                    }
-                                }
-                                sws_WindowSwitcherLayout_Clear(&layout);
-                            }
-                            else
-                            {
-                                DPA_AppendPtr(_this->hLastClosedWnds, pWindowList[i].hWnd);
-                            }
-                            for (unsigned j = 0; j < DPA_GetPtrCount(_this->hLastClosedWnds); ++j)
-                            {
-                                HWND hWnd = DPA_FastGetPtr(_this->hLastClosedWnds, j);
-                                if (IsHungAppWindow(hWnd))
-                                {
-                                    ShowWindow(_this->hWnd, SW_HIDE);
-                                    sws_WindowSwitcher_EndTaskThreadParams* pEndTaskParams = malloc(sizeof(sws_WindowSwitcher_EndTaskThreadParams));
-                                    if (pEndTaskParams)
-                                    {
-                                        pEndTaskParams->hWnd = hWnd;
-                                        pEndTaskParams->sws = _this;
-                                        pEndTaskParams->hDesktop = GetThreadDesktop(GetCurrentThreadId());
-                                        if (!SHCreateThread(_sws_WindowSwitcher_EndTaskThreadProc, pEndTaskParams, CTF_NOADDREFLIB, NULL))
-                                        {
-                                            free(pEndTaskParams);
-                                            EndTask(hWnd, FALSE, FALSE);
-                                        }
-                                    }
-                                }
-                                else
-                                {
-                                    PostMessageW(hWnd, WM_SYSCOMMAND, SC_CLOSE, 0);
-                                }
-                            }
-                            SetTimer(_this->hWnd, SWS_WINDOWSWITCHER_TIMER_CLOSEHWND, SWS_WINDOWSWITCHER_TIMER_CLOSEHWND_DELAY, NULL);
-                            //EndTask(pWindowList[i].hWnd, FALSE, FALSE);
-                            //PostMessageW(pWindowList[i].hWnd, WM_CLOSE, 0, 0);
-                            break;
-                        }
-                        if (uMsg == WM_MBUTTONUP)
-                        {
-                            break;
-                        }
-                        _this->layout.iIndex = i;
-                        _sws_WindowSwitcher_SwitchToSelectedItemAndDismiss(_this);
-                        break;
+            if (_this->bSwitcherIsPerApplication && _this->mode == SWS_WINDOWSWITCHER_LAYOUTMODE_FULL)
+            {
+                sws_WindowSwitcherLayout layout;
+                sws_WindowSwitcherLayout_Initialize(
+                    &layout,
+                    _this->hMonitor,
+                    _this->hWnd,
+                    &(_this->dwRowHeight),
+                    &(_this->pHWNDList),
+                    pWindowList[i].hWnd,
+                    _this->hWndWallpaper
+                );
+                sws_WindowSwitcherLayoutWindow* pTestList = layout.pWindowList.pList;
+                for (unsigned int j = 0; j < layout.pWindowList.cbSize; ++j)
+                {
+                    DWORD jPID;
+                    GetWindowThreadProcessId(pTestList[j].hWnd, &jPID);
+                    BOOL bShouldInclude = FALSE;
+                    if (!_this->bSwitcherIsPerApplication)
+                    {
+                        bShouldInclude = (j == i);
+                    }
+                    else
+                    {
+                        bShouldInclude = (iPID == jPID || !_wcsicmp(pWindowList[i].wszPath, pTestList[j].wszPath));
+                    }
+                    if (bShouldInclude)
+                    {
+                        DPA_AppendPtr(_this->hLastClosedWnds, pTestList[j].hWnd);
                     }
                 }
+                sws_WindowSwitcherLayout_Clear(&layout);
             }
-            _this->bIsMouseClicking = FALSE;
+            else
+            {
+                DPA_AppendPtr(_this->hLastClosedWnds, pWindowList[i].hWnd);
+            }
+            for (unsigned j = 0; j < DPA_GetPtrCount(_this->hLastClosedWnds); ++j)
+            {
+                HWND hWnd = DPA_FastGetPtr(_this->hLastClosedWnds, j);
+                if (IsHungAppWindow(hWnd))
+                {
+                    ShowWindow(_this->hWnd, SW_HIDE);
+                    sws_WindowSwitcher_EndTaskThreadParams* pEndTaskParams = malloc(sizeof(sws_WindowSwitcher_EndTaskThreadParams));
+                    if (pEndTaskParams)
+                    {
+                        pEndTaskParams->hWnd = hWnd;
+                        pEndTaskParams->sws = _this;
+                        pEndTaskParams->hDesktop = GetThreadDesktop(GetCurrentThreadId());
+                        if (!SHCreateThread(_sws_WindowSwitcher_EndTaskThreadProc, pEndTaskParams, CTF_NOADDREFLIB, NULL))
+                        {
+                            free(pEndTaskParams);
+                            EndTask(hWnd, FALSE, FALSE);
+                        }
+                    }
+                }
+                else
+                {
+                    PostMessageW(hWnd, WM_SYSCOMMAND, SC_CLOSE, 0);
+                }
+            }
+            SetTimer(_this->hWnd, SWS_WINDOWSWITCHER_TIMER_CLOSEHWND, SWS_WINDOWSWITCHER_TIMER_CLOSEHWND_DELAY, NULL);
+            //EndTask(pWindowList[i].hWnd, FALSE, FALSE);
+            //PostMessageW(pWindowList[i].hWnd, WM_CLOSE, 0, 0);
         }
         return 0;
     }

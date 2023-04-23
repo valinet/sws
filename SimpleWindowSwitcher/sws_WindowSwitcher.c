@@ -275,7 +275,7 @@ void _sws_WindowSwitcher_Wineventproc(
     }
 }
 
-static DWORD WINAPI _sws_WindowSwitcher_Calculate(sws_WindowSwitcher* _this)
+static DWORD WINAPI _sws_WindowSwitcher_Calculate(sws_WindowSwitcher* _this, sws_WindowSwitcherLayout* pOldLayout)
 {
     long long start = sws_milliseconds_now();
     HWND hFw = GetForegroundWindow();
@@ -308,32 +308,75 @@ static DWORD WINAPI _sws_WindowSwitcher_Calculate(sws_WindowSwitcher* _this)
     long long fin = sws_milliseconds_now();
     printf("[sws] CalculateHelper %d [[ %lld + %lld = %lld ]].\n", _this->mode, init - start, fin - init, fin - start);
 
-    _this->layout.iIndex = _this->layout.pWindowList.cbSize == 1 ? 0 : _this->layout.iIndex - 1 - _this->layout.numTopMost;
-    if (_this->mode == SWS_WINDOWSWITCHER_LAYOUTMODE_FULL && _this->layout.bIncludeWallpaper && _sws_WindowHelpers_IsDesktopRaised())
-    {
-        if (_this->layout.bWallpaperAlwaysLast)
-        {
-            if (!_this->layout.bWallpaperToggleBehavior)
+    int selectionIndex = -1;
+    if (IsWindowVisible(_this->hWnd)) {
+        if (pOldLayout->iIndex >= 0 && pOldLayout->iIndex <= pOldLayout->pWindowList.cbSize - 1) {
+            sws_WindowSwitcherLayoutWindow* pWindowList = _this->layout.pWindowList.pList;
+            sws_WindowSwitcherLayoutWindow* pOldWindowList = pOldLayout->pWindowList.pList;
+            for (unsigned int i = 0; i < _this->layout.pWindowList.cbSize; ++i)
             {
-                // BEHAVIOR 1
-                _this->layout.iIndex = _this->layout.pWindowList.cbSize - 1;
+                if (pWindowList[i].hWnd == pOldWindowList[pOldLayout->iIndex].hWnd)
+                {
+                    selectionIndex = i;
+                    break;
+                }
             }
-            else
+            if (selectionIndex < 0)
             {
-                // BEHAVIOR 2
-                _this->layout.iIndex = 0;
+                BOOL bSuperBreak = FALSE;
+                for (int j = pOldLayout->iIndex - 1; j >= 0; j--)
+                {
+                    for (unsigned int i = 0; i < _this->layout.pWindowList.cbSize; ++i)
+                    {
+                        if (pWindowList[i].hWnd == pOldWindowList[j].hWnd)
+                        {
+                            selectionIndex = i;
+                            bSuperBreak = TRUE;
+                            break;
+                        }
+                    }
+                    if (bSuperBreak) break;
+                }
             }
         }
-        else
+        if (selectionIndex != -1) 
         {
-            if (!_this->layout.bWallpaperToggleBehavior)
+            _this->layout.iIndex = selectionIndex;
+            if (_this->layout.iIndex > _this->layout.pWindowList.cbSize - 1)
             {
-                // BEHAVIOR 1
+                _this->layout.iIndex = _this->layout.pWindowList.cbSize - 1;
+            }
+        }
+    }
+    if (selectionIndex == -1)
+    {
+        _this->layout.iIndex = _this->layout.pWindowList.cbSize == 1 ? 0 : _this->layout.iIndex - 1 - _this->layout.numTopMost;
+        if (_this->mode == SWS_WINDOWSWITCHER_LAYOUTMODE_FULL && _this->layout.bIncludeWallpaper && _sws_WindowHelpers_IsDesktopRaised())
+        {
+            if (_this->layout.bWallpaperAlwaysLast)
+            {
+                if (!_this->layout.bWallpaperToggleBehavior)
+                {
+                    // BEHAVIOR 1
+                    _this->layout.iIndex = _this->layout.pWindowList.cbSize - 1;
+                }
+                else
+                {
+                    // BEHAVIOR 2
+                    _this->layout.iIndex = 0;
+                }
             }
             else
             {
-                // BEHAVIOR 2
-                _this->layout.iIndex = _this->layout.pWindowList.cbSize - 1;
+                if (!_this->layout.bWallpaperToggleBehavior)
+                {
+                    // BEHAVIOR 1
+                }
+                else
+                {
+                    // BEHAVIOR 2
+                    _this->layout.iIndex = _this->layout.pWindowList.cbSize - 1;
+                }
             }
         }
     }
@@ -1493,7 +1536,8 @@ static void WINAPI _sws_WindowSwitcher_Show(sws_WindowSwitcher* _this)
         if (!hSeekedMonitor) bIsMonitorValid = TRUE;
     }
     if (!_this->hMonitor || !bIsMonitorValid) _this->hMonitor = MonitorFromPoint(pt, MONITOR_DEFAULTTOPRIMARY);
-    sws_WindowSwitcherLayout_Clear(&(_this->layout));
+    //sws_WindowSwitcherLayout_Clear(&(_this->layout));
+    sws_WindowSwitcherLayout oldlayout = _this->layout;
     sws_vector_Clear(&(_this->pHWNDList));
     sws_vector_Initialize(&(_this->pHWNDList), sizeof(sws_window));
     HDPA hdpa = DPA_Create(SWS_VECTOR_CAPACITY);
@@ -1522,7 +1566,8 @@ static void WINAPI _sws_WindowSwitcher_Show(sws_WindowSwitcher* _this)
     DPA_DestroyCallback(hdpa, _sws_WindowSwitcher_free_stub, 0);
     long long a5 = sws_milliseconds_now();
     printf("[sws] WindowSwitcher::Show %x [[ %lld + %lld + %lld + %lld = %lld ]]\n", _this->hWndWallpaper, a2 - a1, a3 - a2, a4 - a3, a5 - a4, a5 - a1);
-    _sws_WindowSwitcher_Calculate(_this);
+    _sws_WindowSwitcher_Calculate(_this, &oldlayout);
+    sws_WindowSwitcherLayout_Clear(&oldlayout);
     if (_this->layout.pWindowList.cbSize == 0)
     {
         ShowWindow(_this->hWnd, SW_HIDE);

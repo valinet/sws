@@ -276,119 +276,164 @@ void _sws_WindowSwitcher_Wineventproc(
     }
 }
 
-static DWORD WINAPI _sws_WindowSwitcher_Calculate(sws_WindowSwitcher* _this, sws_WindowSwitcherLayout* pOldLayout)
+static DWORD WINAPI _sws_WindowSwitcher_Calculate(sws_WindowSwitcher* _this, HWND* pOldHWNDs, DWORD cntOldHWNDs, DWORD dwOldIndex)
 {
-    long long start = sws_milliseconds_now();
-    HWND hFw = GetForegroundWindow();
-    if (!_this->lastMiniModehWnd)
-    {
-        HWND hOwner = GetWindow(hFw, GW_OWNER);
-        _this->lastMiniModehWnd = hOwner ? hOwner : hFw;
-    }
-    sws_WindowSwitcherLayout_Initialize(
-        &(_this->layout), 
-        _this->hMonitor, 
-        _this->hWnd, 
-        &(_this->dwRowHeight), 
-        &(_this->pHWNDList), 
-        (_this->mode ? _this->lastMiniModehWnd: NULL),
-        _this->hWndWallpaper
-    );
-    long long init = sws_milliseconds_now();
-    wchar_t wszClassName[100];
-    ZeroMemory(wszClassName, 100);
-    GetClassNameW(hFw, wszClassName, 100);
-    if (_this->mode == SWS_WINDOWSWITCHER_LAYOUTMODE_FULL && _this->layout.bIncludeWallpaper && _this->layout.bWallpaperAlwaysLast && _sws_WindowHelpers_IsDesktopRaised())
-    {
-        sws_WindowSwitcherLayout_ComputeLayout(&(_this->layout), SWS_WINDOWSWITCHERLAYOUT_COMPUTE_DIRECTION_INITIAL, _this->layout.hWndWallpaper);
-    }
-    else
-    {
-        sws_WindowSwitcherLayout_ComputeLayout(&(_this->layout), SWS_WINDOWSWITCHERLAYOUT_COMPUTE_DIRECTION_INITIAL, NULL);
-    }
-    long long fin = sws_milliseconds_now();
-    printf("[sws] CalculateHelper %d [[ %lld + %lld = %lld ]].\n", _this->mode, init - start, fin - init, fin - start);
+    HWND hWndInitial = (_this->mode == SWS_WINDOWSWITCHER_LAYOUTMODE_FULL && _this->layout.bIncludeWallpaper && _this->layout.bWallpaperAlwaysLast && _sws_WindowHelpers_IsDesktopRaised() && !IsWindowVisible(_this->hWnd)) ? _this->layout.hWndWallpaper : NULL;
 
-    int selectionIndex = -1;
-    if (IsWindowVisible(_this->hWnd)) {
-        if (pOldLayout->iIndex >= 0 && pOldLayout->iIndex <= pOldLayout->pWindowList.cbSize - 1) {
-            sws_WindowSwitcherLayoutWindow* pWindowList = _this->layout.pWindowList.pList;
-            sws_WindowSwitcherLayoutWindow* pOldWindowList = pOldLayout->pWindowList.pList;
-            for (unsigned int i = 0; i < _this->layout.pWindowList.cbSize; ++i)
+    while (TRUE)
+    {
+        long long start = sws_milliseconds_now();
+        if (!_this->lastMiniModehWnd)
+        {
+            HWND hFw = GetForegroundWindow();
+            HWND hOwner = GetWindow(hFw, GW_OWNER);
+            _this->lastMiniModehWnd = (hOwner && IsWindowVisible(hOwner)) ? hOwner : hFw;
+        }
+        sws_WindowSwitcherLayout_Initialize(
+            &(_this->layout), 
+            _this->hMonitor, 
+            _this->hWnd, 
+            &(_this->dwRowHeight), 
+            &(_this->pHWNDList), 
+            (_this->mode ? _this->lastMiniModehWnd: NULL),
+            _this->hWndWallpaper
+        );
+        long long init = sws_milliseconds_now();
+        sws_WindowSwitcherLayout_ComputeLayout(&(_this->layout), SWS_WINDOWSWITCHERLAYOUT_COMPUTE_DIRECTION_INITIAL, hWndInitial);
+        long long fin = sws_milliseconds_now();
+        printf("[sws] CalculateHelper %d [[ %lld + %lld = %lld ]].\n", _this->mode, init - start, fin - init, fin - start);
+
+        sws_WindowSwitcherLayoutWindow* pWindowList = _this->layout.pWindowList.pList;
+        int selectionIndex = -1;
+        if (IsWindowVisible(_this->hWnd)) 
+        {
+            if (dwOldIndex >= 0 && dwOldIndex <= cntOldHWNDs - 1) 
             {
-                if (pWindowList[i].hWnd == pOldWindowList[pOldLayout->iIndex].hWnd)
+                for (unsigned int i = 0; i < _this->layout.pWindowList.cbSize; ++i)
                 {
-                    selectionIndex = i;
-                    break;
+                    if (pWindowList[i].hWnd == pOldHWNDs[dwOldIndex])
+                    {
+                        selectionIndex = i;
+                        break;
+                    }
                 }
-            }
-            if (selectionIndex < 0)
-            {
-                BOOL bSuperBreak = FALSE;
-                for (int j = pOldLayout->iIndex - 1; j >= 0; j--)
+                if (selectionIndex < 0)
                 {
+                    BOOL bSuperBreak = FALSE;
+                    for (int j = dwOldIndex - 1; j >= 0; j--)
+                    {
+                        for (unsigned int i = 0; i < _this->layout.pWindowList.cbSize; ++i)
+                        {
+                            if (pWindowList[i].hWnd == pOldHWNDs[j])
+                            {
+                                selectionIndex = i;
+                                bSuperBreak = TRUE;
+                                break;
+                            }
+                        }
+                        if (bSuperBreak) break;
+                    }
+                }
+                if (selectionIndex < 0)
+                {
+                    BOOL bSuperBreak = FALSE;
                     for (unsigned int i = 0; i < _this->layout.pWindowList.cbSize; ++i)
                     {
-                        if (pWindowList[i].hWnd == pOldWindowList[j].hWnd)
+                        sws_window* pHWNDList = _this->pHWNDList.pList;
+                        int k = -1;
+                        if (pHWNDList)
                         {
-                            selectionIndex = i;
-                            bSuperBreak = TRUE;
-                            break;
+                            for (unsigned int j = 0; j < _this->pHWNDList.cbSize; ++j)
+                            {
+                                if (pHWNDList[j].hWnd == pWindowList[i].hWnd)
+                                {
+                                    k = j;
+                                    break;
+                                }
+                            }
                         }
+                        if (pHWNDList && k >= 0)
+                        {
+                            for (sws_window* pcw = pHWNDList + k; pcw != NULL; pcw = pcw->pNextWindow)
+                            {
+                                if (pOldHWNDs[dwOldIndex] == pcw->hWnd)
+                                {
+                                    k = 0;
+                                    for (unsigned int j = 0; j < _this->layout.pWindowList.cbSize; ++j)
+                                    {
+                                        if (pcw->hWnd == pWindowList[j].hWnd)
+                                        {
+                                            k = j;
+                                            break;
+                                        }
+                                    }
+                                    selectionIndex = i;
+                                    bSuperBreak = TRUE;
+                                    break;
+                                }
+                            }
+                        }
+                        if (bSuperBreak) break;
                     }
-                    if (bSuperBreak) break;
                 }
             }
-        }
-        if (selectionIndex != -1) 
-        {
-            _this->layout.iIndex = selectionIndex;
-            if (_this->layout.iIndex > _this->layout.pWindowList.cbSize - 1)
+            if (selectionIndex != -1)
             {
-                _this->layout.iIndex = _this->layout.pWindowList.cbSize - 1;
-            }
-        }
-    }
-    if (selectionIndex == -1)
-    {
-        _this->layout.iIndex = _this->layout.pWindowList.cbSize == 1 ? 0 : _this->layout.iIndex - 1 - _this->layout.numTopMost;
-        if (_this->mode == SWS_WINDOWSWITCHER_LAYOUTMODE_FULL && _this->layout.bIncludeWallpaper && _sws_WindowHelpers_IsDesktopRaised())
-        {
-            if (_this->layout.bWallpaperAlwaysLast)
-            {
-                if (!_this->layout.bWallpaperToggleBehavior)
+                _this->layout.iIndex = selectionIndex;
+                if (_this->layout.iIndex > _this->layout.pWindowList.cbSize - 1)
                 {
-                    // BEHAVIOR 1
-                    _this->layout.iIndex = _this->layout.pWindowList.cbSize - 1;
-                }
-                else
-                {
-                    // BEHAVIOR 2
-                    _this->layout.iIndex = 0;
-                }
-            }
-            else
-            {
-                if (!_this->layout.bWallpaperToggleBehavior)
-                {
-                    // BEHAVIOR 1
-                }
-                else
-                {
-                    // BEHAVIOR 2
                     _this->layout.iIndex = _this->layout.pWindowList.cbSize - 1;
                 }
             }
         }
-    }
-    if (_this->layout.iIndex < 0)
-    {
-        _this->layout.iIndex = 0;
-    }
+        if (selectionIndex == -1)
+        {
+            _this->layout.iIndex = _this->layout.pWindowList.cbSize == 1 ? 0 : _this->layout.iIndex - 1 - _this->layout.numTopMost;
+            if (hWndInitial == _this->layout.hWndWallpaper)
+            {
+                if (_this->layout.bWallpaperAlwaysLast)
+                {
+                    if (!_this->layout.bWallpaperToggleBehavior)
+                    {
+                        // BEHAVIOR 1
+                        _this->layout.iIndex = _this->layout.pWindowList.cbSize - 1;
+                    }
+                    else
+                    {
+                        // BEHAVIOR 2
+                        _this->layout.iIndex = 0;
+                    }
+                }
+                else
+                {
+                    if (!_this->layout.bWallpaperToggleBehavior)
+                    {
+                        // BEHAVIOR 1
+                    }
+                    else
+                    {
+                        // BEHAVIOR 2
+                        _this->layout.iIndex = _this->layout.pWindowList.cbSize - 1;
+                    }
+                }
+            }
+        }
+        if (_this->layout.iIndex < 0)
+        {
+            _this->layout.iIndex = 0;
+        }
 
-    _this->cwIndex = -1;
-    _this->cwMask = 0;
-    _this->bPartialRedraw = FALSE;
+        _this->cwIndex = -1;
+        _this->cwMask = 0;
+        _this->bPartialRedraw = FALSE;
+
+        if (_this->layout.pWindowList.cbSize == 0 || pWindowList[_this->layout.iIndex].hThumbnail) break;
+        else
+        {
+            hWndInitial = pWindowList[_this->layout.iIndex].hWnd;
+            sws_WindowSwitcherLayout_Clear(&(_this->layout));
+        }
+    }
 }
 
 static void _sws_WindowsSwitcher_DecideThumbnails(sws_WindowSwitcher* _this, DWORD dwMode)
@@ -1535,8 +1580,22 @@ static void WINAPI _sws_WindowSwitcher_Show(sws_WindowSwitcher* _this)
         if (!hSeekedMonitor) bIsMonitorValid = TRUE;
     }
     if (!_this->hMonitor || !bIsMonitorValid) _this->hMonitor = MonitorFromPoint(pt, MONITOR_DEFAULTTOPRIMARY);
-    //sws_WindowSwitcherLayout_Clear(&(_this->layout));
-    sws_WindowSwitcherLayout oldlayout = _this->layout;
+    sws_WindowSwitcherLayoutWindow* pWindowList = _this->layout.pWindowList.pList;
+    DWORD cntOldHWNDSs = _this->layout.pWindowList.cbSize;
+    HWND* pOldHWNDs = NULL;
+    DWORD dwOldIndex = _this->layout.iIndex;
+    if (cntOldHWNDSs)
+    {
+        pOldHWNDs = calloc(cntOldHWNDSs, sizeof(HWND));
+        if (pOldHWNDs)
+        {
+            for (unsigned int i = 0; i < _this->layout.pWindowList.cbSize; ++i)
+            {
+                pOldHWNDs[i] = pWindowList[i].hWnd;
+            }
+        }
+    }
+    sws_WindowSwitcherLayout_Clear(&(_this->layout));
     sws_vector_Clear(&(_this->pHWNDList));
     sws_vector_Initialize(&(_this->pHWNDList), sizeof(sws_window));
     HDPA hdpa = DPA_Create(SWS_VECTOR_CAPACITY);
@@ -1565,8 +1624,8 @@ static void WINAPI _sws_WindowSwitcher_Show(sws_WindowSwitcher* _this)
     DPA_DestroyCallback(hdpa, _sws_WindowSwitcher_free_stub, 0);
     long long a5 = sws_milliseconds_now();
     printf("[sws] WindowSwitcher::Show %x [[ %lld + %lld + %lld + %lld = %lld ]]\n", _this->hWndWallpaper, a2 - a1, a3 - a2, a4 - a3, a5 - a4, a5 - a1);
-    _sws_WindowSwitcher_Calculate(_this, &oldlayout);
-    sws_WindowSwitcherLayout_Clear(&oldlayout);
+    _sws_WindowSwitcher_Calculate(_this, pOldHWNDs, cntOldHWNDSs, dwOldIndex);
+    if (pOldHWNDs) free(pOldHWNDs);
     if (_this->layout.pWindowList.cbSize == 0)
     {
         ShowWindow(_this->hWnd, SW_HIDE);
@@ -1589,7 +1648,7 @@ static void WINAPI _sws_WindowSwitcher_Show(sws_WindowSwitcher* _this)
         SetRect(&rc, 0, 0, _this->layout.iWidth, _this->layout.iHeight);
         _this->hBufferedPaint = BeginBufferedPaint(_this->hdcWindow, &rc, BPBF_TOPDOWNDIB, &params, &(_this->hdcPaint));
     }
-    sws_WindowSwitcherLayoutWindow* pWindowList = _this->layout.pWindowList.pList;
+    pWindowList = _this->layout.pWindowList.pList;
     sws_tshwnd* tshWnd = malloc(sizeof(sws_tshwnd));
     if (pWindowList && tshWnd)
     {
@@ -2477,6 +2536,22 @@ static LRESULT _sws_WindowsSwitcher_WndProc(HWND hWnd, UINT uMsg, WPARAM wParam,
                 sws_WindowSwitcherLayoutWindow* pWindowList = _this->layout.pWindowList.pList;
 
                 RECT rcPrev = pWindowList[_this->layout.iIndex].rcWindow;
+
+                if (uMsg == WM_HOTKEY && ((int)wParam < 0) && _this->mode == SWS_WINDOWSWITCHER_LAYOUTMODE_FULL && pWindowList[_this->layout.iIndex].hWnd != _this->hWndWallpaper)
+                {
+                    HWND hFw = pWindowList[_this->layout.iIndex].hWnd;
+                    HWND hOwner = GetWindow(hFw, GW_OWNER);
+                    _this->lastMiniModehWnd = (hOwner && IsWindowVisible(hOwner)) ? hOwner : hFw;
+                    _this->mode = SWS_WINDOWSWITCHER_LAYOUTMODE_MINI;
+                    _sws_WindowSwitcher_Show(_this);
+                    return 0;
+                }
+                else if (uMsg == WM_HOTKEY && ((int)wParam > 0) && _this->mode == SWS_WINDOWSWITCHER_LAYOUTMODE_MINI)
+                {
+                    _this->mode = SWS_WINDOWSWITCHER_LAYOUTMODE_FULL;
+                    _sws_WindowSwitcher_Show(_this);
+                    return 0;
+                }
 
                 int indexStart = _this->layout.iIndex; // avoids infinite cycles
                 if (

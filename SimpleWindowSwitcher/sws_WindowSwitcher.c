@@ -482,7 +482,15 @@ void _sws_WindowSwitcher_SwitchToSelectedItemAndDismiss(sws_WindowSwitcher* _thi
         sws_WindowSwitcherLayoutWindow* pWindowList = _this->layout.pWindowList.pList;
         if (pWindowList)
         {
-            SwitchToThisWindow(GetLastActivePopup(pWindowList[_this->layout.iIndex].hWnd), TRUE);
+            wchar_t tt[MAX_PATH];
+            sws_WindowHelpers_GetWindowText(pWindowList[_this->layout.iIndex].hWnd, tt, MAX_PATH);
+            wprintf(L"[sws] Chosen window: %s\n", tt);
+            sws_WindowHelpers_GetWindowText(sws_WindowHelpers_GetLastActivePopup(pWindowList[_this->layout.iIndex].hWnd), tt, MAX_PATH);
+            wprintf(L"[sws] Last active popup: %s\n", tt);
+            GetClassNameW(GetWindow(pWindowList[_this->layout.iIndex].hWnd, GW_OWNER), tt, MAX_PATH);
+            wprintf(L"[sws] Owner of window: %s\n", tt);
+            HWND hLastActivePopup = sws_WindowHelpers_GetLastActivePopup(pWindowList[_this->layout.iIndex].hWnd);
+            SwitchToThisWindow(IsWindowVisible(hLastActivePopup) ? hLastActivePopup : pWindowList[_this->layout.iIndex].hWnd, TRUE);
         }
     }
     ShowWindow(_this->hWnd, SW_HIDE);
@@ -1844,7 +1852,7 @@ static LRESULT _sws_WindowsSwitcher_WndProc(HWND hWnd, UINT uMsg, WPARAM wParam,
                             sws_tshwnd* found = DPA_FastGetPtr(_this->htshwnds, rv);
                             if (!found->bFlash)
                             {
-                                if (GetLastActivePopup(hLastClosedWnd) != hLastClosedWnd)
+                                if (sws_WindowHelpers_GetLastActivePopup(hLastClosedWnd) != hLastClosedWnd)
                                 {
                                     /*FLASHWINFO fi;
                                     fi.cbSize = sizeof(FLASHWINFO);
@@ -1959,7 +1967,7 @@ static LRESULT _sws_WindowsSwitcher_WndProc(HWND hWnd, UINT uMsg, WPARAM wParam,
                         // the foreground request from the app and the window might still be flashing
                         // and not actually in the foreground
                         // https://github.com/valinet/ExplorerPatcher/issues/1084
-                        if ((wParam == HSHELL_WINDOWCREATED || wParam == HSHELL_WINDOWACTIVATED || wParam == HSHELL_RUDEAPPACTIVATED) && (hWnd == GetForegroundWindow() || GetLastActivePopup(hWnd) == GetForegroundWindow()))
+                        if ((wParam == HSHELL_WINDOWCREATED || wParam == HSHELL_WINDOWACTIVATED || wParam == HSHELL_RUDEAPPACTIVATED) && (hWnd == GetForegroundWindow() || sws_WindowHelpers_GetLastActivePopup(hWnd) == GetForegroundWindow()))
                         {
                             sws_tshwnd* found = DPA_FastGetPtr(_this->htshwnds, rv);
                             sws_tshwnd_UpdateTimestamp(found);
@@ -2085,7 +2093,7 @@ static LRESULT _sws_WindowsSwitcher_WndProc(HWND hWnd, UINT uMsg, WPARAM wParam,
                         if (hLastClosedWnd && hLastClosedWnd == hWnd)
                         {
                             ShowWindow(_this->hWnd, SW_HIDE);
-                            SwitchToThisWindow(GetLastActivePopup(hLastClosedWnd), TRUE);
+                            SwitchToThisWindow(sws_WindowHelpers_GetLastActivePopup(hLastClosedWnd), TRUE);
 
                             /*sws_WindowSwitcherLayoutWindow* pWindowList = _this->layout.pWindowList.pList;
                             if (pWindowList)

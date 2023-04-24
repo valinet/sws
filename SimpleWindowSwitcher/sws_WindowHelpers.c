@@ -702,6 +702,12 @@ void sws_WindowHelpers_GetWindowText(HWND hWnd, LPCWSTR lpWStr, DWORD dwLength)
 	}
 }
 
+HWND sws_WindowHelpers_GetLastActivePopup(HWND hWnd)
+{
+	HWND hOwner = GetWindow(hWnd, GW_OWNER);
+	return GetLastActivePopup(hOwner ? hOwner : hWnd);
+}
+
 void sws_WindowHelpers_Clear()
 {
 	GdiplusShutdown(_sws_gdiplus_token);

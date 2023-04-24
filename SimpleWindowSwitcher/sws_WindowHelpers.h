@@ -264,6 +264,8 @@ HWND sws_WindowHelpers_GetWallpaperHWND();
 
 HBITMAP sws_WindowHelpers_CreateAlphaTextBitmap(LPCWSTR inText, HFONT inFont, DWORD dwTextFlags, SIZE size, COLORREF inColour);
 
+HWND sws_WindowHelpers_GetLastActivePopup(HWND hWnd);
+
 void sws_WindowHelpers_Clear();
 
 sws_error_t sws_WindowHelpers_Initialize();

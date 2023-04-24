@@ -1610,6 +1610,7 @@ static void WINAPI _sws_WindowSwitcher_Show(sws_WindowSwitcher* _this)
             sws_tshwnd* found_tshwnd = DPA_FastGetPtr(_this->htshwnds, rv);
             sws_tshwnd_ModifyTimestamp(tshWnd, found_tshwnd->ft);
         }
+        else tshWnd->hWnd = INVALID_HANDLE_VALUE;
     }
     long long a3 = sws_milliseconds_now();
     DPA_Sort(hdpa, sws_tshwnd_CompareTimestamp, SWS_SORT_DESCENDING);
@@ -1617,9 +1618,12 @@ static void WINAPI _sws_WindowSwitcher_Show(sws_WindowSwitcher* _this)
     for (unsigned int i = 0; i < DPA_GetPtrCount(hdpa); ++i)
     {
         sws_tshwnd* tshWnd = DPA_FastGetPtr(hdpa, i);
-        sws_window window;
-        sws_window_Initialize(&window, tshWnd->hWnd);
-        sws_vector_PushBack(&(_this->pHWNDList), &window);
+        if (tshWnd->hWnd != INVALID_HANDLE_VALUE)
+        {
+            sws_window window;
+            sws_window_Initialize(&window, tshWnd->hWnd);
+            sws_vector_PushBack(&(_this->pHWNDList), &window);
+        }
     }
     DPA_DestroyCallback(hdpa, _sws_WindowSwitcher_free_stub, 0);
     long long a5 = sws_milliseconds_now();
@@ -2956,6 +2960,7 @@ __declspec(dllexport) sws_error_t sws_WindowSwitcher_Initialize(sws_WindowSwitch
         {
             rv = sws_error_Report(sws_error_GetFromWin32Error(GetLastError()), NULL);
         }
+        EnumWindows(sws_WindowHelpers_AddAltTabWindowsToTimeStampedHWNDList, _this->htshwnds);
     }
     if (!rv)
     {

@@ -2547,7 +2547,9 @@ static LRESULT _sws_WindowsSwitcher_WndProc(HWND hWnd, UINT uMsg, WPARAM wParam,
 
                 RECT rcPrev = pWindowList[_this->layout.iIndex].rcWindow;
 
-                if (uMsg == WM_HOTKEY && ((int)wParam < 0) && _this->mode == SWS_WINDOWSWITCHER_LAYOUTMODE_FULL && pWindowList[_this->layout.iIndex].hWnd != _this->hWndWallpaper)
+                if ((((uMsg == WM_KEYDOWN || uMsg == WM_SYSKEYDOWN) && wParam == _this->vkTilde) ||
+                    (uMsg == WM_HOTKEY && ((int)wParam < 0))) &&
+                    _this->mode == SWS_WINDOWSWITCHER_LAYOUTMODE_FULL && pWindowList[_this->layout.iIndex].hWnd != _this->hWndWallpaper)
                 {
                     HWND hFw = pWindowList[_this->layout.iIndex].hWnd;
                     HWND hOwner = GetWindow(hFw, GW_OWNER);
@@ -2556,7 +2558,9 @@ static LRESULT _sws_WindowsSwitcher_WndProc(HWND hWnd, UINT uMsg, WPARAM wParam,
                     _sws_WindowSwitcher_Show(_this);
                     return 0;
                 }
-                else if (uMsg == WM_HOTKEY && ((int)wParam > 0) && _this->mode == SWS_WINDOWSWITCHER_LAYOUTMODE_MINI)
+                else if ((((uMsg == WM_KEYDOWN || uMsg == WM_SYSKEYDOWN) && wParam == VK_TAB) ||
+                        (uMsg == WM_HOTKEY && ((int)wParam > 0))) &&
+                        _this->mode == SWS_WINDOWSWITCHER_LAYOUTMODE_MINI)
                 {
                     _this->mode = SWS_WINDOWSWITCHER_LAYOUTMODE_FULL;
                     _sws_WindowSwitcher_Show(_this);

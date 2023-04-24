@@ -2411,16 +2411,16 @@ static LRESULT _sws_WindowsSwitcher_WndProc(HWND hWnd, UINT uMsg, WPARAM wParam,
                 _sws_WindowSwitcher_SwitchToSelectedItemAndDismiss(_this);
                 return 0;
             }
-            if (_this->hLastClosedWnds)
+            /*if (_this->hLastClosedWnds)
             {
                 DPA_Destroy(_this->hLastClosedWnds);
                 _this->hLastClosedWnds = NULL;
             }
             _this->hLastClosedWnds = DPA_Create(SWS_VECTOR_CAPACITY);
-            DPA_Clone(pWindowList[i].dpaGroupedWnds, _this->hLastClosedWnds);
-            for (unsigned j = 0; j < DPA_GetPtrCount(_this->hLastClosedWnds); ++j)
+            DPA_Clone(pWindowList[i].dpaGroupedWnds, _this->hLastClosedWnds);*/
+            for (unsigned j = 0; j < DPA_GetPtrCount(pWindowList[i].dpaGroupedWnds/*_this->hLastClosedWnds*/); ++j)
             {
-                HWND hWnd = DPA_FastGetPtr(_this->hLastClosedWnds, j);
+                HWND hWnd = DPA_FastGetPtr(pWindowList[i].dpaGroupedWnds/*_this->hLastClosedWnds*/, j);
                 if (IsHungAppWindow(hWnd))
                 {
                     ShowWindow(_this->hWnd, SW_HIDE);
@@ -2442,9 +2442,7 @@ static LRESULT _sws_WindowsSwitcher_WndProc(HWND hWnd, UINT uMsg, WPARAM wParam,
                     PostMessageW(hWnd, WM_SYSCOMMAND, SC_CLOSE, 0);
                 }
             }
-            SetTimer(_this->hWnd, SWS_WINDOWSWITCHER_TIMER_CLOSEHWND, SWS_WINDOWSWITCHER_TIMER_CLOSEHWND_DELAY, NULL);
-            //EndTask(pWindowList[i].hWnd, FALSE, FALSE);
-            //PostMessageW(pWindowList[i].hWnd, WM_CLOSE, 0, 0);
+            //SetTimer(_this->hWnd, SWS_WINDOWSWITCHER_TIMER_CLOSEHWND, SWS_WINDOWSWITCHER_TIMER_CLOSEHWND_DELAY, NULL);
         }
         return 0;
     }

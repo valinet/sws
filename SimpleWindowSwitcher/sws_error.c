@@ -2,9 +2,11 @@
 
 void sws_error_PrintStackTrace()
 {
-#if _WIN64
+#if defined(_M_X64)
     DWORD machine = IMAGE_FILE_MACHINE_AMD64;
-#else
+#elif defined(_M_ARM64)
+    DWORD machine = IMAGE_FILE_MACHINE_ARM64;
+#elif defined(_M_IX86)
     DWORD machine = IMAGE_FILE_MACHINE_I386;
 #endif
     HANDLE process = OpenProcess(PROCESS_ALL_ACCESS, FALSE, GetCurrentProcessId());
@@ -22,18 +24,23 @@ void sws_error_PrintStackTrace()
     context.ContextFlags = CONTEXT_FULL;
     RtlCaptureContext(&context);
 
-#if _WIN64
     STACKFRAME frame;
     ZeroMemory(&frame, sizeof(STACKFRAME));
+#if defined(_M_X64)
     frame.AddrPC.Offset = context.Rip;
     frame.AddrPC.Mode = AddrModeFlat;
     frame.AddrFrame.Offset = context.Rbp;
     frame.AddrFrame.Mode = AddrModeFlat;
     frame.AddrStack.Offset = context.Rsp;
     frame.AddrStack.Mode = AddrModeFlat;
-#else
-    STACKFRAME frame;
-    ZeroMemory(&frame, sizeof(STACKFRAME));
+#elif defined(_M_ARM64)
+    frame.AddrPC.Offset = context.Pc;
+    frame.AddrPC.Mode = AddrModeFlat;
+    frame.AddrFrame.Offset = context.Fp;
+    frame.AddrFrame.Mode = AddrModeFlat;
+    frame.AddrStack.Offset = context.Sp;
+    frame.AddrStack.Mode = AddrModeFlat;
+#elif defined(_M_IX86)
     frame.AddrPC.Offset = context.Eip;
     frame.AddrPC.Mode = AddrModeFlat;
     frame.AddrFrame.Offset = context.Ebp;
@@ -47,23 +54,14 @@ void sws_error_PrintStackTrace()
     {
         printf("[%3d] = [0x%p] :: ", i, frame.AddrPC.Offset);
 
-#if _WIN64
-        DWORD64 moduleBase = 0;
-#else
-        DWORD moduleBase = 0;
-#endif
-
-        moduleBase = SymGetModuleBase(process, frame.AddrPC.Offset);
+        UINT_PTR moduleBase = SymGetModuleBase(process, frame.AddrPC.Offset);
 
         char moduelBuff[MAX_PATH];
         if (moduleBase && GetModuleFileNameA((HINSTANCE)moduleBase, moduelBuff, MAX_PATH))
         {
         }
-#if _WIN64
-        DWORD64 offset = 0;
-#else
-        DWORD offset = 0;
-#endif
+
+        UINT_PTR offset = 0;
         char symbolBuffer[sizeof(IMAGEHLP_SYMBOL) + 255];
         PIMAGEHLP_SYMBOL symbol = (PIMAGEHLP_SYMBOL)symbolBuffer;
         symbol->SizeOfStruct = (sizeof(IMAGEHLP_SYMBOL)) + 255;

@@ -276,7 +276,7 @@ void _sws_WindowSwitcher_Wineventproc(
     }
 }
 
-static DWORD WINAPI _sws_WindowSwitcher_Calculate(sws_WindowSwitcher* _this, HWND* pOldHWNDs, DWORD cntOldHWNDs, DWORD dwOldIndex)
+static void WINAPI _sws_WindowSwitcher_Calculate(sws_WindowSwitcher* _this, HWND* pOldHWNDs, DWORD cntOldHWNDs, DWORD dwOldIndex)
 {
     HWND hWndInitial = (_this->mode == SWS_WINDOWSWITCHER_LAYOUTMODE_FULL && _this->layout.bIncludeWallpaper && _this->layout.bWallpaperAlwaysLast && _sws_WindowHelpers_IsDesktopRaised() && !IsWindowVisible(_this->hWnd)) ? _this->layout.hWndWallpaper : NULL;
 
@@ -1795,6 +1795,7 @@ static DWORD _sws_WindowSwitcher_EndTaskThreadProc(sws_WindowSwitcher_EndTaskThr
         PostMessageW(params->hWnd, WM_SYSCOMMAND, SC_CLOSE, 0);
     }
     free(params);
+    return 0;
 }
 
 static LRESULT _sws_WindowsSwitcher_WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
@@ -2029,7 +2030,7 @@ static LRESULT _sws_WindowsSwitcher_WndProc(HWND hWnd, UINT uMsg, WPARAM wParam,
                 int bContains = -1;
                 for (int i = 0; i < _this->pHWNDList.cbSize; ++i)
                 {
-                    if (pHWNDList[i].hWnd == lParam)
+                    if (pHWNDList[i].hWnd == (HWND)lParam)
                     {
                         bContains = i;
                         break;
@@ -2230,7 +2231,7 @@ static LRESULT _sws_WindowsSwitcher_WndProc(HWND hWnd, UINT uMsg, WPARAM wParam,
 
         if (wParam == HSHELL_WINDOWCREATED || wParam == HSHELL_WINDOWACTIVATED || wParam == HSHELL_RUDEAPPACTIVATED)
         {
-            if (IsWindowVisible(_this->hWnd) && lParam != _this->hWnd && sws_WindowHelpers_IsAltTabWindow(lParam))
+            if (IsWindowVisible(_this->hWnd) && (HWND)lParam != _this->hWnd && sws_WindowHelpers_IsAltTabWindow(lParam))
             {
                 HDPA hdpa = DPA_Create(SWS_VECTOR_CAPACITY);
                 EnumWindows(sws_WindowHelpers_AddAltTabWindowsToTimeStampedHWNDList, hdpa);
@@ -2716,6 +2717,7 @@ static DWORD _sws_WindowSwitcher_FlashAnimationProcedure(sws_WindowSwitcher* _th
             sws_nanosleep((LONGLONG)SWS_WINDOWSWITCHER_ANIMATOR_FLASH_DELAY * (LONGLONG)10000);
         }
     }
+    return 0;
 }
 
 static DWORD _sws_WindowSwitcher_ShowAsyncProcedure(sws_WindowSwitcher* _this)
@@ -2739,6 +2741,7 @@ static DWORD _sws_WindowSwitcher_ShowAsyncProcedure(sws_WindowSwitcher* _this)
             }
         }
     }
+    return 0;
 }
 
 static sws_error_t _sws_WindowSwitcher_RegisterWindowClass(sws_WindowSwitcher* _this)

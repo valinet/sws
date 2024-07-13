@@ -123,7 +123,7 @@ void sws_WindowSwitcher_RefreshTheme(sws_WindowSwitcher* _this);
 
 void _sws_WindowSwitcher_SwitchToSelectedItemAndDismiss(sws_WindowSwitcher* _this);
 
-static DWORD WINAPI _sws_WindowSwitcher_Calculate(sws_WindowSwitcher* _this, sws_WindowSwitcherLayout* pOldLayout);
+static void WINAPI _sws_WindowSwitcher_Calculate(sws_WindowSwitcher* _this, sws_WindowSwitcherLayout* pOldLayout);
 
 static sws_error_t _sws_WindowSwitcher_GetCloseButtonRectFromIndex(sws_WindowSwitcher* _this, DWORD dwIndex, LPRECT lpRect);
 

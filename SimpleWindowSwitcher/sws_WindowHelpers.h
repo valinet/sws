@@ -72,21 +72,21 @@ typedef struct IAppResolver_8Vtbl
 	BEGIN_INTERFACE
 
 	HRESULT(STDMETHODCALLTYPE* QueryInterface)(
-		sws_IInputSwitchControl* This,
+		IAppResolver_8* This,
 		/* [in] */ REFIID riid,
 		/* [annotation][iid_is][out] */
 		_COM_Outptr_  void** ppvObject);
 
 	ULONG(STDMETHODCALLTYPE* AddRef)(
-		sws_IInputSwitchControl* This);
+		IAppResolver_8* This);
 
 	ULONG(STDMETHODCALLTYPE* Release)(
-		sws_IInputSwitchControl* This);
+		IAppResolver_8* This);
 
-	HRESULT (STDMETHODCALLTYPE* GetAppIDForShortcut)();
-	HRESULT (STDMETHODCALLTYPE* GetAppIDForShortcutObject)();
-	HRESULT (STDMETHODCALLTYPE* GetAppIDForWindow)(HWND hWnd, WCHAR** pszAppId, void* pUnknown1, void* pUnknown2, void* pUnknown3);
-	HRESULT (STDMETHODCALLTYPE* GetAppIDForProcess)(DWORD dwProcessId, WCHAR** pszAppId, void* pUnknown1, void* pUnknown2, void* pUnknown3);
+	HRESULT (STDMETHODCALLTYPE* GetAppIDForShortcut)(IAppResolver_8* This);
+	HRESULT (STDMETHODCALLTYPE* GetAppIDForShortcutObject)(IAppResolver_8* This);
+	HRESULT (STDMETHODCALLTYPE* GetAppIDForWindow)(IAppResolver_8* This, HWND hWnd, WCHAR** pszAppId, int* pUnknown1, int* pUnknown2, int* pUnknown3);
+	HRESULT (STDMETHODCALLTYPE* GetAppIDForProcess)(IAppResolver_8* This, DWORD dwProcessId, WCHAR** pszAppId, int* pUnknown1, int* pUnknown2, int* pUnknown3);
 
 	END_INTERFACE
 } IAppResolver_8Vtbl;

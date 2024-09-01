@@ -600,7 +600,7 @@ BOOL CALLBACK sws_WindowHelpers_AddAltTabWindowsToTimeStampedHWNDList(HWND hWnd,
 	{
 		return FALSE;
 	}
-	if (sws_WindowHelpers_IsAltTabWindow(hWnd, NULL))
+	if (sws_WindowHelpers_IsAltTabWindow(hWnd))
 	{
 		sws_tshwnd* tshWnd = malloc(sizeof(sws_tshwnd));
 		if (tshWnd)

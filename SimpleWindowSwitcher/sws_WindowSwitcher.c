@@ -2231,7 +2231,7 @@ static LRESULT _sws_WindowsSwitcher_WndProc(HWND hWnd, UINT uMsg, WPARAM wParam,
 
         if (wParam == HSHELL_WINDOWCREATED || wParam == HSHELL_WINDOWACTIVATED || wParam == HSHELL_RUDEAPPACTIVATED)
         {
-            if (IsWindowVisible(_this->hWnd) && (HWND)lParam != _this->hWnd && sws_WindowHelpers_IsAltTabWindow(lParam))
+            if (IsWindowVisible(_this->hWnd) && (HWND)lParam != _this->hWnd && sws_WindowHelpers_IsAltTabWindow((HWND)lParam))
             {
                 HDPA hdpa = DPA_Create(SWS_VECTOR_CAPACITY);
                 EnumWindows(sws_WindowHelpers_AddAltTabWindowsToTimeStampedHWNDList, hdpa);

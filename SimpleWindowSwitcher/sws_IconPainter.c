@@ -167,7 +167,7 @@ void sws_IconPainter_DrawIcon(HICON hIcon, HDC hDC, HBRUSH hBrush, void* pGdipGr
         // Fallback to crappier drawing using GDI if GDI+ is unavailable
         if (bShouldFillBackground)
         {
-            DrawIconEx(hDC, x, y, hIcon, w, h, 0, NULL, hBrush, DI_NORMAL);
+            DrawIconEx(hDC, x, y, hIcon, w, h, 0, hBrush, DI_NORMAL);
         }
         else
         {

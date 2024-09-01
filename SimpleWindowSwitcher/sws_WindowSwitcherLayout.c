@@ -2,7 +2,7 @@
 
 static BOOL CALLBACK _sws_WindowSwitcherLayout_EnumWindowsCallback(_In_ HWND hWnd, _In_ sws_WindowSwitcherLayout* _this)
 {
-	if (sws_WindowHelpers_IsAltTabWindow(hWnd, _this->hWndWallpaper) || (_this->bIncludeWallpaper && !_this->bWallpaperAlwaysLast && hWnd == _this->hWndWallpaper))
+	if (sws_WindowHelpers_IsAltTabWindow(hWnd) || (_this->bIncludeWallpaper && !_this->bWallpaperAlwaysLast && hWnd == _this->hWndWallpaper))
 	{
 		sws_WindowSwitcherLayoutWindow swsLayoutWindow;
 		sws_WindowSwitcherLayoutWindow_Initialize(&swsLayoutWindow, hWnd, NULL);
@@ -24,6 +24,8 @@ sws_error_t sws_WindowSwitcherLayout_InvalidateLayout(sws_WindowSwitcherLayout* 
 	{
 		sws_WindowSwitcherLayoutWindow_Erase(&(pWindowList[iCurrentWindow]));
 	}
+
+	return rv;
 }
 
 static inline unsigned int _sws_WindowSwitcherLayout_GetInitialLeft(sws_WindowSwitcherLayout* _this)

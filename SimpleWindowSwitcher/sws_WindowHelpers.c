@@ -374,106 +374,96 @@ BOOL _sws_WindowHelpers_ShouldAddWindowToTrayHelper(HWND hWnd)
 	return FALSE;
 }
 
-char __fastcall _sws_IsOwnerToolWindow(HWND hWnd)
+BOOL _sws_TestExStyle(HWND hWnd, DWORD dwExStyle)
 {
-	char v1; // bl
-	HWND v2; // rsi
-	HWND Window; // rdi
-	HWND v4; // rbp
-	HWND v5; // rax
-	HWND v6; // rcx
-
-	v1 = 0;
-	v2 = hWnd;
-	Window = GetWindow(hWnd, 4u);
-	while ((GetWindowLongPtrW(v2, -20) & 0x40000) == 0 && Window)
-	{
-		v4 = v2;
-		v2 = Window;
-		v5 = GetWindow(Window, 4u);
-		v6 = Window;
-		Window = v5;
-		if ((GetWindowLongPtrW(v6, -20) & 0x80) == 0x80)
-		{
-			if ((GetWindowLongPtrW(v4, -20) & 0x10000) == 0 || Window)
-				return 1;
-
-			return v1;
-		}
-	}
-
-	return v1;
+	return dwExStyle == (dwExStyle & (DWORD)GetWindowLongPtrW(hWnd, GWL_EXSTYLE));
 }
 
-__int64 __fastcall _sws_IsTaskWindow(HWND a2)
+BOOLEAN _sws_IsOwnerToolWindow(HWND hwnd)
 {
-	HWND v5; // rdi
-	unsigned int v6; // ebx
-	int WindowLongPtrW; // ebp
-	HWND Window; // rsi
-	char v9; // si
-	char v10; // al
-	char v11; // r12
-	BOOL v12; // bp
-	HWND i; // rcx
-	int v14; // eax
-	HWND v15; // rax
-	HWND v16; // rsi
-	RECT Rect; // [rsp+20h] [rbp-38h] BYREF
-	RECT rc; // [rsp+30h] [rbp-28h] BYREF
+	BOOLEAN bRet = FALSE;
 
-	v5 = a2;
-	v6 = 0;
-	if (IsWindow(a2))
+	HWND hwndCurrent = hwnd;
+	HWND hwndOwner = GetWindow(hwnd, GW_OWNER);
+	while (!_sws_TestExStyle(hwndCurrent, WS_EX_APPWINDOW) && hwndOwner)
 	{
-		WindowLongPtrW = GetWindowLongPtrW(v5, -20);
-		Window = GetWindow(v5, 4u);
-		if (!IsWindow(Window)
-			//|| !IsWindowEnabled(Window)
-			|| (GetWindowRect(Window, &Rect), !IsWindowVisible(Window))
-			|| (v9 = 1, IsRectEmpty(&Rect)))
+		HWND hwndPrev = hwndCurrent;
+		hwndCurrent = hwndOwner;
+		hwndOwner = GetWindow(hwndOwner, GW_OWNER);
+		if (_sws_TestExStyle(hwndCurrent, WS_EX_TOOLWINDOW))
 		{
-			v9 = 0;
-		}
-
-		if ((WindowLongPtrW & 0x8000000) != 0 || (v10 = 0, (WindowLongPtrW & 0x80u) != 0))
-			v10 = 1;
-
-		v11 = v10;
-		v12 = (WindowLongPtrW & 0x40000i64) != 0;
-		if (v12)
-			v11 = 0;
-
-		GetWindowRect(v5, &rc);
-		if (IsWindowVisible(v5)
-			&& !IsRectEmpty(&rc)
-			//&& IsWindowEnabled(v5)
-			&& !v11
-			&& (v12 || !v9 && !_sws_IsOwnerToolWindow(v5))
-			&& !_sws_GhostWindowFromHungWindow(v5))
-		{
-			for (i = v5; ; i = v16)
-			{
-				v15 = GetWindow(i, 4u);
-				v16 = v15;
-				if (!v15)
-					break;
-
-				v14 = GetWindowLongPtrW(v15, -20);
-				if ((v14 & 0x40000i64) == 0 && ((v14 & 0x80u) != 0 || (v14 & 0x8000000) != 0))
-					break;
-
-				if (!IsWindowVisible(v16) || _sws_GhostWindowFromHungWindow(v16))
-					break;
-
-				v5 = v16;
-			}
-
-			return 1;
+			bRet = !_sws_TestExStyle(hwndPrev, WS_EX_CONTROLPARENT) || hwndOwner != NULL;
+			break;
 		}
 	}
 
-	return v6;
+	return bRet;
+}
+
+BOOL _sws_IsReallyVisible(HWND hWnd)
+{
+	RECT rc;
+	GetWindowRect(hWnd, &rc);
+	return IsWindowVisible(hWnd) && !IsRectEmpty(&rc);
+}
+
+BOOL _sws_IsGhosted(HWND hwnd)
+{
+	return _sws_GhostWindowFromHungWindow(hwnd) != NULL;
+}
+
+BOOL _sws_ShouldListWindowInAltTab(HWND hwnd)
+{
+	BOOL bRet = FALSE;
+
+	if (IsWindow(hwnd) /*&& hwnd != _hwnd*/)
+	{
+		DWORD dwExStyle = (DWORD)GetWindowLongPtrW(hwnd, GWL_EXSTYLE);
+		HWND hwndOwner = GetWindow(hwnd, GW_OWNER);
+		BOOLEAN bOwnerVisible = IsWindow(hwndOwner) && IsWindowEnabled(hwndOwner) && _sws_IsReallyVisible(hwndOwner);
+		BOOLEAN bNoActivate = (dwExStyle & WS_EX_NOACTIVATE) != 0 || (dwExStyle & WS_EX_TOOLWINDOW) != 0;
+		BOOLEAN bAppWindow = (dwExStyle & WS_EX_APPWINDOW) != 0;
+		if (bAppWindow)
+		{
+			bNoActivate = FALSE;
+		}
+		bRet = _sws_IsReallyVisible(hwnd)
+			// && IsWindowEnabled(hwnd)
+			&& !bNoActivate
+			&& (bAppWindow || !bOwnerVisible && !_sws_IsOwnerToolWindow(hwnd))
+			&& !_sws_IsGhosted(hwnd);
+	}
+
+	return bRet;
+}
+
+BOOL _sws__IsTaskWindow(HWND hwnd)
+{
+	DWORD dwExStyle = (DWORD)GetWindowLongPtrW(hwnd, GWL_EXSTYLE);
+	return ((dwExStyle & WS_EX_APPWINDOW) != 0 || ((dwExStyle & WS_EX_TOOLWINDOW) == 0 && (dwExStyle & WS_EX_NOACTIVATE) == 0))
+		&& IsWindowVisible(hwnd)
+		&& !_sws_IsGhosted(hwnd);
+}
+
+BOOL _sws_IsTaskWindow(HWND hwnd, HWND* phwndTaskWindow)
+{
+	BOOL bRet = FALSE;
+
+	if (_sws_ShouldListWindowInAltTab(hwnd))
+	{
+		HWND hwndTaskWindow = hwnd;
+		HWND hwndCurrent = hwnd;
+		while ((hwndCurrent = GetWindow(hwndCurrent, GW_OWNER)))
+		{
+			if (!_sws__IsTaskWindow(hwndCurrent))
+				break;
+			hwndTaskWindow = hwndCurrent;
+		}
+		*phwndTaskWindow = hwndTaskWindow;
+		bRet = TRUE;
+	}
+
+	return bRet;
 }
 
 wchar_t* sws_WindowHelpers_GetAUMIDForHWND(HWND hWnd)
@@ -533,7 +523,8 @@ BOOL sws_WindowHelpers_IsAltTabWindow(HWND hWnd)
 	// "task window" and only includes it in Alt-Tab if so; this check is taken from
 	// "AltTab.dll" in Windows 7 and this is how that OS decided to include a window in its
 	// window switcher
-	return _sws_IsTaskWindow(hWnd);
+	HWND hwndTaskWindow = NULL;
+	return _sws_IsTaskWindow(hWnd, &hwndTaskWindow);
 }
 
 void sws_WindowHelpers_GetDesktopText(wchar_t* wszTitle)
@@ -567,30 +558,50 @@ static BOOL CALLBACK _sws_WindowHelpers_GetWallpaperHWNDCallback(HWND hwnd, LPAR
 
 BOOL sws_WindowHelpers_EnsureWallpaperHWND()
 {
+	BOOL bRet = FALSE;
+
 	// See: https://github.com/valinet/ExplorerPatcher/issues/525
 	HWND hProgman = GetShellWindow();
 	if (hProgman)
 	{
-		PDWORD_PTR res0 = -1, res1 = -1, res2 = -1, res3 = -1;
+		DWORD_PTR res0 = -1, res1 = -1, res2 = -1, res3 = -1;
 		// CDesktopBrowser::_IsDesktopWallpaperInitialized and CWallpaperRenderer::ExpireImages
 		SendMessageTimeoutW(hProgman, 0x052C, 10, 0, SMTO_NORMAL, 1000, &res0);
-		if (FAILED(res0))
+		if (SUCCEEDED(res0))
 		{
-			return FALSE;
+			// Generate wallpaper window
+			SendMessageTimeoutW(hProgman, 0x052C, 13, 0, SMTO_NORMAL, 1000, &res1);
+			SendMessageTimeoutW(hProgman, 0x052C, 13, 1, SMTO_NORMAL, 1000, &res2);
+			SendMessageTimeoutW(hProgman, 0x052C, 0, 0, SMTO_NORMAL, 1000, &res3);
+			bRet = !res1 && !res2 && !res3;
 		}
-		// Generate wallpaper window
-		SendMessageTimeoutW(hProgman, 0x052C, 13, 0, SMTO_NORMAL, 1000, &res1);
-		SendMessageTimeoutW(hProgman, 0x052C, 13, 1, SMTO_NORMAL, 1000, &res2);
-		SendMessageTimeoutW(hProgman, 0x052C, 0, 0, SMTO_NORMAL, 1000, &res3);
-		return !res1 && !res2 && !res3;
 	}
-	return FALSE;
+
+	return bRet;
 }
 
 HWND sws_WindowHelpers_GetWallpaperHWND()
 {
 	HWND hWnd = NULL;
-	EnumWindows(_sws_WindowHelpers_GetWallpaperHWNDCallback, &hWnd);
+
+	// 24H2 has the Progman window as the whole desktop (icons + wallpaper)
+	// Check if SHELLDLL_DefView is a direct child of Progman
+	HWND hWndProgman = GetShellWindow();
+	if (hWndProgman)
+	{
+		HWND hWndDefView = FindWindowExW(hWndProgman, NULL, L"SHELLDLL_DefView", NULL);
+		if (hWndDefView)
+		{
+			hWnd = hWndProgman; // We're running on 24H2 or newer
+		}
+	}
+
+	// Otherwise find a top-level WorkerW window with a SHELLDLL_DefView child, that's our desktop icons
+	if (!hWnd)
+	{
+		EnumWindows(_sws_WindowHelpers_GetWallpaperHWNDCallback, &hWnd);
+	}
+
 	return hWnd;
 }
 

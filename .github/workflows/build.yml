@@ -4,11 +4,11 @@ on: [push]
 
 jobs:
   build:
-    runs-on: windows-latest
+    runs-on: windows-2025
 
     steps:
-    - name: Checkout latest build
-      uses: actions/checkout@v2
+    - name: Checkout Repository
+      uses: actions/checkout@v4
       
     - name: Declare some variables
       id: vars
@@ -18,7 +18,7 @@ jobs:
         echo "::set-output name=sha_short::$(git rev-parse --short HEAD)"
 
     - name: Add MSBuild to PATH
-      uses: microsoft/setup-msbuild@v1.0.2
+      uses: microsoft/setup-msbuild@v2
 
     - name: Build
       working-directory: ${{env.GITHUB_WORKSPACE}}
@@ -27,7 +27,7 @@ jobs:
       run: msbuild /m /p:Configuration=Release /p:Platform=x64 SimpleWindowSwitcher.sln
       
     - name: Upload artifacts
-      uses: actions/upload-artifact@v2
+      uses: actions/upload-artifact@v4
       with:
         name: sws_bin_amd64_${{ steps.vars.outputs.sha_short }}_${{ steps.vars.outputs.branch }}
         path: |

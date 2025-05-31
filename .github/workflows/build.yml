@@ -14,8 +14,10 @@ jobs:
       id: vars
       shell: bash
       run: |
-        echo "##[set-output name=branch;]$(echo ${GITHUB_REF#refs/heads/})"
-        echo "::set-output name=sha_short::$(git rev-parse --short HEAD)"
+          branch=$(echo ${GITHUB_REF#refs/heads/})
+          sha_short=$(git rev-parse --short HEAD)
+          echo "branch=${branch}" >> $GITHUB_OUTPUT
+          echo "sha_short=${sha_short}" >> $GITHUB_OUTPUT
 
     - name: Add MSBuild to PATH
       uses: microsoft/setup-msbuild@v2
